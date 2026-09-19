@@ -14,7 +14,8 @@ import {
   Sun,
   Moon,
   BarChart2,
-  FolderLock
+  FolderLock,
+  ShieldCheck
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -159,6 +160,21 @@ export default function Sidebar({
             >
               <Layers size={14} />
               <span>Propiedades Físicas</span>
+            </button>
+          </div>
+
+          {/* AUDITORÍA */}
+          <div className="space-y-1">
+            <span className="text-xs font-black text-slate-500 uppercase tracking-widest block px-3 mb-1.5">Control de Calidad</span>
+            <button
+              onClick={() => setCurrentTab('auditoria')}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all border ${currentTab === 'auditoria'
+                ? 'bg-amber-500/10 border-amber-500/20 text-amber-400 font-black border-l-2 border-l-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
+                : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/20'
+                }`}
+            >
+              <ShieldCheck size={14} className={currentTab === 'auditoria' ? 'text-amber-400' : 'text-slate-400'} />
+              <span>Auditoría QA/QC</span>
             </button>
           </div>
 

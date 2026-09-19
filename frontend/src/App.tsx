@@ -11,6 +11,7 @@ import NotificationItem from './components/NotificationItem';
 import ExcelImportModal from './components/ExcelImportModal';
 import ExcelExportModal from './components/ExcelExportModal';
 import CatalogsModal from './components/CatalogsModal';
+import BulkAuditor from './features/auditor/BulkAuditor';
 
 import { validateAllRecords, type QAQCAlert } from './utils/qaqcValidator';
 import { getColumnsForModule } from './utils/columnsConfig';
@@ -37,6 +38,13 @@ export default function App() {
   const [history, setHistory] = useState<string[]>(['dashboard']);
   const [records, setRecords] = useState<Record<string, any>[]>([]);
   const [lastSavedRecords, setLastSavedRecords] = useState<Record<string, any>[]>([]);
+
+  // Paginación y búsqueda Server-Side
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(50);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [totalRecords, setTotalRecords] = useState<number>(0);
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   const [proyectos, setProyectos] = useState<Proyecto[]>([]);
   const [lastSavedProyectos, setLastSavedProyectos] = useState<Proyecto[]>([]);
@@ -92,6 +100,32 @@ export default function App() {
     return () => document.removeEventListener('wheel', handleWheel);
   }, []);
 
+  const loadEnsayos = async (p = 1, ps = pageSize, q = searchQuery, tab = currentTab) => {
+    try {
+      const params = new URLSearchParams({
+        page: String(p),
+        page_size: String(ps),
+      });
+      if (q && q.trim()) params.append('q', q.trim());
+      const testModules = ['ucs', 'elasticas', 'traccion', 'corte', 'triaxial', 'propiedades'];
+      if (testModules.includes(tab)) {
+        params.append('tipo_ensayo', tab);
+      }
+      const res = await fetch(`${API_BASE}/api/ensayos?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setRecords(data.items || []);
+        setLastSavedRecords(JSON.parse(JSON.stringify(data.items || [])));
+        setTotalPages(data.total_pages || 1);
+        setTotalRecords(data.total_filtered || 0);
+        setPage(data.page || 1);
+        setSaveStatus('synced');
+      }
+    } catch (e) {
+      console.warn("Fallo al cargar ensayos paginados", e);
+    }
+  };
+
   // Carga inicial de datos
   useEffect(() => {
     fetch(`${API_BASE}/api/db-status`)
@@ -103,15 +137,8 @@ export default function App() {
         setIsConnected(true);
         setDbInfo(dbStatus);
 
-        // Cargar registros
-        fetch(`${API_BASE}/api/registros?limit=10000`)
-          .then(res => res.json())
-          .then(data => {
-            const items = data.items || [];
-            setRecords(items);
-            setLastSavedRecords(JSON.parse(JSON.stringify(items)));
-            setSaveStatus('synced');
-          });
+        // Cargar registros paginados
+        loadEnsayos(1, 50, '', 'dashboard');
 
         // Cargar proyectos
         fetch(`${API_BASE}/api/proyectos`)
@@ -174,6 +201,11 @@ export default function App() {
     if (currentTab === tabName) return;
     setHistory(prev => [...prev, tabName]);
     setCurrentTab(tabName);
+    const testModules = ['registro_maestro', 'ucs', 'elasticas', 'traccion', 'corte', 'triaxial', 'propiedades'];
+    if (testModules.includes(tabName)) {
+      setPage(1);
+      loadEnsayos(1, pageSize, searchQuery, tabName);
+    }
   };
 
   const handleBack = () => {
@@ -299,7 +331,7 @@ export default function App() {
     }
     setSaveStatus('saving');
     try {
-      const res = await fetch(`${API_BASE}/api/records/bulk`, {
+      const res = await fetch(`${API_BASE}/api/ensayos/batch-upsert`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(records)
@@ -308,7 +340,7 @@ export default function App() {
         localStorage.setItem('sigeg_records_v2', JSON.stringify(records));
         setLastSavedRecords(JSON.parse(JSON.stringify(records)));
         setSaveStatus('synced');
-        triggerNotification("Guardado Exitoso", "Toda la base de datos se ha sincronizado correctamente.", "success");
+        triggerNotification("Guardado Exitoso", "Registros sincronizados con éxito en SQL Server.", "success");
       } else {
         throw new Error();
       }
@@ -354,7 +386,7 @@ export default function App() {
     const fullMergedList = [...recordsToSend, ...newRecordsCleaned];
 
     try {
-      const res = await fetch(`${API_BASE}/api/records/bulk`, {
+      const res = await fetch(`${API_BASE}/api/ensayos/batch-upsert`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(fullMergedList)
@@ -503,6 +535,31 @@ export default function App() {
               clearHighlight={() => setHighlightedCell(null)}
               onFocusField={handleFocusField}
               proyectosList={proyectos}
+              page={page}
+              pageSize={pageSize}
+              totalPages={totalPages}
+              totalRecords={totalRecords}
+              onPageChange={(newPage) => {
+                setPage(newPage);
+                loadEnsayos(newPage, pageSize, searchQuery, currentTab);
+              }}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+                loadEnsayos(1, newSize, searchQuery, currentTab);
+              }}
+              onSearchServer={(q) => {
+                setSearchQuery(q);
+                setPage(1);
+                loadEnsayos(1, pageSize, q, currentTab);
+              }}
+            />
+          )}
+
+          {currentTab === 'auditoria' && (
+            <BulkAuditor
+              apiBase={API_BASE}
+              onAuditSynced={() => loadEnsayos(page, pageSize, searchQuery, currentTab)}
             />
           )}
 

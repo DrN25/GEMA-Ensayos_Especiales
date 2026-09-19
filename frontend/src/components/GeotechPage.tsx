@@ -17,6 +17,13 @@ interface GeotechPageProps {
     clearHighlight: () => void;
     onFocusField: (idd: number, field: string, tab: string) => void;
     proyectosList?: { nombre: string }[]; // Lista de proyectos activos
+    page?: number;
+    pageSize?: number;
+    totalPages?: number;
+    totalRecords?: number;
+    onPageChange?: (page: number) => void;
+    onPageSizeChange?: (pageSize: number) => void;
+    onSearchServer?: (query: string) => void;
 }
 
 const TITLE_MAP: Record<string, string> = {
@@ -42,7 +49,14 @@ export default function GeotechPage({
     highlightedCell,
     clearHighlight,
     onFocusField,
-    proyectosList = []
+    proyectosList = [],
+    page = 1,
+    pageSize = 50,
+    totalPages = 1,
+    totalRecords,
+    onPageChange,
+    onPageSizeChange,
+    onSearchServer
 }: GeotechPageProps) {
     const [activeTab, setActiveTab] = useState<'table' | 'graphs' | 'qaqc'>('table');
     const [openAccordions, setOpenAccordions] = useState<Record<string, boolean>>({
@@ -124,6 +138,9 @@ export default function GeotechPage({
         setAppliedMuestra(inputMuestra);
         setAppliedLaboratorio(inputLaboratorio);
         setAppliedQaqcStatus(inputQaqcStatus);
+        if (onSearchServer) {
+            onSearchServer(inputSondaje || inputMuestra);
+        }
     };
 
     const handleClearFilters = () => {
@@ -136,6 +153,9 @@ export default function GeotechPage({
         setAppliedMuestra('');
         setAppliedLaboratorio('');
         setAppliedQaqcStatus('Todos');
+        if (onSearchServer) {
+            onSearchServer('');
+        }
     };
 
     const currentModuleAlerts = qaqcAlerts.filter(a => a.tab === moduleName);
@@ -320,6 +340,12 @@ export default function GeotechPage({
                         highlightedCell={highlightedCell}
                         clearHighlight={clearHighlight}
                         proyectosList={proyectosList}
+                        page={page}
+                        pageSize={pageSize}
+                        totalPages={totalPages}
+                        totalRecords={totalRecords}
+                        onPageChange={onPageChange}
+                        onPageSizeChange={onPageSizeChange}
                     />
                 </div>
             )}

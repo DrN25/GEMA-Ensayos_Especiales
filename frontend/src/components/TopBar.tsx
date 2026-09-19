@@ -28,6 +28,7 @@ const MODULE_LABELS: Record<string, string> = {
     corte: "Corte Directo",
     triaxial: "Compresión Triaxial",
     propiedades: "Propiedades Físicas",
+    auditoria: "Auditoría QA/QC",
     reportes: "Reportes"
 };
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { ColumnDef } from '../utils/columnsConfig';
 import { getColumnsForModule, COLUMNS_CONFIG, clampValue } from '../utils/columnsConfig';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { QAQCAlert } from '../utils/qaqcValidator';
 
 interface DataGridProps {
@@ -15,6 +15,12 @@ interface DataGridProps {
   highlightedCell: { idd: number; field: string } | null;
   clearHighlight: () => void;
   proyectosList?: { nombre: string }[];
+  page?: number;
+  pageSize?: number;
+  totalPages?: number;
+  totalRecords?: number;
+  onPageChange?: (page: number) => void;
+  onPageSizeChange?: (pageSize: number) => void;
 }
 
 export default function DataGrid({
@@ -27,7 +33,13 @@ export default function DataGrid({
   onInsertRowBelow,
   highlightedCell,
   clearHighlight,
-  proyectosList = []
+  proyectosList = [],
+  page = 1,
+  pageSize = 50,
+  totalPages = 1,
+  totalRecords,
+  onPageChange,
+  onPageSizeChange
 }: DataGridProps) {
   const isMasterView = moduleName === 'registro_maestro';
   const baseCols = getColumnsForModule(moduleName);
@@ -888,6 +900,55 @@ export default function DataGrid({
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* Barra de Paginación Rápida */}
+        <div className="flex flex-wrap items-center justify-between px-4 py-3 bg-navy-950/80 border-t border-navy-800 text-xs text-slate-400 gap-3">
+          <div className="flex items-center gap-3">
+            <span>
+              Página <span className="font-bold text-slate-200">{page}</span> de{' '}
+              <span className="font-bold text-slate-200">{totalPages}</span>
+              {totalRecords !== undefined && (
+                <span className="text-slate-500 ml-1.5">
+                  ({totalRecords.toLocaleString()} registros totales)
+                </span>
+              )}
+            </span>
+
+            {onPageSizeChange && (
+              <div className="flex items-center gap-1.5 pl-3 border-l border-navy-800">
+                <span className="text-slate-500 text-[11px]">Mostrar:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => onPageSizeChange(Number(e.target.value))}
+                  className="bg-navy-900 border border-navy-800 rounded px-2 py-0.5 text-xs text-slate-300 outline-none"
+                >
+                  <option value={25}>25 filas</option>
+                  <option value={50}>50 filas</option>
+                  <option value={100}>100 filas</option>
+                </select>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onPageChange && onPageChange(Math.max(1, page - 1))}
+              disabled={page <= 1 || !onPageChange}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-navy-800 bg-navy-900 text-slate-300 hover:bg-navy-800 hover:text-white transition-all disabled:opacity-30 disabled:pointer-events-none font-bold"
+            >
+              <ChevronLeft size={14} />
+              <span>Anterior</span>
+            </button>
+            <button
+              onClick={() => onPageChange && onPageChange(Math.min(totalPages, page + 1))}
+              disabled={page >= totalPages || !onPageChange}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-navy-800 bg-navy-900 text-slate-300 hover:bg-navy-800 hover:text-white transition-all disabled:opacity-30 disabled:pointer-events-none font-bold"
+            >
+              <span>Siguiente</span>
+              <ChevronRight size={14} />
+            </button>
+          </div>
         </div>
       </div>
     </div>

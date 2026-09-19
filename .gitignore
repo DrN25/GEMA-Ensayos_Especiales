@@ -40,3 +40,7 @@ cloudflared.exe
 *.njsproj
 *.sln
 *.sw?
+
+# Testing & Uploads
+.pytest_cache/
+backend/uploads/

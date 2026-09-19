@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
 class ProyectoBase(BaseModel):
     id: Optional[int] = None
@@ -133,4 +133,16 @@ class RegistroMaestroUpdate(BaseModel):
     campana: Optional[str] = None
 
 class RegistroMaestroResponse(RegistroMaestroBase):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="allow")
+
+class EnsayosItemResponse(RegistroMaestroBase):
+    model_config = ConfigDict(from_attributes=True, extra="allow")
+
+class EnsayosPaginatedResponse(BaseModel):
+    items: List[Dict[str, Any]]
+    page: int
+    page_size: int
+    total_filtered: int
+    total_pages: int
+    total_global: int
+    kpis: Dict[str, Any]

@@ -11,7 +11,7 @@ interface NotificationProps {
 
 export default function NotificationItem({ id, type, title, message, onClose }: NotificationProps) {
     const [isHovered, setIsHovered] = useState(false);
-    const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         if (!isHovered) {
