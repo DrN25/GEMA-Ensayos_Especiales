@@ -1,0 +1,195 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Premium Light Mode Palette - Clean Slate, Crisp Borders, Charcoal Text */
+  --navy-50: 15, 23, 42;
+  /* text-navy-50 -> dark slate */
+  --navy-100: 30, 41, 59;
+  --navy-200: 51, 65, 85;
+  --navy-300: 71, 85, 105;
+  --navy-400: 100, 116, 139;
+  --navy-500: 99, 102, 241;
+  /* Premium Indigo as accent */
+  --navy-600: 79, 70, 229;
+  /* Darker Indigo */
+  --navy-700: 67, 56, 202;
+  /* Darkest Indigo */
+  --navy-800: 203, 213, 225;
+  /* Borders in light mode */
+  --navy-850: 226, 232, 240;
+  /* Secondary card background */
+  --navy-900: 241, 245, 249;
+  /* Section/table-header background */
+  --navy-950: 255, 255, 255;
+  /* Primary page/panel background */
+
+  --slate-50: 15, 23, 42;
+  /* inverted scale for light mode readability */
+  --slate-100: 15, 23, 42;
+  --slate-200: 30, 41, 59;
+  --slate-300: 51, 65, 85;
+  --slate-400: 71, 85, 105;
+  --slate-500: 100, 116, 139;
+  --slate-600: 148, 163, 184;
+  --slate-700: 203, 213, 225;
+  --slate-800: 226, 232, 240;
+  --slate-900: 241, 245, 249;
+  --slate-950: 248, 250, 252;
+
+  --bg-app: #f8fafc;
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
+  --scrollbar-track: #f1f5f9;
+}
+
+.dark {
+  /* Premium Geomechanical Slate Blue Palette - Matching VENTANAS 2.0 exactly! */
+  --navy-50: 241, 245, 249;
+  --navy-100: 226, 232, 240;
+  --navy-200: 203, 213, 225;
+  --navy-300: 148, 163, 184;
+  --navy-400: 99, 102, 241;
+  /* Indigo */
+  --navy-500: 79, 70, 229;
+  --navy-600: 67, 56, 202;
+  --navy-700: 55, 48, 163;
+  --navy-800: 30, 41, 59;
+  /* border-slate-800 equivalent */
+  --navy-850: 15, 23, 42;
+  /* slate-900 equivalent */
+  --navy-900: 15, 23, 42;
+  --navy-950: 11, 17, 32;
+  /* #0b1120 (Slate-950 equivalent - Sidebar background) */
+
+  --slate-50: 248, 250, 252;
+  --slate-100: 241, 245, 249;
+  --slate-200: 226, 232, 240;
+  --slate-300: 203, 213, 225;
+  --slate-400: 148, 163, 184;
+  --slate-500: 100, 116, 139;
+  --slate-600: 71, 85, 105;
+  --slate-700: 51, 65, 85;
+  --slate-800: 30, 41, 59;
+  --slate-900: 15, 23, 42;
+  --slate-950: 11, 17, 32;
+
+  --bg-app: #0b1329;
+  /* Premium Deep Slate Blue Workspace Background! */
+  --scrollbar-thumb: rgba(255, 255, 255, 0.08);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.15);
+  --scrollbar-track: rgba(255, 255, 255, 0.01);
+}
+
+@layer base {
+  body {
+    @apply transition-colors duration-200;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: var(--bg-app);
+  }
+}
+
+/* Glassmorphism custom classes */
+.glass-panel {
+  background-color: rgba(15, 23, 42, 0.45);
+  /* Translucent navy */
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.light .glass-panel {
+  background-color: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03);
+}
+
+/* Custom scrollbars for grids */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* Animaciones */
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4);
+  }
+
+  70% {
+    box-shadow: 0 0 0 10px rgba(99, 102, 241, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+  }
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 2s infinite;
+}
+
+/* Hide default browser spinners (arrows) on numeric inputs */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+}
+
+input[type=number] {
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
+}
+
+/* ================================================================
+ * Chrome-dark: Sidebar & Topbar always use deep obsidian background
+ * regardless of light/dark mode toggle
+ * ================================================================ */
+.chrome-dark {
+  background-color: rgba(11, 17, 32, 0.96) !important;
+  /* #0b1120 equivalent */
+  backdrop-filter: blur(14px) !important;
+  border-color: rgba(30, 41, 59, 0.8) !important;
+  color: #cbd5e1;
+}
+
+.chrome-dark * {
+  --tw-border-opacity: 1;
+}
+
+/* Force border color to remain navy-800-like in light mode */
+.light .chrome-dark {
+  background-color: rgba(11, 17, 32, 0.98) !important;
+  border-color: rgba(30, 41, 59, 0.92) !important;
+}
+
+/* Scrollbar in chrome-dark areas */
+.chrome-dark ::-webkit-scrollbar-track {
+  background: rgba(11, 17, 32, 0.6);
+}
+
+.chrome-dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+}
+
+/* Fix border collapse issue in tables with sticky headers/columns */
+.border-separate th,
+.border-separate td {
+  border-bottom-width: 1px;
+  border-bottom-color: rgba(255, 255, 255, 0.03);
+}
