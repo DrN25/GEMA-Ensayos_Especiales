@@ -70,6 +70,43 @@ def test_float_fields_precision_roundtrip(client, sample_ensayo_dict, col):
         f"Falla de precisión en columna '{col_name}': se guardó {test_decimal} pero se recuperó {retrieved_val}"
     )
 
+@pytest.mark.parametrize("col", STR_COLS, ids=lambda c: c["db_name"])
+def test_string_fields_persistence_roundtrip(client, sample_ensayo_dict, col):
+    """
+    Prueba parametrizada para CADA columna de texto/string del Registro Maestro:
+    Garantiza que cadenas de texto se persistan y recuperen sin truncamiento,
+    sin alterar formato y respetando caracteres válidos.
+    """
+    col_name = col["db_name"]
+    client.post("/api/ensayos/batch-upsert", json=[sample_ensayo_dict])
+
+    test_str = f"TEST_{col_name.upper()[:12]}"
+    res_put = client.put(f"/api/ensayos/{sample_ensayo_dict['idd']}", json={col_name: test_str})
+    assert res_put.status_code == 200
+
+    res_get = client.get(f"/api/ensayos/{sample_ensayo_dict['idd']}")
+    assert res_get.status_code == 200
+    assert res_get.json()[col_name] == test_str
+
+@pytest.mark.parametrize("col", INT_COLS, ids=lambda c: c["db_name"])
+def test_int_fields_persistence_roundtrip(client, sample_ensayo_dict, col):
+    """
+    Prueba parametrizada para CADA columna entera del Registro Maestro:
+    Garantiza que se persista exactamente como tipo entero sin conversiones float no deseadas.
+    """
+    col_name = col["db_name"]
+    client.post("/api/ensayos/batch-upsert", json=[sample_ensayo_dict])
+
+    test_int = 28 if col_name == "dia" else 2030
+    res_put = client.put(f"/api/ensayos/{sample_ensayo_dict['idd']}", json={col_name: test_int})
+    assert res_put.status_code == 200
+
+    res_get = client.get(f"/api/ensayos/{sample_ensayo_dict['idd']}")
+    assert res_get.status_code == 200
+    retrieved = res_get.json()[col_name]
+    assert retrieved == test_int
+    assert isinstance(retrieved, int)
+
 def test_atomic_single_field_update_preserves_untouched_columns(client, sample_ensayo_dict):
     """
     Garantiza que actualizar UN SOLO campo (ej. modificar sondaje) no borre, altere ni
