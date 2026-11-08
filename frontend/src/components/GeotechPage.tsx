@@ -356,6 +356,7 @@ export default function GeotechPage({
                             moduleName={moduleName}
                             initialRecords={filteredRecords}
                             proyectosList={proyectosList}
+                            qaqcAlerts={qaqcAlerts}
                             onDeleteRow={onDeleteRow ? onDeleteRow : (id) => setRecords(prev => prev.filter(r => r.idd !== id))}
                             height="calc(100vh - 280px)"
                         />

@@ -252,28 +252,6 @@ export const GRID_COLUMNS_DEFINITION: GridColumnDef[] = [
     options: TIPO_ENSAYO_OPTIONS,
     hint: 'Tipo de ensayo geomecánico de laboratorio'
   },
-  {
-    id: 'observacion',
-    header: 'Observación',
-    group: 'Datos Comunes de Campo',
-    accessorKey: 'observacion',
-    defaultWidth: 160,
-    minWidth: 100,
-    type: 'string',
-    editor: 'text',
-    hint: 'Observaciones o notas de campo'
-  },
-  {
-    id: 'campana',
-    header: 'Campaña',
-    group: 'Datos Comunes de Campo',
-    accessorKey: 'campana',
-    defaultWidth: 130,
-    minWidth: 80,
-    type: 'string',
-    editor: 'text',
-    hint: 'Campaña de perforación'
-  },
 
   // =========================================================================
   // GRUPO 3: Ensayo de Compresión Simple (UCS)
@@ -615,7 +593,45 @@ export const GRID_COLUMNS_DEFINITION: GridColumnDef[] = [
   },
 
   // =========================================================================
-  // GRUPO 8: Propiedades Físicas
+  // GRUPO 8: Validación y Cierre
+  // =========================================================================
+  {
+    id: 'qaqc_validacion',
+    header: 'Validación QA/QC',
+    group: 'Validación y Cierre',
+    accessorKey: 'qaqc_validacion',
+    defaultWidth: 125,
+    minWidth: 100,
+    maxWidth: 160,
+    type: 'readonly',
+    editor: 'none',
+    hint: 'Estado de validación geomecánica QA/QC'
+  },
+  {
+    id: 'observacion',
+    header: 'Observación',
+    group: 'Validación y Cierre',
+    accessorKey: 'observacion',
+    defaultWidth: 160,
+    minWidth: 100,
+    type: 'string',
+    editor: 'text',
+    hint: 'Observaciones o notas de campo'
+  },
+  {
+    id: 'campana',
+    header: 'Campaña',
+    group: 'Validación y Cierre',
+    accessorKey: 'campana',
+    defaultWidth: 130,
+    minWidth: 80,
+    type: 'string',
+    editor: 'text',
+    hint: 'Campaña de perforación'
+  },
+
+  // =========================================================================
+  // GRUPO 9: Propiedades Físicas
   // =========================================================================
   {
     id: 'prop_peso_unitario_geometrico',
@@ -632,7 +648,7 @@ export const GRID_COLUMNS_DEFINITION: GridColumnDef[] = [
   },
 
   // =========================================================================
-  // GRUPO 9: Acciones Fijas (Pinned Right)
+  // GRUPO 10: Acciones Fijas (Pinned Right)
   // =========================================================================
   {
     id: 'acciones_col',
@@ -661,23 +677,27 @@ export function getGridColumnsForModule(
   return GRID_COLUMNS_DEFINITION.filter(col => {
     if (isMaster) return true;
 
-    // Para un módulo específico, siempre incluir columnas de Identificación y Acciones
-    if (col.group === 'Identificación de Muestra' || col.group === 'Acciones') {
-      return true;
-    }
+    // Identificación de muestra siempre visible
+    if (col.group === 'Identificación de Muestra') return true;
 
-    // Datos Comunes
-    if (col.group === 'Datos Comunes de Campo') {
-      return true;
-    }
+    // Datos Comunes de Campo siempre visibles
+    if (col.group === 'Datos Comunes de Campo') return true;
 
-    // Filtro por ensayo
+    // Filtro por ensayo específico
     if (moduleName === 'ucs' && col.group === 'Ensayo UCS') return true;
     if (moduleName === 'elasticas' && col.group === 'Constantes Elásticas') return true;
     if (moduleName === 'traccion' && col.group === 'Tracción Indirecta') return true;
     if (moduleName === 'corte' && col.group === 'Corte Directo') return true;
     if (moduleName === 'triaxial' && col.group === 'Compresión Triaxial') return true;
     if (moduleName === 'propiedades' && col.group === 'Propiedades Físicas') return true;
+
+    // Validación QA/QC y Observación siempre al final de cada módulo
+    if (col.id === 'qaqc_validacion' || col.id === 'observacion') return true;
+
+    // Campaña, Propiedades Físicas y Acciones solo en registro maestro
+    if (col.id === 'campana' || col.id === 'prop_peso_unitario_geometrico' || col.id === 'acciones_col') {
+      return false;
+    }
 
     return false;
   }).map(col => {

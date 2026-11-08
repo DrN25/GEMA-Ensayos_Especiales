@@ -17,6 +17,7 @@ export interface VirtualizedGridProps {
   moduleName?: string;
   initialRecords?: Record<string, any>[];
   proyectosList?: { nombre: string }[];
+  qaqcAlerts?: any[];
   onDeleteRow?: (idd: number) => void;
   height?: string | number;
 }
@@ -25,6 +26,38 @@ export interface VirtualizedGridProps {
 const EMPTY_DATA: any[] = [];
 const EMPTY_STYLE: React.CSSProperties = {};
 
+/**
+ * Formateador de paridad numérica con v1:
+ * - Enteros: idd, dia, anio -> enteros limpios
+ * - Flotantes: max 2 decimales redondeados (evita 0.21999999999999886 -> 0.22, 4451.667525 -> 4451.67)
+ * - Vacíos/nulos -> '—'
+ */
+export function formatDisplayValue(val: any, colDef?: GridColumnDef): string {
+  if (val === null || val === undefined || val === '') return '—';
+
+  if (colDef?.type === 'number') {
+    const num = typeof val === 'number' ? val : parseFloat(String(val));
+    if (isNaN(num)) return '—';
+
+    // Campos enteros conocidos
+    if (colDef.id === 'idd' || colDef.id === 'dia' || colDef.id === 'anio') {
+      return String(Math.round(num));
+    }
+
+    // Campos decimales de geotecnia: redondeo a 2 decimales
+    const rounded = parseFloat(num.toFixed(2));
+    return String(rounded);
+  }
+
+  if (typeof val === 'number') {
+    if (Number.isInteger(val)) return String(val);
+    return String(parseFloat(val.toFixed(2)));
+  }
+
+  const s = String(val).trim();
+  return s === '' ? '—' : s;
+}
+
 interface GridRowProps {
   virtualRow: { index: number; start: number; size: number };
   rowId: number;
@@ -32,6 +65,7 @@ interface GridRowProps {
   rowVersion: number;
   leafColumns: any[];
   activeColKey: string | null;
+  qaqcRowStatus?: { hasCritical: boolean; hasWarning: boolean };
   onCellClick: (rowIdx: number, colKey: string, e: React.MouseEvent<HTMLTableCellElement>) => void;
   onCellDoubleClick: (rowIdx: number, colKey: string, e: React.MouseEvent<HTMLTableCellElement>) => void;
   onInsertRowBelow: (rowIdx: number) => void;
@@ -44,6 +78,7 @@ const GridRow = React.memo<GridRowProps>(({
   record,
   leafColumns,
   activeColKey,
+  qaqcRowStatus,
   onCellClick,
   onCellDoubleClick,
   onInsertRowBelow,
@@ -71,15 +106,18 @@ const GridRow = React.memo<GridRowProps>(({
         const colKey = col.id;
         const meta: any = col.columnDef.meta;
         const isStickyLeft = meta?.isStickyLeft;
+        const isStickyRight = meta?.isStickyRight;
         const leftOffset = meta?.stickyOffset ?? 0;
+        const rightOffset = meta?.stickyRightOffset ?? 0;
         const isActive = activeColKey === colKey;
+        const colDef: GridColumnDef | undefined = meta?.gridDef;
 
-        // Columna especial de acciones fijas
+        // 1. Columna especial de acciones fijas
         if (colKey === 'acciones_col') {
           return (
             <td
               key={colKey}
-              style={{ width: `${col.getSize()}px`, right: 0 }}
+              style={{ width: `${col.getSize()}px`, right: `${rightOffset}px` }}
               className="sticky z-10 bg-navy-950 text-center py-1 px-1 border-l-2 border-b border-navy-800"
             >
               <div className="flex items-center justify-center gap-1.5">
@@ -89,7 +127,7 @@ const GridRow = React.memo<GridRowProps>(({
                     e.stopPropagation();
                     onInsertRowBelow(virtualRow.index);
                   }}
-                  className="p-1 rounded text-slate-400 hover:text-sky-400 hover:bg-sky-500/15 transition-all"
+                  className="p-1 rounded text-slate-400 hover:text-sky-400 hover:bg-sky-500/15"
                   title="Insertar fila abajo"
                 >
                   <Plus size={13} />
@@ -100,7 +138,7 @@ const GridRow = React.memo<GridRowProps>(({
                     e.stopPropagation();
                     onDeleteRow(rowId);
                   }}
-                  className="p-1 rounded text-slate-400 hover:text-rose-400 hover:bg-rose-500/15 transition-all"
+                  className="p-1 rounded text-slate-400 hover:text-rose-400 hover:bg-rose-500/15"
                   title="Eliminar fila"
                 >
                   <Trash2 size={13} />
@@ -110,9 +148,49 @@ const GridRow = React.memo<GridRowProps>(({
           );
         }
 
-        // Renderizado de celdas estándar
+        // 2. Columna especial de Validación QA/QC
+        if (colKey === 'qaqc_validacion') {
+          const sondaje = record.sondaje;
+          let badge = (
+            <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wide">
+              Validado
+            </span>
+          );
+          if (!sondaje) {
+            badge = (
+              <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-500/10 text-slate-400 border border-slate-500/20 uppercase tracking-wide">
+                Sin Validar
+              </span>
+            );
+          } else if (qaqcRowStatus?.hasCritical) {
+            badge = (
+              <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 uppercase tracking-wide">
+                No Válido
+              </span>
+            );
+          } else if (qaqcRowStatus?.hasWarning) {
+            badge = (
+              <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase tracking-wide">
+                Con Avisos
+              </span>
+            );
+          }
+
+          return (
+            <td
+              key={colKey}
+              data-testid={`cell-${virtualRow.index}-${colKey}`}
+              style={{ width: `${col.getSize()}px` }}
+              className="px-2 py-1 text-center border-r border-navy-850/60 select-none"
+            >
+              {badge}
+            </td>
+          );
+        }
+
+        // 3. Renderizado de celdas estándar con formateo de paridad
         const cellVal = record[colKey];
-        const displayVal = cellVal !== undefined && cellVal !== null ? String(cellVal) : '—';
+        const displayVal = formatDisplayValue(cellVal, colDef);
 
         let stickyClasses = '';
         let stickyStyle: React.CSSProperties = EMPTY_STYLE;
@@ -120,6 +198,9 @@ const GridRow = React.memo<GridRowProps>(({
         if (isStickyLeft) {
           stickyClasses = 'sticky z-10 bg-navy-950 font-mono font-bold border-r-2 border-navy-800 text-slate-200';
           stickyStyle = { left: `${leftOffset}px` };
+        } else if (isStickyRight) {
+          stickyClasses = 'sticky z-10 bg-navy-950 border-l-2 border-navy-800 text-slate-200';
+          stickyStyle = { right: `${rightOffset}px` };
         }
 
         const activeRing = isActive ? 'ring-2 ring-sky-400 bg-sky-500/15 z-20' : '';
@@ -150,6 +231,7 @@ const GridRow = React.memo<GridRowProps>(({
     prev.rowVersion === next.rowVersion &&
     prev.activeColKey === next.activeColKey &&
     prev.leafColumns === next.leafColumns &&
+    prev.qaqcRowStatus === next.qaqcRowStatus &&
     prev.onInsertRowBelow === next.onInsertRowBelow &&
     prev.onDeleteRow === next.onDeleteRow
   );
@@ -158,65 +240,78 @@ const GridRow = React.memo<GridRowProps>(({
 export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
   moduleName = 'registro_maestro',
   initialRecords,
-  proyectosList,
+  proyectosList = [],
+  qaqcAlerts = [],
   onDeleteRow,
-  height = 'calc(100vh - 280px)'
+  height = '600px'
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Store normalizado
+  // 1. Store global zustand normalizado
   const rowIds = useGridStore(s => s.rowIds);
   const rowVersions = useGridStore(s => s.rowVersions);
   const activeCell = useGridStore(s => s.activeCell);
   const editingCell = useGridStore(s => s.editingCell);
+  const isEditing = editingCell !== null;
   const setInitialRecords = useGridStore(s => s.setInitialRecords);
+  const getRowById = useGridStore(s => s.getRowById);
   const setActiveCell = useGridStore(s => s.setActiveCell);
   const startEditing = useGridStore(s => s.startEditing);
-  const commitEditing = useGridStore(s => s.commitEditing);
   const cancelEditing = useGridStore(s => s.cancelEditing);
+  const commitEditing = useGridStore(s => s.commitEditing);
   const insertRowBelow = useGridStore(s => s.insertRowBelow);
-  const deleteRowInStore = useGridStore(s => s.deleteRow);
-  const getRowById = useGridStore(s => s.getRowById);
+  const deleteRow = useGridStore(s => s.deleteRow);
 
-  // Inicialización de registros al montar (evita reset si ya se cargaron para este módulo)
-  const currentModuleRef = useRef(moduleName);
-  useEffect(() => {
-    if (initialRecords && initialRecords.length > 0) {
-      if (currentModuleRef.current !== moduleName || rowIds.length === 0) {
-        currentModuleRef.current = moduleName;
-        setInitialRecords(initialRecords);
-      }
-    }
-  }, [initialRecords, moduleName, rowIds.length, setInitialRecords]);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Proyectos formateados
-  const proyectosOptions = useMemo(() => {
-    return proyectosList?.map(p => p.nombre) || [];
-  }, [proyectosList]);
+  // Estados locales de ancho de columnas
+  const [colWidths, setColWidths] = useState<Record<string, number>>({});
+  const [editorPos, setEditorPos] = useState<FloatingEditorPosition | null>(null);
 
-  // Columnas enriquecidas para el módulo
-  const gridColumns = useMemo(() => {
-    return getGridColumnsForModule(moduleName, {
-      proyectos: proyectosOptions
-    });
-  }, [moduleName, proyectosOptions]);
-
-  // Estado visual de anchos de columna
-  const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
-    const map: Record<string, number> = {};
-    for (const c of gridColumns) {
-      map[c.id] = c.defaultWidth;
+  // Mapa de alertas QA/QC por rowId para renderizado O(1)
+  const qaqcStatusMap = useMemo(() => {
+    const map = new Map<number, { hasCritical: boolean; hasWarning: boolean }>();
+    if (!qaqcAlerts || qaqcAlerts.length === 0) return map;
+    for (const alert of qaqcAlerts) {
+      const cur = map.get(alert.idd) || { hasCritical: false, hasWarning: false };
+      if (alert.severity === 'critical') cur.hasCritical = true;
+      if (alert.severity === 'warning') cur.hasWarning = true;
+      map.set(alert.idd, cur);
     }
     return map;
-  });
+  }, [qaqcAlerts]);
 
-  // Mapear GridColumnDef a la jerarquía de 2 niveles de TanStack Table
+  // Carga inicial al montar o cuando cambian los registros
+  useEffect(() => {
+    if (initialRecords && initialRecords.length > 0) {
+      setInitialRecords(initialRecords);
+    }
+  }, [initialRecords, setInitialRecords]);
+
+  // Obtener definiciones de columnas declarativas para este módulo
+  const gridColumns = useMemo(() => {
+    return getGridColumnsForModule(moduleName, {
+      proyectos: proyectosList.map(p => p.nombre)
+    });
+  }, [moduleName, proyectosList]);
+
+  // Construir columnas de TanStack Table agrupadas por 2 niveles
   const tanstackColumns = useMemo<ColumnDef<any, any>[]>(() => {
     const groupsMap = new Map<string, GridColumnDef[]>();
     for (const col of gridColumns) {
-      const g = col.group || 'General';
-      if (!groupsMap.has(g)) groupsMap.set(g, []);
-      groupsMap.get(g)!.push(col);
+      const groupKey = col.group || 'General';
+      if (!groupsMap.has(groupKey)) {
+        groupsMap.set(groupKey, []);
+      }
+      groupsMap.get(groupKey)!.push(col);
+    }
+
+    // Calcular offsets acumulados de pinned right
+    const rightPinnedCols = gridColumns.filter(c => c.pinned === 'right');
+    const rightOffsets: Record<string, number> = {};
+    let rightAcc = 0;
+    for (let i = rightPinnedCols.length - 1; i >= 0; i--) {
+      const col = rightPinnedCols[i];
+      rightOffsets[col.id] = rightAcc;
+      rightAcc += (colWidths[col.id] || col.defaultWidth);
     }
 
     let leftAccumulator = 0;
@@ -229,9 +324,12 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
         const isStickyRight = c.pinned === 'right';
 
         let offset = 0;
+        let rightOffset = 0;
         if (isStickyLeft) {
           offset = leftAccumulator;
           leftAccumulator += width;
+        } else if (isStickyRight) {
+          rightOffset = rightOffsets[c.id] ?? 0;
         }
 
         return {
@@ -243,6 +341,7 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
             gridDef: c,
             pinned: c.pinned,
             stickyOffset: offset,
+            stickyRightOffset: rightOffset,
             isStickyLeft,
             isStickyRight
           }
@@ -259,7 +358,7 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
     return result;
   }, [gridColumns, colWidths]);
 
-  // TanStack Table SOLO para cabeceras y orden (datos vacíos para rendimiento)
+  // TanStack Table SOLO para cabeceras y orden
   const table = useReactTable({
     data: EMPTY_DATA,
     columns: tanstackColumns,
@@ -275,108 +374,122 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
   });
 
   const virtualRows = rowVirtualizer.getVirtualItems();
-  const totalSize = rowVirtualizer.getTotalSize();
-  const paddingTop = virtualRows.length > 0 ? virtualRows[0].start : 0;
-  const paddingBottom = virtualRows.length > 0
-    ? totalSize - virtualRows[virtualRows.length - 1].end
-    : 0;
+  const leafColumns = table.getAllLeafColumns();
 
-  // Posición del editor flotante
-  const [editorPos, setEditorPos] = useState<FloatingEditorPosition | null>(null);
-
-  const calculateEditorPosition = useCallback((tdElement: HTMLElement): FloatingEditorPosition => {
-    const container = containerRef.current;
-    if (!container) return { top: 0, left: 0, width: 100, height: 36 };
-
-    const cRect = container.getBoundingClientRect();
-    const tRect = tdElement.getBoundingClientRect();
-
-    return {
-      top: tRect.top - cRect.top + container.scrollTop,
-      left: tRect.left - cRect.left + container.scrollLeft,
-      width: tRect.width,
-      height: tRect.height
-    };
-  }, []);
-
-  // Manejo de clic en celda O(1) con useCallback estable
-  const handleCellClick = useCallback((rowIdx: number, colKey: string, e: React.MouseEvent<HTMLTableCellElement>) => {
-    if (useGridStore.getState().editingCell) {
-      commitEditing();
-    }
-    setActiveCell({ rowIdx, colKey });
-  }, [commitEditing, setActiveCell]);
-
-  // Manejo de doble clic para abrir editor
-  const handleCellDoubleClick = useCallback((rowIdx: number, colKey: string, e: React.MouseEvent<HTMLTableCellElement>) => {
+  // Posicionar editor flotante sobre celda activa
+  const openEditorForCell = useCallback((rowIdx: number, colKey: string) => {
+    const rowId = rowIds[rowIdx];
+    if (rowId === undefined) return;
     const colDef = gridColumns.find(c => c.id === colKey);
-    if (!colDef || colDef.editor === 'none' || colDef.type === 'readonly') return;
+    if (!colDef || colDef.type === 'readonly' || colDef.editor === 'none') return;
 
-    const pos = calculateEditorPosition(e.currentTarget);
-    setEditorPos(pos);
-    startEditing({ rowIdx, colKey });
-  }, [gridColumns, calculateEditorPosition, startEditing]);
+    if (containerRef.current) {
+      const cellEl = containerRef.current.querySelector(
+        `[data-testid="cell-${rowIdx}-${colKey}"]`
+      ) as HTMLElement;
 
-  const handleDeleteRowCallback = useCallback((rowId: number) => {
-    if (onDeleteRow) {
-      onDeleteRow(rowId);
-    } else {
-      deleteRowInStore(rowId);
-    }
-  }, [onDeleteRow, deleteRowInStore]);
+      if (cellEl) {
+        const cRect = containerRef.current.getBoundingClientRect();
+        const cellRect = cellEl.getBoundingClientRect();
 
-  // Manejo de teclado cuando la tabla tiene foco
-  const handleContainerKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (!activeCell || editingCell) return;
-
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const colDef = gridColumns.find(c => c.id === activeCell.colKey);
-      if (colDef && colDef.editor !== 'none' && colDef.type !== 'readonly') {
-        const td = containerRef.current?.querySelector(`[data-testid="cell-${activeCell.rowIdx}-${activeCell.colKey}"]`) as HTMLElement;
-        if (td) {
-          setEditorPos(calculateEditorPosition(td));
-          startEditing(activeCell);
-        }
+        setEditorPos({
+          top: cellRect.top - cRect.top + containerRef.current.scrollTop,
+          left: cellRect.left - cRect.left + containerRef.current.scrollLeft,
+          width: cellRect.width,
+          height: cellRect.height
+        });
       }
-    } else if (e.key === 'ArrowDown') {
+    }
+
+    startEditing({ rowIdx, colKey, rowId });
+  }, [rowIds, gridColumns, startEditing]);
+
+  const handleCellClick = useCallback((rowIdx: number, colKey: string) => {
+    const rowId = rowIds[rowIdx];
+    if (rowId === undefined) return;
+    if (isEditing) {
+      commitEditing();
+      setEditorPos(null);
+    }
+    setActiveCell({ rowIdx, colKey, rowId });
+  }, [rowIds, isEditing, commitEditing, setActiveCell]);
+
+  const handleCellDoubleClick = useCallback((rowIdx: number, colKey: string) => {
+    openEditorForCell(rowIdx, colKey);
+  }, [openEditorForCell]);
+
+  // Teclado: Navegación Excel
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!activeCell) return;
+    const { rowIdx, colKey } = activeCell;
+    const colIdx = leafColumns.findIndex(c => c.id === colKey);
+
+    if (isEditing) return;
+
+    if (e.key === 'ArrowDown') {
       e.preventDefault();
-      if (activeCell.rowIdx < rowIds.length - 1) {
-        setActiveCell({ rowIdx: activeCell.rowIdx + 1, colKey: activeCell.colKey });
+      if (rowIdx < rowIds.length - 1) {
+        const nextId = rowIds[rowIdx + 1];
+        setActiveCell({ rowIdx: rowIdx + 1, colKey, rowId: nextId });
       }
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      if (activeCell.rowIdx > 0) {
-        setActiveCell({ rowIdx: activeCell.rowIdx - 1, colKey: activeCell.colKey });
+      if (rowIdx > 0) {
+        const nextId = rowIds[rowIdx - 1];
+        setActiveCell({ rowIdx: rowIdx - 1, colKey, rowId: nextId });
+      }
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      if (colIdx < leafColumns.length - 1) {
+        setActiveCell({ rowIdx, colKey: leafColumns[colIdx + 1].id, rowId: activeCell.rowId });
+      }
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      if (colIdx > 0) {
+        setActiveCell({ rowIdx, colKey: leafColumns[colIdx - 1].id, rowId: activeCell.rowId });
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      openEditorForCell(rowIdx, colKey);
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      const dir = e.shiftKey ? -1 : 1;
+      const nextIdx = colIdx + dir;
+      if (nextIdx >= 0 && nextIdx < leafColumns.length) {
+        setActiveCell({ rowIdx, colKey: leafColumns[nextIdx].id, rowId: activeCell.rowId });
       }
     } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      const colDef = gridColumns.find(c => c.id === activeCell.colKey);
-      if (colDef && colDef.editor !== 'none' && colDef.type !== 'readonly') {
-        const td = containerRef.current?.querySelector(`[data-testid="cell-${activeCell.rowIdx}-${activeCell.colKey}"]`) as HTMLElement;
-        if (td) {
-          setEditorPos(calculateEditorPosition(td));
-          startEditing(activeCell, e.key);
-        }
-      }
+      openEditorForCell(rowIdx, colKey);
     }
   };
 
-  const activeColDef = useMemo(() => {
-    if (!editingCell) return undefined;
-    return gridColumns.find(c => c.id === editingCell.colKey);
-  }, [editingCell, gridColumns]);
+  const handleInsertRow = useCallback((rIdx: number) => {
+    if (isEditing) {
+      commitEditing();
+      setEditorPos(null);
+    }
+    insertRowBelow(rIdx);
+  }, [isEditing, commitEditing, insertRowBelow]);
 
-  const leafColumns = useMemo(() => {
-    return table.getAllLeafColumns();
-  }, [table]);
+  const handleDeleteRow = useCallback((rId: number) => {
+    if (isEditing) {
+      cancelEditing();
+      setEditorPos(null);
+    }
+    deleteRow(rId);
+    if (onDeleteRow) {
+      onDeleteRow(rId);
+    }
+  }, [isEditing, cancelEditing, deleteRow, onDeleteRow]);
+
+  const activeColumnDef = gridColumns.find(c => c.id === editingCell?.colKey);
 
   return (
-    <div className="relative w-full border border-navy-800 rounded-xl bg-navy-950 shadow-2xl flex flex-col overflow-hidden">
-      {/* Contenedor de scroll nativo UNIFICADO (cabecera y cuerpo sincrónicos al 100%) */}
+    <div className="flex flex-col w-full h-full border border-navy-800 rounded-xl overflow-hidden bg-navy-950 select-none">
       <div
         ref={containerRef}
         tabIndex={0}
-        onKeyDown={handleContainerKeyDown}
+        onKeyDown={handleKeyDown}
         style={{ height, overflow: 'auto', position: 'relative' }}
         className="w-full focus:outline-none scrollbar-thin scrollbar-thumb-navy-700 scrollbar-track-navy-950"
       >
@@ -397,26 +510,29 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
                   const isStickyLeft = meta?.isStickyLeft;
                   const isStickyRight = meta?.isStickyRight;
                   const leftOffset = meta?.stickyOffset ?? 0;
+                  const rightOffset = meta?.stickyRightOffset ?? 0;
 
                   const colDef: GridColumnDef | undefined = meta?.gridDef;
 
                   let stickyClasses = 'bg-navy-900 z-20 sticky';
                   let styleObj: React.CSSProperties = {
                     top: gIdx === 0 ? 0 : 28,
-                    height: gIdx === 0 ? 28 : 34
+                    height: gIdx === 0 ? 28 : 34,
+                    width: `${header.getSize()}px`
                   };
 
                   if (isStickyLeft) {
-                    stickyClasses += ' z-30 shadow-[2px_0_5px_rgba(0,0,0,0.4)]';
+                    stickyClasses += ' z-30 border-r-2 border-navy-800';
                     styleObj.left = `${leftOffset}px`;
                   } else if (isStickyRight) {
-                    stickyClasses += ' z-30 shadow-[-2px_0_5px_rgba(0,0,0,0.4)]';
-                    styleObj.right = 0;
+                    stickyClasses += ' z-30 border-l-2 border-navy-800';
+                    styleObj.right = `${rightOffset}px`;
                   }
 
                   return (
                     <th
                       key={header.id}
+                      data-col-id={header.id}
                       colSpan={header.colSpan}
                       style={styleObj}
                       className={`px-2 py-1 border-r border-b border-navy-800 font-bold text-center truncate ${stickyClasses}`}
@@ -447,6 +563,7 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
 
               const activeColKey = activeCell?.rowIdx === virtualRow.index ? activeCell.colKey : null;
               const rowVersion = rowVersions.get(rowId) || 1;
+              const qaqcStatus = qaqcStatusMap.get(rowId);
 
               return (
                 <GridRow
@@ -457,29 +574,41 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
                   rowVersion={rowVersion}
                   leafColumns={leafColumns}
                   activeColKey={activeColKey}
+                  qaqcRowStatus={qaqcStatus}
                   onCellClick={handleCellClick}
                   onCellDoubleClick={handleCellDoubleClick}
-                  onInsertRowBelow={insertRowBelow}
-                  onDeleteRow={handleDeleteRowCallback}
+                  onInsertRowBelow={handleInsertRow}
+                  onDeleteRow={handleDeleteRow}
                 />
               );
             })}
           </tbody>
         </table>
 
-        {/* Editor Flotante Único */}
-        {editingCell && editorPos && activeColDef && (
+        {/* Editor flotante desacoplado */}
+        {isEditing && editorPos && activeColumnDef && (
           <FloatingEditor
             position={editorPos}
-            column={activeColDef}
-            onCommit={commitEditing}
-            onCancel={cancelEditing}
-            onNavigateNext={(direction) => {
+            column={activeColumnDef}
+            onCommit={() => {
+              commitEditing();
+              setEditorPos(null);
+            }}
+            onCancel={() => {
+              cancelEditing();
+              setEditorPos(null);
+            }}
+            onNavigateNext={(dir) => {
               if (!activeCell) return;
-              if (direction === 'down' && activeCell.rowIdx < rowIds.length - 1) {
-                setActiveCell({ rowIdx: activeCell.rowIdx + 1, colKey: activeCell.colKey });
-              } else if (direction === 'up' && activeCell.rowIdx > 0) {
-                setActiveCell({ rowIdx: activeCell.rowIdx - 1, colKey: activeCell.colKey });
+              const { rowIdx, colKey } = activeCell;
+              const cIdx = leafColumns.findIndex(c => c.id === colKey);
+              if (dir === 'down' && rowIdx < rowIds.length - 1) {
+                const nxtId = rowIds[rowIdx + 1];
+                setActiveCell({ rowIdx: rowIdx + 1, colKey, rowId: nxtId });
+              } else if (dir === 'right' && cIdx < leafColumns.length - 1) {
+                setActiveCell({ rowIdx, colKey: leafColumns[cIdx + 1].id, rowId: activeCell.rowId });
+              } else if (dir === 'left' && cIdx > 0) {
+                setActiveCell({ rowIdx, colKey: leafColumns[cIdx - 1].id, rowId: activeCell.rowId });
               }
             }}
           />

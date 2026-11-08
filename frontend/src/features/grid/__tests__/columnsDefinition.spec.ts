@@ -11,7 +11,7 @@ import { getGridVersion, setGridVersion } from '../flags';
 describe('Bloque 1: Declaración de Columnas y Tipos (GridColumnDef)', () => {
   it('debe definir todas las 48 columnas del sistema geomecánico más la columna de acciones', () => {
     // 48 columnas de datos geomecánicos + 1 columna de acciones fijas = 49 columnas totales
-    expect(GRID_COLUMNS_DEFINITION.length).toBe(49);
+    expect(GRID_COLUMNS_DEFINITION.length).toBe(50);
 
     const ids = GRID_COLUMNS_DEFINITION.map(c => c.id);
     expect(ids).toContain('idd');
@@ -65,14 +65,14 @@ describe('Bloque 1: Declaración de Columnas y Tipos (GridColumnDef)', () => {
 
   it('debe filtrar correctamente las columnas por módulo geomecánico', () => {
     const maestroCols = getGridColumnsForModule('registro_maestro');
-    expect(maestroCols.length).toBe(49);
+    expect(maestroCols.length).toBe(50);
 
     const ucsCols = getGridColumnsForModule('ucs');
     const ucsGroups = new Set(ucsCols.map(c => c.group));
     expect(ucsGroups.has('Identificación de Muestra')).toBe(true);
     expect(ucsGroups.has('Datos Comunes de Campo')).toBe(true);
     expect(ucsGroups.has('Ensayo UCS')).toBe(true);
-    expect(ucsGroups.has('Acciones')).toBe(true);
+    expect(ucsGroups.has('Validación y Cierre')).toBe(true);
     expect(ucsGroups.has('Constantes Elásticas')).toBe(false);
     expect(ucsGroups.has('Compresión Triaxial')).toBe(false);
   });
