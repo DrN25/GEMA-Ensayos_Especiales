@@ -15,9 +15,14 @@ import BulkAuditor from './features/auditor/BulkAuditor';
 
 import { validateAllRecords, type QAQCAlert } from './utils/qaqcValidator';
 import { getColumnsForModule } from './utils/columnsConfig';
+import { getStoredDarkMode, persistTheme } from './utils/theme';
 
 
-const API_BASE = import.meta.env.VITE_API_BASE || "";
+const API_BASE = import.meta.env.VITE_API_BASE || (
+  typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? `${window.location.protocol}//${window.location.hostname}:8002`
+    : ''
+);
 
 interface NotificationMsg {
   id: number;
@@ -49,7 +54,7 @@ export default function App() {
   const [proyectos, setProyectos] = useState<Proyecto[]>([]);
   const [lastSavedProyectos, setLastSavedProyectos] = useState<Proyecto[]>([]);
 
-  const [darkMode, setDarkMode] = useState<boolean>(true);
+  const [darkMode, setDarkMode] = useState<boolean>(() => getStoredDarkMode());
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
 
   // Estados de Modales
@@ -75,15 +80,9 @@ export default function App() {
 
   // --- 2. EFECTOS GLOBALES Y CONFIGURACIONES ---
   useEffect(() => {
-    const root = window.document.documentElement;
-    if (darkMode) {
-      root.classList.add('dark');
-      root.classList.remove('light');
-    } else {
-      root.classList.add('light');
-      root.classList.remove('dark');
-    }
+    persistTheme(darkMode);
   }, [darkMode]);
+
 
   // Bloqueo de traducción automática y Scroll de rueda del mouse en inputs
   useEffect(() => {
@@ -473,13 +472,16 @@ export default function App() {
   }, [qaqcAlerts]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-950 text-slate-100 font-sans">
+    <div className="flex h-screen overflow-hidden bg-navy-950 text-slate-100 font-sans">
       {/* 1. SIDEBAR */}
       <Sidebar
         currentTab={currentTab}
         setCurrentTab={navigateToTab}
         darkMode={darkMode}
-        setDarkMode={setDarkMode}
+        setDarkMode={(dark) => {
+          setDarkMode(dark);
+          persistTheme(dark);
+        }}
         isConnected={isConnected}
         dbInfo={dbInfo}
         isCollapsed={isSidebarCollapsed}
@@ -505,12 +507,13 @@ export default function App() {
         />
 
         {/* CONTENEDOR DE PAGINAS */}
-        <main className="flex-1 overflow-y-auto p-6 space-y-6">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 view-dashboard view-mapeo view-modal">
           {currentTab === 'dashboard' && (
             <Dashboard
               records={records}
               alertsCount={qaqcAlertsCount}
               onNavigateTab={navigateToTab}
+              apiBase={API_BASE}
             />
           )}
 
@@ -519,6 +522,7 @@ export default function App() {
               records={records}
               qaqcAlerts={qaqcAlerts}
               onNavigateTab={navigateToTab}
+              apiBase={API_BASE}
             />
           )}
 
@@ -607,7 +611,7 @@ export default function App() {
 
       {/* MODAL DECISORIO DE PROYECTOS NO DETECTADOS AL IMPORTAR */}
       {unrecognizedProjectModal?.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-950/80 backdrop-blur-sm animate-fade-in text-left">
+        <div className="fixed inset-0 view-modal z-50 flex items-center justify-center p-4 bg-navy-950/80 backdrop-blur-sm animate-fade-in text-left">
           <div className="glass-panel w-full max-w-md p-6 rounded-2xl border border-amber-500/30 bg-navy-900/95 shadow-2xl space-y-4">
             <h3 className="text-sm font-black text-slate-100 uppercase tracking-wider">Proyecto No Reconocido</h3>
             <p className="text-xs text-slate-300">
@@ -616,7 +620,7 @@ export default function App() {
             <div className="flex flex-col gap-2 pt-2">
               <button
                 onClick={() => handleResolveUnrecognized('empty')}
-                className="w-full text-left p-3 rounded-lg bg-navy-950 border border-navy-800 text-xs font-semibold text-slate-300 hover:bg-navy-850 hover:text-white transition-colors"
+                className="w-full text-left p-3 rounded-lg bg-navy-950 border border-navy-800 text-xs font-semibold text-slate-300 hover:bg-navy-850 hover:text-slate-100 transition-colors"
               >
                 1. Importar registros con el campo Proyecto vacío.
               </button>

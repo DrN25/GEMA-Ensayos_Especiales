@@ -8,14 +8,15 @@ import {
   Scissors,
   Compass,
   Layers,
-  DatabaseZap,
   ChevronDown,
   ChevronRight,
   Sun,
   Moon,
   BarChart2,
   FolderLock,
-  ShieldCheck
+  ShieldCheck,
+  X,
+  Boxes
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -26,6 +27,7 @@ interface SidebarProps {
   isConnected: boolean;
   dbInfo: { db_type: string; is_local_fallback: boolean; server?: string } | null;
   isCollapsed: boolean;
+  onToggleSidebar?: () => void;
 }
 
 export default function Sidebar({
@@ -35,229 +37,284 @@ export default function Sidebar({
   setDarkMode,
   isConnected,
   dbInfo,
-  isCollapsed
+  isCollapsed,
+  onToggleSidebar
 }: SidebarProps) {
   const [isDistExpanded, setIsDistExpanded] = useState(true);
 
   const distTabs = [
-    { id: 'ucs', label: 'Compresión Uniaxial', icon: FlaskConical },
+    { id: 'ucs', label: 'Compresión Uniaxial (UCS)', icon: FlaskConical },
     { id: 'elasticas', label: 'Constantes Elásticas', icon: Activity },
     { id: 'traccion', label: 'Tracción Indirecta', icon: TrendingUp },
     { id: 'corte', label: 'Corte Directo', icon: Scissors },
-    { id: 'triaxial', label: 'Triaxial', icon: Compass },
+    { id: 'triaxial', label: 'Compresión Triaxial', icon: Compass },
+  ];
+
+  const handleSelectTab = (tab: string) => {
+    setCurrentTab(tab);
+    if (window.innerWidth < 768 && onToggleSidebar && !isCollapsed) {
+      onToggleSidebar();
+    }
+  };
+
+  const navCategories = [
+    {
+      category: 'GENERAL',
+      items: [
+        { id: 'dashboard', label: 'Dashboard Ejecutivo', icon: LayoutDashboard }
+      ]
+    },
+    {
+      category: 'BASE GEOTÉCNICA',
+      items: [
+        { id: 'registro_maestro', label: 'Registro Maestro (47 Cols)', icon: Database }
+      ]
+    },
+    {
+      category: 'FAMILIAS DE ENSAYO',
+      isGroup: true
+    },
+    {
+      category: 'PROPIEDADES FÍSICAS',
+      items: [
+        { id: 'propiedades', label: 'Propiedades Físicas', icon: Layers }
+      ]
+    },
+    {
+      category: 'CONTROL DE CALIDAD',
+      items: [
+        { id: 'auditoria', label: 'Auditoría QA/QC Masiva', icon: ShieldCheck }
+      ]
+    },
+    {
+      category: 'INFORMES',
+      items: [
+        { id: 'reportes', label: 'Reportes y Gráficos', icon: BarChart2 }
+      ]
+    },
+    {
+      category: 'CONFIGURACIÓN',
+      items: [
+        { id: 'proyectos', label: 'Proyectos y Canteras', icon: FolderLock }
+      ]
+    }
   ];
 
   return (
-    <aside
-      className={`bg-slate-950/90 border-r border-slate-900/80 flex flex-col h-screen select-none shrink-0 transition-all duration-300 ease-in-out text-left ${isCollapsed ? 'w-0 opacity-0 overflow-hidden border-r-0 pointer-events-none' : 'w-64 opacity-100'
-        }`}
-    >
-      <div className={`flex flex-col h-full w-64 transition-opacity duration-200 ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}>
-        {/* Brand Header */}
+    <>
+      {/* Mobile Backdrop Overlay */}
+      {!isCollapsed && (
         <div
-          onClick={() => setCurrentTab('dashboard')}
-          className="p-5 border-b border-navy-800/80 flex items-center gap-3 cursor-pointer hover:bg-slate-900/20 transition-all shrink-0"
-        >
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <DatabaseZap className="w-5 h-5 text-white animate-pulse" />
-          </div>
-          <div>
-            <h1 className="font-extrabold text-xs tracking-widest text-slate-100">SIGEG 2.0</h1>
-            <span className="text-xs text-slate-500 font-extrabold tracking-wider uppercase block mt-0.5">
-              Ensayos Especiales
-            </span>
-          </div>
-        </div>
+          onClick={onToggleSidebar}
+          className="fixed inset-0 bg-navy-950/80 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300"
+          aria-hidden="true"
+        />
+      )}
 
-        <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto custom-scrollbar">
-          {/* GENERAL */}
-          <div className="space-y-1">
-            <span className="text-xs font-black text-slate-500 uppercase tracking-widest block px-3 mb-1.5">General</span>
-            <button
-              onClick={() => setCurrentTab('dashboard')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all border ${currentTab === 'dashboard'
-                ? 'bg-indigo-500/10 border-indigo-500/10 text-indigo-400 font-black border-l-2 border-l-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.05)]'
-                : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/20'
-                }`}
+      <aside
+        className={`glass-panel chrome-dark flex flex-col h-screen select-none shadow-2xl relative z-50 md:z-20 transition-all duration-300 ease-in-out text-left ${
+          isCollapsed
+            ? 'w-0 opacity-0 border-r-0 pointer-events-none overflow-hidden'
+            : 'w-64 opacity-100 border-r border-navy-800/80 fixed md:static inset-y-0 left-0'
+        }`}
+      >
+        <div className="w-64 flex flex-col h-full shrink-0">
+          {/* Brand Header */}
+          <div className="p-4 border-b border-navy-800/80 flex items-center justify-between shrink-0">
+            <div
+              onClick={() => handleSelectTab('dashboard')}
+              className="flex items-center gap-2.5 cursor-pointer group min-w-0"
             >
-              <LayoutDashboard size={14} />
-              <span>Dashboard</span>
-            </button>
-          </div>
-
-          {/* REGISTRO DE CAMPO */}
-          <div className="space-y-1">
-            <span className="text-xs font-black text-slate-500 uppercase tracking-widest block px-3 mb-1.5">Registro de Campo</span>
-            <button
-              onClick={() => setCurrentTab('registro_maestro')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all border ${currentTab === 'registro_maestro'
-                ? 'bg-indigo-500/10 border-indigo-500/10 text-indigo-400 font-black border-l-2 border-l-indigo-500'
-                : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/20'
-                }`}
-            >
-              <Database size={14} />
-              <span>Registro Maestro</span>
-            </button>
-          </div>
-
-          {/* DISTRIBUCIÓN */}
-          <div className="space-y-1">
-            <span className="text-xs font-black text-slate-500 uppercase tracking-widest block px-3 mb-1.5">Ensayos Especiales</span>
-            <div className="flex items-center justify-between w-full rounded-xl text-xs font-bold transition-all relative">
-              <button
-                onClick={() => setCurrentTab('distribucion')}
-                className={`flex-1 flex items-center gap-2.5 px-3 py-2.5 rounded-l-xl border-l-2 transition-all ${currentTab === 'distribucion'
-                  ? 'bg-indigo-500/10 border-indigo-500 text-indigo-400 font-black'
-                  : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/10'
-                  }`}
-              >
-                <Layers size={14} />
-                <span>Distribución</span>
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsDistExpanded(!isDistExpanded);
-                }}
-                className="p-2.5 text-slate-500 hover:text-slate-300 hover:bg-slate-900/10 rounded-r-xl transition-all"
-              >
-                {isDistExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              </button>
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-600 via-indigo-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-sky-500/20 group-hover:scale-105 transition-transform shrink-0">
+                <Boxes className="w-5 h-5 text-white" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <h1 className="font-black text-xs tracking-widest text-slate-100 uppercase truncate">
+                    GEMA SIGEG
+                  </h1>
+                  <span className="text-[9px] px-1 py-0.2 rounded font-mono font-bold bg-sky-500/15 text-sky-400 border border-sky-500/30 shrink-0">
+                    2.0
+                  </span>
+                </div>
+                <p className="text-[10px] text-sky-400 font-extrabold uppercase tracking-wider truncate mt-0.5">
+                  Ensayos Especiales
+                </p>
+              </div>
             </div>
 
-            {isDistExpanded && (
-              <div className="pl-3.5 space-y-1.5 border-l border-slate-800 ml-5 animate-fade-in">
-                {distTabs.map(sub => {
-                  const subActive = currentTab === sub.id;
-                  const SubIcon = sub.icon;
-                  return (
-                    <button
-                      key={sub.id}
-                      onClick={() => setCurrentTab(sub.id)}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-bold transition-all border ${subActive
-                        ? 'bg-indigo-500/10 text-indigo-400 font-extrabold border-l-2 border-l-indigo-500'
-                        : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/10'
+            {/* Header Right: Sun/Moon Toggle & Mobile Close */}
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={() => setDarkMode(!darkMode)}
+                className="p-2 rounded-lg bg-navy-900 hover:bg-navy-850 border border-navy-800 text-slate-400 hover:text-slate-100 transition-all shadow-md active:scale-95"
+                title={`Cambiar a modo ${darkMode ? 'claro' : 'oscuro'}`}
+              >
+                {darkMode ? <Sun size={15} /> : <Moon size={15} />}
+              </button>
+
+              <button
+                onClick={onToggleSidebar}
+                className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-navy-900 md:hidden transition-colors"
+                title="Cerrar menú"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+
+          {/* Navigation Items */}
+          <nav className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">
+            {navCategories.map((catGroup) => {
+              if (catGroup.isGroup) {
+                const isDistActive = currentTab === 'distribucion' || distTabs.some(t => t.id === currentTab);
+                return (
+                  <div key={catGroup.category} className="space-y-1">
+                    <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-3 mb-1 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-navy-800" />
+                      <span>{catGroup.category}</span>
+                    </h3>
+
+                    <div className="rounded-lg transition-all">
+                      <div className="flex items-center justify-between">
+                        <button
+                          onClick={() => handleSelectTab('distribucion')}
+                          className={`flex-1 flex items-center gap-2.5 px-3 py-2 rounded-l-lg text-xs font-semibold text-left transition-all relative group ${
+                            currentTab === 'distribucion'
+                              ? 'bg-sky-500/10 text-sky-400 font-bold border-l-2 border-sky-500 shadow-[inset_0_0_10px_rgba(14,165,233,0.05)]'
+                              : 'hover:bg-navy-900/30 hover:text-slate-200 text-slate-400'
+                          }`}
+                        >
+                          <Layers
+                            size={16}
+                            className={currentTab === 'distribucion' ? 'text-sky-400' : 'text-slate-500 group-hover:text-sky-400'}
+                          />
+                          <span className="truncate font-semibold tracking-wide">Distribución General</span>
+                        </button>
+
+                        <button
+                          onClick={() => setIsDistExpanded(!isDistExpanded)}
+                          className="p-2 text-slate-500 hover:text-slate-200 hover:bg-navy-900/40 rounded-r-lg transition-all"
+                          title={isDistExpanded ? 'Colapsar submódulos' : 'Expandir submódulos'}
+                        >
+                          {isDistExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        </button>
+                      </div>
+
+                      {isDistExpanded && (
+                        <div className="pl-3 space-y-0.5 border-l border-navy-800 ml-4 mt-1 animate-fade-in">
+                          {distTabs.map((sub) => {
+                            const isSubActive = currentTab === sub.id;
+                            const SubIcon = sub.icon;
+                            return (
+                              <button
+                                key={sub.id}
+                                onClick={() => handleSelectTab(sub.id)}
+                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-all relative ${
+                                  isSubActive
+                                    ? 'bg-sky-500/15 text-sky-300 font-bold border-l-2 border-sky-400 shadow-sm'
+                                    : 'text-slate-400 hover:text-slate-200 hover:bg-navy-900/30'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <SubIcon
+                                    size={13}
+                                    className={isSubActive ? 'text-sky-400' : 'text-slate-500'}
+                                  />
+                                  <span className="truncate text-[11px]">{sub.label}</span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div key={catGroup.category} className="space-y-1">
+                  <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-3 mb-1 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-navy-800" />
+                    <span>{catGroup.category}</span>
+                  </h3>
+
+                  {catGroup.items?.map((item) => {
+                    const isActive = currentTab === item.id;
+                    const Icon = item.icon;
+
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => handleSelectTab(item.id)}
+                        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs text-left transition-all relative group ${
+                          isActive
+                            ? 'bg-sky-500/10 text-sky-400 font-bold border-l-2 border-sky-500 shadow-[inset_0_0_10px_rgba(14,165,233,0.05)]'
+                            : 'hover:bg-navy-900/30 hover:text-slate-200 text-slate-400'
                         }`}
-                    >
-                      <SubIcon size={13} className={subActive ? 'text-indigo-400' : 'text-slate-400'} />
-                      <span>{sub.label}</span>
-                    </button>
-                  );
-                })}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <Icon
+                            size={16}
+                            className={`${isActive ? 'text-sky-400' : 'text-slate-500 group-hover:text-sky-400'} transition-colors shrink-0`}
+                          />
+                          <span className="leading-tight truncate font-semibold tracking-wide">{item.label}</span>
+                        </div>
+
+                        {isActive && (
+                          <span className="absolute right-0 top-1 bottom-1 w-1 bg-sky-500 rounded-l-md shadow-[0_0_8px_rgba(14,165,233,0.8)]" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </nav>
+
+          {/* Database Status Panel */}
+          <div className="p-3 mx-3 mb-2 rounded-xl bg-navy-900/90 border border-navy-800 space-y-1.5 shadow-inner shrink-0">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                Base de Datos
+              </span>
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    !isConnected
+                      ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)] animate-pulse'
+                      : dbInfo?.is_local_fallback
+                      ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]'
+                      : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]'
+                  }`}
+                />
+                <span
+                  className={`font-black uppercase tracking-wider text-[10px] ${
+                    !isConnected
+                      ? 'text-rose-400'
+                      : dbInfo?.is_local_fallback
+                      ? 'text-amber-400'
+                      : 'text-emerald-400'
+                  }`}
+                >
+                  {!isConnected ? 'Desconectado' : dbInfo?.is_local_fallback ? 'SQLite Local' : 'SQL Server'}
+                </span>
+              </div>
+            </div>
+            {dbInfo?.server && (
+              <div className="text-[10px] text-slate-400 truncate font-mono" title={dbInfo.server}>
+                Instancia: {dbInfo.server}
               </div>
             )}
           </div>
 
-          {/* PROPIEDADES */}
-          <div className="space-y-1">
-            <span className="text-xs font-black text-slate-500 uppercase tracking-widest block px-3 mb-1.5">Propiedades</span>
-            <button
-              onClick={() => setCurrentTab('propiedades')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all border ${currentTab === 'propiedades'
-                ? 'bg-indigo-500/10 border-indigo-500/10 text-indigo-400 font-black border-l-2 border-l-indigo-500'
-                : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/20'
-                }`}
-            >
-              <Layers size={14} />
-              <span>Propiedades Físicas</span>
-            </button>
+          {/* Copyright Footer */}
+          <div className="p-3 border-t border-navy-800/80 text-[10px] text-slate-500 text-center font-black uppercase tracking-wider shrink-0">
+            GEMA Ensayos Especiales &copy; 2026
           </div>
-
-          {/* AUDITORÍA */}
-          <div className="space-y-1">
-            <span className="text-xs font-black text-slate-500 uppercase tracking-widest block px-3 mb-1.5">Control de Calidad</span>
-            <button
-              onClick={() => setCurrentTab('auditoria')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all border ${currentTab === 'auditoria'
-                ? 'bg-amber-500/10 border-amber-500/20 text-amber-400 font-black border-l-2 border-l-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
-                : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/20'
-                }`}
-            >
-              <ShieldCheck size={14} className={currentTab === 'auditoria' ? 'text-amber-400' : 'text-slate-400'} />
-              <span>Auditoría QA/QC</span>
-            </button>
-          </div>
-
-          {/* REPORTES */}
-          <div className="space-y-1">
-            <span className="text-xs font-black text-slate-500 uppercase tracking-widest block px-3 mb-1.5">Informes</span>
-            <button
-              onClick={() => setCurrentTab('reportes')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all border ${currentTab === 'reportes'
-                ? 'bg-indigo-500/10 border-indigo-500/10 text-indigo-400 font-black border-l-2 border-l-indigo-500'
-                : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/20'
-                }`}
-            >
-              <BarChart2 size={14} />
-              <span>Reportes</span>
-            </button>
-          </div>
-
-          {/* MAESTROS (Reubicado estrictamente al final y sin botones chevron de submenú) */}
-          <div className="space-y-1">
-            <span className="text-xs font-black text-slate-500 uppercase tracking-widest block px-3 mb-1.5">Maestros</span>
-            <button
-              onClick={() => setCurrentTab('proyectos')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all border ${currentTab === 'proyectos'
-                ? 'bg-indigo-500/10 border-indigo-500/10 text-indigo-400 font-black border-l-2 border-l-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.05)]'
-                : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/20'
-                }`}
-            >
-              <FolderLock size={14} />
-              <span>Proyectos</span>
-            </button>
-          </div>
-
-        </nav>
-
-        {/* Database Status Panel */}
-        <div className="px-5 py-3.5 border-t border-slate-900 bg-slate-950/40 text-xs shrink-0">
-          <div className="flex items-center justify-between">
-            <span className="text-slate-500 font-bold uppercase tracking-wider text-xs">
-              {dbInfo ? (dbInfo.is_local_fallback ? "SQLite Local" : "SQL Server") : "Database"}
-            </span>
-            <div className="flex items-center gap-1.5">
-              <span className={`w-2.5 h-2.5 rounded-full ${!isConnected
-                  ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)] animate-pulse'
-                  : dbInfo?.is_local_fallback
-                    ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)] animate-pulse'
-                    : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse'
-                }`} />
-              <span className={`font-black uppercase tracking-wider text-xs ${!isConnected
-                  ? 'text-rose-400'
-                  : dbInfo?.is_local_fallback
-                    ? 'text-amber-400'
-                    : 'text-emerald-400'
-                }`}>
-                {!isConnected
-                  ? 'Offline'
-                  : dbInfo?.is_local_fallback
-                    ? 'Local'
-                    : 'Conectado'}
-              </span>
-            </div>
-          </div>
-          {dbInfo && !dbInfo.is_local_fallback && dbInfo.server && (
-            <div className="text-xs text-slate-500 mt-1 truncate font-mono" title={dbInfo.server}>
-              Host: {dbInfo.server}
-            </div>
-          )}
         </div>
-
-        {/* Footer */}
-        <div className="p-4 border-t border-slate-900 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
-            >
-              {darkMode ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-            </button>
-            <span className="text-xs text-slate-500 font-medium">Tema: {darkMode ? 'Oscuro' : 'Claro'}</span>
-          </div>
-          <div className="text-xs text-slate-600 font-mono">v2.0.0</div>
-        </div>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }

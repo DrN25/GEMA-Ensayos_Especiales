@@ -194,12 +194,13 @@ export default function DataGrid({
     );
   };
 
-  const getCellBorderClass = (idd: number, dbName: string) => {
-    const alert = qaqcAlerts.find(a => a.idd === idd && a.field === dbName);
-    if (!alert) return "border border-slate-700/60 dark:border-navy-800/80";
-    return alert.type === 'CRÍTICO'
-      ? "outline outline-1 outline-offset-[-2px] outline-dashed outline-rose-500/80 bg-rose-500/5 animate-pulse"
-      : "outline outline-1 outline-offset-[-2px] outline-dashed outline-amber-500/80 bg-amber-500/5";
+  const getCellBorderClass = (idd: number, field: string) => {
+    const alert = qaqcAlerts.find(a => a.idd === idd && a.field === field);
+    if (!alert) return "border border-navy-800";
+    if (alert.type === 'CRÍTICO') {
+      return "border-2 border-rose-500 shadow-[inset_0_0_8px_rgba(244,63,94,0.3)]";
+    }
+    return "border-2 border-amber-500 shadow-[inset_0_0_8px_rgba(245,158,11,0.3)]";
   };
 
   const getQaqcValidationBadge = (idd: number, rec: any) => {
@@ -369,8 +370,8 @@ export default function DataGrid({
   };
 
   return (
-    <div className="space-y-4 select-none animate-fade-in text-xs font-normal">
-      <div className="border border-navy-800/80 rounded-2xl bg-navy-950/20 shadow-xl overflow-hidden relative">
+    <div className="space-y-4 select-none animate-fade-in text-xs font-normal view-dashboard view-geotech">
+      <div className="border border-navy-800 rounded-2xl bg-navy-950/20 shadow-xl overflow-hidden relative">
         <div className="overflow-x-auto overflow-y-auto max-h-[74vh] custom-scrollbar max-w-full relative">
           <table className="border-collapse text-left table-fixed border-spacing-0" style={{ width: 'max-content' }} onKeyDown={handleGridKeyDown}>
 
@@ -378,9 +379,9 @@ export default function DataGrid({
             <thead className="sticky top-0 z-30 bg-navy-950 shadow-md">
               {/* Nivel 1 */}
               <tr className="bg-navy-900 border-b border-navy-800 text-center select-none">
-                <th style={{ width: colStyles.idd }} className="sticky top-0 left-0 bg-navy-950 z-40 border-r border-b border-slate-700/60 dark:border-navy-800/80 text-center font-bold text-xs" colSpan={1} rowSpan={2}>IDD</th>
-                <th style={{ width: colStyles.sondaje }} className="sticky top-0 left-[80px] bg-navy-950 z-40 border-r border-b border-slate-700/60 dark:border-navy-800/80 text-center font-bold text-xs" colSpan={1} rowSpan={2}>Sondaje diamantino</th>
-                <th style={{ width: colStyles.codigo_muestra }} className="sticky top-0 left-[210px] bg-navy-950 z-40 border-r border-b border-slate-700/60 dark:border-navy-800/80 text-center font-bold text-xs" colSpan={1} rowSpan={2}>Código de muestra</th>
+                <th style={{ width: colStyles.idd }} className="sticky top-0 left-0 bg-navy-950 z-40 border-r border-b border-navy-800 text-center font-bold text-xs" colSpan={1} rowSpan={2}>IDD</th>
+                <th style={{ width: colStyles.sondaje }} className="sticky top-0 left-[80px] bg-navy-950 z-40 border-r border-b border-navy-800 text-center font-bold text-xs" colSpan={1} rowSpan={2}>Sondaje diamantino</th>
+                <th style={{ width: colStyles.codigo_muestra }} className="sticky top-0 left-[210px] bg-navy-950 z-40 border-r border-b border-navy-800 text-center font-bold text-xs" colSpan={1} rowSpan={2}>Código de muestra</th>
 
                 {/* Comunes: Solo renderizados en la vista de Registro Maestro */}
                 {isMasterView && (
@@ -396,43 +397,43 @@ export default function DataGrid({
                   </>
                 )}
 
-                {/* Ensayos con colores característicos SÓLIDOS */}
+                {/* Ensayos con colores característicos alineados a la gama azul/cyan/indigo */}
                 {(isMasterView || moduleName === 'ucs') && (
-                  <th className="py-2.5 px-2 text-center border-r border-b border-slate-700/60 dark:border-navy-800/80 font-extrabold uppercase tracking-wider text-xs bg-orange-950 text-orange-400 border border-orange-500/30" colSpan={5}>Compresión Uniaxial</th>
+                  <th className="py-2.5 px-2 text-center border-r border-b border-sky-500/30 font-extrabold uppercase tracking-wider text-xs bg-sky-500/15 text-sky-400" colSpan={5}>Compresión Uniaxial (UCS)</th>
                 )}
                 {(isMasterView || moduleName === 'elasticas') && (
-                  <th className="py-2.5 px-2 text-center border-r border-b border-slate-700/60 dark:border-navy-800/80 font-extrabold uppercase tracking-wider text-xs bg-red-950 text-red-400 border border-red-500/30" colSpan={2}>Constantes Elásticas</th>
+                  <th className="py-2.5 px-2 text-center border-r border-b border-indigo-500/30 font-extrabold uppercase tracking-wider text-xs bg-indigo-500/15 text-indigo-400" colSpan={2}>Constantes Elásticas</th>
                 )}
                 {(isMasterView || moduleName === 'traccion') && (
-                  <th className="py-2.5 px-2 text-center border-r border-b border-slate-700/60 dark:border-navy-800/80 font-extrabold uppercase tracking-wider text-xs bg-yellow-950 text-yellow-400 border border-yellow-500/30" colSpan={4}>Tracción Indirecta</th>
+                  <th className="py-2.5 px-2 text-center border-r border-b border-cyan-500/30 font-extrabold uppercase tracking-wider text-xs bg-cyan-500/15 text-cyan-400" colSpan={4}>Tracción Indirecta</th>
                 )}
                 {(isMasterView || moduleName === 'corte') && (
-                  <th className="py-2.5 px-2 text-center border-r border-b border-slate-700/60 dark:border-navy-800/80 font-extrabold uppercase tracking-wider text-xs bg-emerald-950 text-emerald-400 border border-emerald-500/30" colSpan={8}>Corte Directo</th>
+                  <th className="py-2.5 px-2 text-center border-r border-b border-teal-500/30 font-extrabold uppercase tracking-wider text-xs bg-teal-500/15 text-teal-400" colSpan={8}>Corte Directo</th>
                 )}
                 {(isMasterView || moduleName === 'triaxial') && (
-                  <th className="py-2.5 px-2 text-center border-r border-b border-slate-700/60 dark:border-navy-800/80 font-extrabold uppercase tracking-wider text-xs bg-purple-950 text-purple-400 border border-purple-500/30" colSpan={7}>Compresión Triaxial</th>
+                  <th className="py-2.5 px-2 text-center border-r border-b border-sky-500/30 font-extrabold uppercase tracking-wider text-xs bg-sky-500/15 text-sky-400" colSpan={7}>Compresión Triaxial</th>
                 )}
 
-                <th className="py-2.5 px-2 text-center border-r border-b border-slate-700/60 dark:border-navy-800/80 font-extrabold uppercase tracking-wider text-xs bg-navy-900 text-slate-400" colSpan={1} rowSpan={2}>Validación QA/QC</th>
+                <th className="py-2.5 px-2 text-center border-r border-b border-navy-800 font-extrabold uppercase tracking-wider text-xs bg-navy-900 text-slate-400" colSpan={1} rowSpan={2}>Validación QA/QC</th>
 
-                <th style={{ width: colStyles.observacion }} className="py-2.5 px-2 text-center border-r border-b border-slate-700/60 dark:border-navy-800/80 font-extrabold uppercase tracking-wider text-xs bg-navy-900 text-slate-400 relative select-none" colSpan={1} rowSpan={2}>
+                <th style={{ width: colStyles.observacion }} className="py-2.5 px-2 text-center border-r border-b border-navy-800 font-extrabold uppercase tracking-wider text-xs bg-navy-900 text-slate-400 relative select-none" colSpan={1} rowSpan={2}>
                   Observación
                   <div onMouseDown={(e) => handleMouseDown(e, 'observacion')} className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-indigo-500/50" />
                 </th>
 
                 {isMasterView && (
-                  <th style={{ width: colStyles.campana }} className="py-2.5 px-2 text-center border-r border-b border-slate-700/60 dark:border-navy-800/80 font-extrabold uppercase tracking-wider text-xs bg-navy-900 text-slate-400 relative select-none" colSpan={1} rowSpan={2}>
+                  <th style={{ width: colStyles.campana }} className="py-2.5 px-2 text-center border-r border-b border-navy-800 font-extrabold uppercase tracking-wider text-xs bg-navy-900 text-slate-400 relative select-none" colSpan={1} rowSpan={2}>
                     Campaña de Perforación
                     <div onMouseDown={(e) => handleMouseDown(e, 'campana')} className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-indigo-500/50" />
                   </th>
                 )}
 
                 {hasPropFisicasGroup && (
-                  <th className="py-2.5 px-2 text-center sticky top-0 right-32 bg-sky-950 text-sky-400 border-l border-r border-b border-sky-500/30 z-40 font-extrabold uppercase text-xs" colSpan={1}>Prop físicas</th>
+                  <th className="py-2.5 px-2 text-center sticky top-0 right-32 bg-sky-500/15 text-sky-400 border-l border-r border-b border-sky-500/30 z-40 font-extrabold uppercase text-xs" colSpan={1}>Prop físicas</th>
                 )}
 
                 {isMasterView && (
-                  <th className="sticky top-0 right-0 bg-navy-950 z-40 border-l border-b border-slate-700/60 dark:border-navy-800/80 w-32 text-center font-bold text-xs" colSpan={1} rowSpan={2}>Acciones</th>
+                  <th className="sticky top-0 right-0 bg-navy-950 z-40 border-l border-b border-navy-800 w-32 text-center font-bold text-xs" colSpan={1} rowSpan={2}>Acciones</th>
                 )}
               </tr>
 
@@ -440,30 +441,30 @@ export default function DataGrid({
               <tr className="bg-navy-950 text-slate-300 font-bold uppercase tracking-wider text-xs border-b border-navy-800 text-center select-none">
                 {isMasterView && (
                   <>
-                    <th style={{ width: colStyles.dia }} className="py-3 px-2 text-center border-r border-b border-slate-700/60 dark:border-navy-800/80 relative select-none">
+                    <th style={{ width: colStyles.dia }} className="py-3 px-2 text-center border-r border-b border-navy-800 relative select-none">
                       Día
                       <div onMouseDown={(e) => handleMouseDown(e, 'dia')} className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-indigo-500/50" />
                     </th>
-                    <th style={{ width: colStyles.mes }} className="py-3 px-2 text-center border-r border-b border-slate-700/60 dark:border-navy-800/80 relative select-none">
+                    <th style={{ width: colStyles.mes }} className="py-3 px-2 text-center border-r border-b border-navy-800 relative select-none">
                       Mes
                       <div onMouseDown={(e) => handleMouseDown(e, 'mes')} className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-indigo-500/50" />
                     </th>
-                    <th style={{ width: colStyles.anio }} className="py-3 px-2 text-center border-r border-b border-slate-700/60 dark:border-navy-800/80 relative select-none">
+                    <th style={{ width: colStyles.anio }} className="py-3 px-2 text-center border-r border-b border-navy-800 relative select-none">
                       Año
                       <div onMouseDown={(e) => handleMouseDown(e, 'anio')} className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-indigo-500/50" />
                     </th>
 
-                    <th style={{ width: colStyles.desde }} className="py-3 px-2 text-center border-r border-b border-slate-700/60 dark:border-navy-800/80 relative select-none">Desde (m)</th>
-                    <th style={{ width: colStyles.hasta }} className="py-3 px-2 text-center border-r border-b border-slate-700/60 dark:border-navy-800/80 relative select-none">Hasta (m)</th>
-                    <th style={{ width: colStyles.longitud_muestra }} className="py-3 px-2 text-center border-r border-b border-slate-700/60 dark:border-navy-800/80 relative select-none">Longitud de muestra (m)</th>
+                    <th style={{ width: colStyles.desde }} className="py-3 px-2 text-center border-r border-b border-navy-800 relative select-none">Desde (m)</th>
+                    <th style={{ width: colStyles.hasta }} className="py-3 px-2 text-center border-r border-b border-navy-800 relative select-none">Hasta (m)</th>
+                    <th style={{ width: colStyles.longitud_muestra }} className="py-3 px-2 text-center border-r border-b border-navy-800 relative select-none">Longitud de muestra (m)</th>
 
-                    <th style={{ width: colStyles.este }} className="py-3 px-2 text-center border-r border-b border-slate-700/60 dark:border-navy-800/80 relative select-none">Este (m)</th>
-                    <th style={{ width: colStyles.norte }} className="py-3 px-2 text-center border-r border-b border-slate-700/60 dark:border-navy-800/80 relative select-none">Norte (m)</th>
-                    <th style={{ width: colStyles.elevacion }} className="py-3 px-2 text-center border-r border-b border-slate-700/60 dark:border-navy-800/80 relative select-none">Elevación (msnm)</th>
+                    <th style={{ width: colStyles.este }} className="py-3 px-2 text-center border-r border-b border-navy-800 relative select-none">Este (m)</th>
+                    <th style={{ width: colStyles.norte }} className="py-3 px-2 text-center border-r border-b border-navy-800 relative select-none">Norte (m)</th>
+                    <th style={{ width: colStyles.elevacion }} className="py-3 px-2 text-center border-r border-b border-navy-800 relative select-none">Elevación (msnm)</th>
 
-                    <th style={{ width: colStyles.lito1 }} className="py-3 px-2 text-center border-r border-b border-slate-700/60 dark:border-navy-800/80 relative select-none">Lito 1</th>
-                    <th style={{ width: colStyles.lito2 }} className="py-3 px-2 text-center border-r border-b border-slate-700/60 dark:border-navy-800/80 relative select-none">Lito 2</th>
-                    <th style={{ width: colStyles.lito3 }} className="py-3 px-2 text-center border-r border-b border-slate-700/60 dark:border-navy-800/80 relative select-none">Lito 3</th>
+                    <th style={{ width: colStyles.lito1 }} className="py-3 px-2 text-center border-r border-b border-navy-800 relative select-none">Lito 1</th>
+                    <th style={{ width: colStyles.lito2 }} className="py-3 px-2 text-center border-r border-b border-navy-800 relative select-none">Lito 2</th>
+                    <th style={{ width: colStyles.lito3 }} className="py-3 px-2 text-center border-r border-b border-navy-800 relative select-none">Lito 3</th>
                   </>
                 )}
 
@@ -472,7 +473,7 @@ export default function DataGrid({
                     <th
                       key={col.index}
                       style={{ width: colStyles[col.dbName] || '110px' }}
-                      className="py-3 px-2 text-center border-r border-b border-slate-700/60 dark:border-navy-800/80 font-bold uppercase tracking-wider text-xs relative select-none"
+                      className="py-3 px-2 text-center border-r border-b border-navy-800 font-bold uppercase tracking-wider text-xs relative select-none"
                     >
                       <span>{col.excelName}</span>
                       <div onMouseDown={(e) => handleMouseDown(e, col.dbName)} className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-indigo-500/50" />
@@ -481,7 +482,7 @@ export default function DataGrid({
                 })}
 
                 {hasPropFisicasGroup && (
-                  <th style={{ width: colStyles.prop_peso_unitario_geometrico }} className="py-3 px-2.5 text-center sticky top-[38px] right-32 bg-navy-950 border-l border-r border-b border-slate-700/60 dark:border-navy-800/80 z-40 relative select-none">
+                  <th style={{ width: colStyles.prop_peso_unitario_geometrico }} className="py-3 px-2.5 text-center sticky top-[38px] right-32 bg-navy-950 border-l border-r border-b border-navy-800 z-40 relative select-none">
                     Peso unitario geométrico (gr/cm³)
                     <div onMouseDown={(e) => handleMouseDown(e, 'prop_peso_unitario_geometrico')} className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-indigo-500/50" />
                   </th>
@@ -493,16 +494,17 @@ export default function DataGrid({
             <tbody className="divide-y divide-navy-900/40 text-xs text-slate-300 font-normal">
               {records.map((rec, rIdx) => {
                 const isEven = rIdx % 2 === 0;
-                const rowBg = isEven ? "bg-navy-900/5 hover:bg-navy-900/20" : "bg-navy-950/20 hover:bg-navy-900/20";
+                const rowBg = isEven ? "bg-navy-900/10 hover:bg-navy-900/30" : "bg-navy-950/30 hover:bg-navy-900/30";
                 const isInputDisabled = !isMasterView;
 
                 return (
                   <tr key={rec.idd} className={`${rowBg} transition-colors border-b border-navy-900/20`}>
 
                     {/* IDD Sticky Left */}
-                    <td className="sticky left-0 bg-navy-950 text-center text-slate-400 font-mono font-bold text-xs py-2 border-r border-b border-slate-700/60 dark:border-navy-800/80 z-10 select-none">
+                    <td className="sticky left-0 bg-navy-950 text-center text-slate-400 font-mono font-bold text-xs py-2 border-r border-b border-navy-800 z-10 select-none">
                       {rec.idd}
                     </td>
+
 
                     {/* Sondaje Sticky Left */}
                     <td className={`p-0 sticky left-[80px] bg-navy-950 z-10 ${getCellBorderClass(rec.idd, 'sondaje')}`}>
@@ -833,7 +835,7 @@ export default function DataGrid({
                           handleCellChange(rec.idd, 'observacion', e.target.value);
                         }}
                         className={`w-full bg-transparent border-0 focus:outline-none text-center text-xs py-2 px-1 text-slate-200 font-normal ${isInputDisabled ? 'text-slate-400 bg-navy-900/[0.05] cursor-not-allowed' : ''}`}
-                        placeholder="—"
+                        placeholder=""
                       />
                     </td>
 
@@ -846,7 +848,7 @@ export default function DataGrid({
                           value={rec.campana || ''}
                           onChange={(e) => handleCellChange(rec.idd, 'campana', e.target.value)}
                           className="w-full bg-transparent border-0 focus:outline-none text-center text-xs py-2 px-1 text-slate-200 font-normal"
-                          placeholder="—"
+                          placeholder=""
                         />
                       </td>
                     )}
@@ -876,7 +878,7 @@ export default function DataGrid({
 
                     {/* Acciones Sticky Right en la última columna */}
                     {isMasterView && (
-                      <td className="sticky right-0 bg-navy-950 text-center py-2 px-1.5 border-l border-b border-slate-700/60 dark:border-navy-800/80 z-10 select-none">
+                      <td className="sticky right-0 bg-navy-950 text-center py-2 px-1.5 border-l border-b border-navy-800 z-10 select-none">
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => onInsertRowBelow(rIdx)}

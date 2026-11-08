@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldCheck, X, AlertCircle, HelpCircle, ArrowLeft } from 'lucide-react';
+import { ShieldCheck, X, AlertCircle, HelpCircle, ArrowLeft, CheckCircle2, ChevronRight } from 'lucide-react';
 import type { QAQCAlert } from '../utils/qaqcValidator';
 
 interface ValidationPanelProps {
@@ -26,10 +26,10 @@ export default function ValidationPanel({ alerts, onFocusField }: ValidationPane
   const criticos = alerts.filter(a => a.type === 'CRÍTICO');
   const alertColorClass = criticos.length > 0
     ? 'from-rose-600 to-red-500 shadow-rose-500/20'
-    : 'from-amber-500 to-yellow-400 shadow-amber-500/20';
+    : 'from-amber-500 to-yellow-500 shadow-amber-500/20';
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 select-none">
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 select-none view-modal">
       {/* 1. Botón Flotante Chatbot */}
       {!isOpen && (
         <button
@@ -37,7 +37,7 @@ export default function ValidationPanel({ alerts, onFocusField }: ValidationPane
             setIsOpen(true);
             setActiveTab('principal');
           }}
-          className={`flex items-center gap-2 px-4 py-3 rounded-full bg-gradient-to-r text-white shadow-2xl font-black text-xs hover:brightness-110 transition-all active:scale-95 animate-pulse ${alertColorClass}`}
+          className={`flex items-center gap-2 px-4 py-2.5 sm:py-3 rounded-full bg-gradient-to-r text-white shadow-2xl font-black text-xs hover:brightness-110 transition-all active:scale-95 animate-pulse ${alertColorClass}`}
         >
           <ShieldCheck size={16} />
           <span>Alertas QA/QC ({alerts.length})</span>
@@ -46,31 +46,31 @@ export default function ValidationPanel({ alerts, onFocusField }: ValidationPane
 
       {/* 2. Modal Colapsable Tipo Chatbot */}
       {isOpen && (
-        <div className="w-96 rounded-2xl border border-navy-800 bg-navy-950/95 backdrop-blur-md shadow-2xl flex flex-col overflow-hidden animate-scale-up text-left">
+        <div className="glass-panel w-[calc(100vw-2rem)] sm:w-96 max-w-sm rounded-2xl border border-navy-800 bg-navy-900/95 backdrop-blur-md shadow-2xl flex flex-col overflow-hidden animate-scale-up text-left">
           {/* Header del Modal */}
-          <div className="flex items-center justify-between p-3.5 border-b border-navy-900 bg-navy-950/40 shrink-0">
+          <div className="flex items-center justify-between p-3.5 border-b border-navy-800 bg-navy-950/40 shrink-0">
             <span className="text-xs font-black text-slate-100 uppercase tracking-widest flex items-center gap-2">
               {activeTab !== 'principal' && (
                 <button
                   onClick={() => setActiveTab('principal')}
-                  className="p-1 rounded hover:bg-navy-900 text-slate-400 hover:text-slate-200"
+                  className="p-1 rounded hover:bg-navy-800 text-slate-400 hover:text-slate-100"
                 >
                   <ArrowLeft size={14} />
                 </button>
               )}
               <ShieldCheck size={14} className={criticos.length > 0 ? "text-rose-400" : "text-amber-400"} />
-              <span>QA/QC — {activeTab === 'principal' ? 'Dashboard' : TAB_LABELS[activeTab]}</span>
+              <span className="truncate">QA/QC: {activeTab === 'principal' ? 'Dashboard' : TAB_LABELS[activeTab]}</span>
             </span>
             <button
               onClick={() => setIsOpen(false)}
-              className="p-1 rounded hover:bg-navy-900 text-slate-400 hover:text-white transition-colors"
+              className="p-1 rounded hover:bg-navy-800 text-slate-400 hover:text-slate-100 transition-colors"
             >
               <X size={14} />
             </button>
           </div>
 
           {/* Cuerpo del Modal */}
-          <div className="max-h-80 overflow-y-auto p-4 space-y-3 custom-scrollbar flex-1 bg-navy-950/15">
+          <div className="max-h-80 overflow-y-auto p-4 space-y-3 custom-scrollbar flex-1 bg-navy-950/20">
             {activeTab === 'principal' ? (
               <div className="space-y-2">
                 <p className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Resumen de Auditoría</p>
@@ -83,17 +83,24 @@ export default function ValidationPanel({ alerts, onFocusField }: ValidationPane
                     <div
                       key={tabKey}
                       onClick={() => setActiveTab(tabKey)}
-                      className={`p-3 rounded-xl border flex justify-between items-center cursor-pointer transition-all hover:bg-navy-900/40 ${moduleAlerts.length > 0
+                      className={`p-3 rounded-xl border flex justify-between items-center cursor-pointer transition-all hover:bg-navy-900/60 ${moduleAlerts.length > 0
                           ? mCriticos > 0
-                            ? 'border-rose-500/20 bg-rose-950/10 hover:border-rose-500/40'
-                            : 'border-amber-500/20 bg-amber-950/10 hover:border-amber-500/40'
-                          : 'border-navy-900 bg-navy-950/20 hover:border-navy-800'
+                            ? 'border-rose-500/25 bg-rose-500/10 hover:border-rose-500/45'
+                            : 'border-amber-500/25 bg-amber-500/10 hover:border-amber-500/45'
+                          : 'border-navy-800 bg-navy-900/30 hover:border-navy-700'
                         }`}
                     >
                       <div>
                         <h5 className="font-bold text-xs text-slate-200">{label}</h5>
-                        <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold mt-0.5">
-                          {moduleAlerts.length === 0 ? "✓ Todo Consistente" : "Requiere Revisión"}
+                        <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold mt-0.5 flex items-center gap-1">
+                          {moduleAlerts.length === 0 ? (
+                            <>
+                              <CheckCircle2 size={12} className="text-emerald-400" />
+                              <span>Todo Consistente</span>
+                            </>
+                          ) : (
+                            <span>Requiere Revisión</span>
+                          )}
                         </p>
                       </div>
                       <div className="flex gap-1.5 shrink-0">
@@ -131,9 +138,9 @@ export default function ValidationPanel({ alerts, onFocusField }: ValidationPane
                       <div
                         key={idx}
                         onClick={() => onFocusField(alert.idd, alert.field, alert.tab)}
-                        className={`p-3 rounded-xl border text-xs cursor-pointer hover:bg-navy-900/40 transition-all active:scale-98 ${isCritico
-                            ? 'border-rose-500/25 bg-rose-950/10 hover:border-rose-500/55'
-                            : 'border-amber-500/25 bg-amber-950/10 hover:border-amber-500/55'
+                        className={`p-3 rounded-xl border text-xs cursor-pointer hover:bg-navy-900/60 transition-all active:scale-98 ${isCritico
+                            ? 'border-rose-500/25 bg-rose-500/10 hover:border-rose-500/55'
+                            : 'border-amber-500/25 bg-amber-500/10 hover:border-amber-500/55'
                           }`}
                       >
                         <div className="flex justify-between items-center mb-1">
@@ -147,8 +154,9 @@ export default function ValidationPanel({ alerts, onFocusField }: ValidationPane
                           </span>
                         </div>
                         <p className="text-slate-300 font-medium leading-relaxed">{alert.message}</p>
-                        <div className="mt-2 text-xs text-blue-400 font-black tracking-wider uppercase select-none hover:underline">
-                          Ir a la Celda &raquo;
+                        <div className="mt-2 text-xs text-sky-400 font-black tracking-wider uppercase select-none hover:underline flex items-center gap-0.5">
+                          <span>Ir a la Celda</span>
+                          <ChevronRight size={12} />
                         </div>
                       </div>
                     );

@@ -316,7 +316,7 @@ export default function ExcelImportModal({ isOpen, onClose, onImport }: ExcelImp
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-950/80 backdrop-blur-sm animate-fade-in text-left">
+        <div className="fixed inset-0 view-modal z-50 flex items-center justify-center p-4 bg-navy-950/80 backdrop-blur-sm animate-fade-in text-left">
             <div className="glass-panel w-full max-w-5xl max-h-[90vh] flex flex-col border border-navy-800 rounded-2xl shadow-2xl relative overflow-hidden bg-navy-900/95 text-xs text-slate-100">
                 <div className="h-1.5 bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-500 w-full shrink-0" />
 
@@ -482,8 +482,9 @@ export default function ExcelImportModal({ isOpen, onClose, onImport }: ExcelImp
                                                                 })}
                                                             </div>
                                                         ) : (
-                                                            <div className="text-[10px] text-rose-400 font-semibold italic pl-1">
-                                                                ⚠ Seleccione al menos un sondaje para importar.
+                                                            <div className="text-[10px] text-rose-400 font-semibold italic pl-1 flex items-center gap-1">
+                                                                <AlertTriangle size={12} className="shrink-0" />
+                                                                <span>Seleccione al menos un sondaje para importar.</span>
                                                             </div>
                                                         )}
                                                     </div>
@@ -571,7 +572,7 @@ export default function ExcelImportModal({ isOpen, onClose, onImport }: ExcelImp
                 </div>
 
                 {showConfirmMasivo && (
-                    <div className="absolute inset-0 z-40 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in">
+                    <div className="absolute inset-0 z-40 bg-navy-950/85 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in">
                         <div className="glass-panel w-full max-w-sm p-6 rounded-2xl border border-navy-800 bg-navy-900/95 shadow-2xl space-y-4 text-center">
                             <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-full w-12 h-12 flex items-center justify-center mx-auto shadow-[0_0_15px_rgba(244,63,94,0.1)]">
                                 <AlertTriangle size={20} />
@@ -607,7 +608,7 @@ export default function ExcelImportModal({ isOpen, onClose, onImport }: ExcelImp
                 )}
 
                 {showSuccessOverlay && (
-                    <div className="absolute inset-0 z-50 bg-slate-950/95 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in">
+                    <div className="absolute inset-0 z-50 bg-navy-950/90 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in">
                         <div className="glass-panel w-full max-w-sm p-6 rounded-2xl border border-navy-800 bg-navy-900/95 shadow-2xl space-y-4 text-center">
                             <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full w-12 h-12 flex items-center justify-center mx-auto shadow-[0_0_15px_rgba(16,185,129,0.15)]">
                                 <CheckCircle2 size={22} className="animate-scale-up" />

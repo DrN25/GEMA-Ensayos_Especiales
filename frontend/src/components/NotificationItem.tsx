@@ -49,7 +49,7 @@ export default function NotificationItem({ id, type, title, message, onClose }: 
         <div
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
-            className={`p-4 rounded-xl border shadow-2xl pointer-events-auto flex items-center justify-between gap-4 w-full transition-all duration-300 transform scale-100 hover:scale-[1.02] ${typeStyles[type]}`}
+            className={`glass-panel p-4 rounded-xl border shadow-2xl pointer-events-auto flex items-center justify-between gap-4 w-full transition-all duration-300 transform scale-100 hover:scale-[1.02] bg-navy-900/95 ${typeStyles[type]}`}
         >
             <div className="flex items-start gap-3">
                 <Icon size={16} className="shrink-0 mt-0.5" />
@@ -61,7 +61,7 @@ export default function NotificationItem({ id, type, title, message, onClose }: 
             </div>
             <button
                 onClick={() => onClose(id)}
-                className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors shrink-0"
+                className="p-1.5 rounded-lg hover:bg-navy-800 text-slate-400 hover:text-slate-100 transition-colors shrink-0"
             >
                 <X size={14} />
             </button>

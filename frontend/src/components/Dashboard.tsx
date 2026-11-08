@@ -1,337 +1,374 @@
-import React from 'react';
-import { Database, ShieldCheck, Layers, ArrowRight, FlaskConical, Activity, TrendingUp, Scissors, Compass } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import {
+  Database,
+  ShieldCheck,
+  Layers,
+  FlaskConical,
+  Activity,
+  TrendingUp,
+  Scissors,
+  Compass,
+  Scale,
+  RefreshCw,
+  ChevronRight,
+  FileSpreadsheet,
+  Plus,
+  ArrowRight
+} from 'lucide-react';
 
 interface DashboardProps {
   records: Record<string, any>[];
   alertsCount: number;
   onNavigateTab: (tabName: string) => void;
+  apiBase?: string;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ records, alertsCount, onNavigateTab }) => {
-  const total = records.length;
+interface StatsData {
+  total: number;
+  counts: {
+    ucs: number;
+    elasticas: number;
+    traccion: number;
+    corte: number;
+    triaxial: number;
+    propiedades: number;
+  };
+  recent: Record<string, any>[];
+}
 
-  const countUCS = records.filter(r => r.ucs_diametro || r.ucs_carga_rotura).length;
-  const countElasticas = records.filter(r => r.elasticas_modulo_young || r.elasticas_poisson).length;
-  const countTraccion = records.filter(r => r.traccion_carga_promedio || r.traccion_resistencia_mpa).length;
-  const countCorte = records.filter(r => r.corte_area || r.corte_cohesion_mpa).length;
-  const countTriaxial = records.filter(r => r.triaxial_esfuerzo_maximo || r.triaxial_cohesion_mpa).length;
-  const countPropiedades = records.filter(r => r.prop_peso_unitario_geometrico).length;
+export default function Dashboard({ records, alertsCount, onNavigateTab, apiBase = '' }: DashboardProps) {
+  const [stats, setStats] = useState<StatsData | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  const recentRecords = [...records].slice(-5).reverse();
+  useEffect(() => {
+    fetchStats();
+  }, [apiBase]);
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch(`${apiBase}/api/ensayos/stats`);
+      if (res.ok) {
+        const data = await res.json();
+        setStats(data);
+      }
+    } catch (e) {
+      console.warn("No se pudo cargar estadísticas globales", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const totalGlobal = stats ? stats.total : (records.length > 0 ? records.length : 0);
+  const countUCS = stats ? stats.counts.ucs : records.filter(r => r.ucs_diametro || r.ucs_carga_rotura).length;
+  const countElasticas = stats ? stats.counts.elasticas : records.filter(r => r.elasticas_modulo_young || r.elasticas_poisson).length;
+  const countTraccion = stats ? stats.counts.traccion : records.filter(r => r.traccion_carga_promedio || r.traccion_resistencia_mpa).length;
+  const countCorte = stats ? stats.counts.corte : records.filter(r => r.corte_area || r.corte_cohesion_mpa).length;
+  const countTriaxial = stats ? stats.counts.triaxial : records.filter(r => r.triaxial_esfuerzo_maximo || r.triaxial_cohesion_mpa).length;
+  const countPropiedades = stats ? stats.counts.propiedades : records.filter(r => r.prop_peso_unitario_geometrico).length;
+
+  const recentRecords = stats && stats.recent && stats.recent.length > 0 ? stats.recent : records.slice(0, 5);
+
+  const modulesList = [
+    { id: 'ucs', label: 'Compresión Uniaxial', short: 'UCS', count: countUCS, icon: FlaskConical, color: 'sky' },
+    { id: 'elasticas', label: 'Constantes Elásticas', short: 'Young / Poisson', count: countElasticas, icon: Activity, color: 'indigo' },
+    { id: 'traccion', label: 'Tracción Indirecta', short: 'Brasileño', count: countTraccion, icon: TrendingUp, color: 'cyan' },
+    { id: 'corte', label: 'Corte Directo', short: 'Discontinuidades', count: countCorte, icon: Scissors, color: 'teal' },
+    { id: 'triaxial', label: 'Compresión Triaxial', short: 'Hoek-Brown', count: countTriaxial, icon: Compass, color: 'blue' },
+    { id: 'propiedades', label: 'Propiedades Físicas', short: 'Densidad y Porosidad', count: countPropiedades, icon: Scale, color: 'slate' },
+  ];
 
   return (
-    <div className="space-y-6 text-left select-none animate-fade-in text-xs font-semibold">
-
-      {/* Banner de Bienvenida con Contenedor Oscuro de Contraste Fijo compatible con Modo Claro */}
-      <div className="p-6 rounded-2xl border border-indigo-500/15 bg-slate-900 shadow-[0_0_30px_rgba(99,102,241,0.12)] relative overflow-hidden">
-        <div className="max-w-2xl relative z-10 text-slate-100">
-          <h2 className="text-xl font-extrabold text-white mb-2 uppercase tracking-wider flex items-center gap-3">
-            <Layers size={20} className="text-indigo-400 drop-shadow-[0_0_8px_#6366f1] animate-pulse" />
-            <span>Módulo de Ensayos Especiales Geomecánicos</span>
+    <div className="space-y-6 select-none w-full animate-fade-in text-left view-dashboard">
+      {/* 1. Header Toolbar (matching Mapeo Dashboard style) */}
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+        <div>
+          <h2 className="text-xl font-black text-slate-100 tracking-wide flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(14,165,233,0.8)]" />
+            <span>Consolidado Geotécnico de Ensayos Especiales</span>
           </h2>
-          <p className="text-xs text-slate-300 leading-relaxed font-semibold">
-            Control de calidad QA/QC y base de datos desnormalizada de ensayos de laboratorio.
-            Audite en tiempo real ensayos de compresión uniaxial (UCS), constantes elásticas,
-            tracción indirecta, corte directo, compresión triaxial y propiedades físicas.
+          <p className="text-slate-400 text-xs mt-1 font-semibold">
+            {loading
+              ? 'Conectando con base de datos...'
+              : `Total de ${totalGlobal.toLocaleString()} muestras geotécnicas consolidadas en base de datos`}
           </p>
         </div>
-        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -mr-16 -mt-16" />
+
+        <div className="flex items-center gap-2.5 flex-wrap justify-start md:justify-end">
+          <button
+            onClick={() => onNavigateTab('auditoria')}
+            className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/40 hover:bg-amber-500/20 hover:border-amber-400 text-amber-400 px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-[0_0_12px_rgba(245,158,11,0.12)] active:scale-95"
+          >
+            <ShieldCheck size={16} className="text-amber-400" />
+            <span>Auditoría QA/QC</span>
+          </button>
+
+          <button
+            onClick={() => onNavigateTab('registro_maestro')}
+            className="flex items-center gap-2 bg-sky-500/10 border border-sky-500/40 hover:bg-sky-500/20 hover:border-sky-400 text-sky-400 px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-[0_0_12px_rgba(14,165,233,0.12)] active:scale-95"
+          >
+            <Database size={16} />
+            <span>Registro Maestro</span>
+          </button>
+
+          <button
+            onClick={() => onNavigateTab('distribucion')}
+            className="flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/40 text-indigo-400 hover:bg-indigo-500/20 hover:border-indigo-400 font-bold transition-all duration-200 active:scale-95 shadow-[0_0_12px_rgba(99,102,241,0.12)] px-4 py-2 rounded-lg text-xs"
+          >
+            <Layers size={16} />
+            <span>Ver Familias</span>
+          </button>
+        </div>
       </div>
 
-      {/* FILA SUPERIOR: KPIs Globales amplios con contorno neón y fondo translúcido */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-        {/* Total Muestras */}
+      {/* 2. KPIs Superiores en Grid (6 Tarjetas estilo Mapeo) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        {/* KPI 1: Total Muestras */}
         <div
           onClick={() => onNavigateTab('registro_maestro')}
-          className="p-5 rounded-2xl border border-indigo-500/30 bg-indigo-500/[0.03] bg-gradient-to-br from-indigo-500/[0.08] to-transparent shadow-[0_0_20px_rgba(99,102,241,0.12)] hover:border-indigo-500/50 hover:bg-indigo-500/[0.06] hover:shadow-[0_0_25px_rgba(99,102,241,0.22)] cursor-pointer transition-all duration-300 active:scale-[0.98] flex flex-col justify-between h-32 animate-fade-in"
+          className="glass-panel p-5 rounded-xl border border-navy-800 bg-navy-950/20 flex items-center justify-between shadow-lg hover:border-sky-500/40 cursor-pointer transition-all active:scale-[0.98]"
         >
-          <div>
-            <div className="text-xs uppercase font-extrabold text-indigo-300 tracking-wider flex items-center gap-2">
-              <Database size={13} />
-              <span>Total Muestras Registradas</span>
-            </div>
-            <div className="mt-3 text-2xl font-black text-slate-100 font-mono tracking-tight">{total}</div>
+          <div className="space-y-1">
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">
+              Total Muestras
+            </span>
+            <span className="text-xl font-black text-slate-100 block font-mono">
+              {loading ? '...' : totalGlobal.toLocaleString()}
+            </span>
+            <span className="text-[10px] font-bold text-sky-400 block leading-none">
+              SQL Server Unificado
+            </span>
           </div>
-          <div className="text-xs text-slate-400 font-bold">Base Unificada Desnormalizada</div>
+          <Database size={22} className="text-sky-400/40 shrink-0" />
         </div>
 
-        {/* Estado General QA/QC */}
+        {/* KPI 2: Integridad QA/QC */}
         <div
-          onClick={() => onNavigateTab('registro_maestro')}
-          className={`p-5 rounded-2xl border bg-navy-950/20 h-32 transition-all duration-300 flex flex-col justify-between cursor-pointer active:scale-[0.98] ${alertsCount > 0
-              ? 'border-rose-500/30 bg-rose-500/[0.03] bg-gradient-to-br from-rose-500/[0.08] to-transparent shadow-[0_0_20px_rgba(244,63,94,0.15)] hover:border-rose-500/50 hover:bg-rose-500/[0.06]'
-              : 'border-emerald-500/30 bg-emerald-500/[0.03] bg-gradient-to-br from-emerald-500/[0.08] to-transparent shadow-[0_0_20px_rgba(16,185,129,0.12)] hover:border-emerald-500/50 hover:bg-emerald-500/[0.06]'
-            }`}
+          onClick={() => onNavigateTab('auditoria')}
+          className="glass-panel p-5 rounded-xl border border-navy-800 bg-navy-950/20 flex items-center justify-between shadow-lg hover:border-amber-500/40 cursor-pointer transition-all active:scale-[0.98]"
         >
-          <div>
-            <div className="text-xs uppercase font-extrabold text-slate-400 tracking-wider flex items-center gap-2">
-              <ShieldCheck size={13} className={alertsCount > 0 ? 'text-rose-400 animate-pulse' : 'text-emerald-400'} />
-              <span>Estado General QA/QC</span>
-            </div>
-            <div className={`mt-3 text-lg font-black tracking-wider uppercase font-mono ${alertsCount > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-              {alertsCount > 0 ? `${alertsCount} Alertas Críticas` : 'Todo Consistente'}
-            </div>
+          <div className="space-y-1">
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">
+              Integridad QA/QC
+            </span>
+            <span
+              className={`text-xl font-black block font-mono ${
+                alertsCount > 0 ? 'text-rose-400' : 'text-emerald-400'
+              }`}
+            >
+              {alertsCount > 0 ? `${alertsCount} Alertas` : '100% OK'}
+            </span>
+            <span
+              className={`text-[10px] font-bold block leading-none ${
+                alertsCount > 0 ? 'text-rose-400' : 'text-emerald-400'
+              }`}
+            >
+              {alertsCount > 0 ? 'Requiere Revisión' : 'Conforme'}
+            </span>
           </div>
-          <div className="text-xs text-slate-400 font-bold">
-            {alertsCount > 0 ? 'Click para Auditar Errores' : 'Auditoría Aprobada'}
-          </div>
+          <ShieldCheck
+            size={22}
+            className={`shrink-0 ${alertsCount > 0 ? 'text-rose-400/40 animate-pulse' : 'text-emerald-400/40'}`}
+          />
         </div>
 
-      </div>
+        {/* KPI 3: Familias de Ensayo */}
+        <div
+          onClick={() => onNavigateTab('distribucion')}
+          className="glass-panel p-5 rounded-xl border border-navy-800 bg-navy-950/20 flex items-center justify-between shadow-lg hover:border-indigo-500/40 cursor-pointer transition-all active:scale-[0.98]"
+        >
+          <div className="space-y-1">
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">
+              Familias Ensayo
+            </span>
+            <span className="text-xl font-black text-slate-100 block font-mono">6 Módulos</span>
+            <span className="text-[10px] font-bold text-indigo-400 block leading-none">
+              Laboratorio Geomec.
+            </span>
+          </div>
+          <Layers size={22} className="text-indigo-400/40 shrink-0" />
+        </div>
 
-      {/* FILA INFERIOR: Los 5 Ensayos por Separado con Colores Característicos Neón y Fondos de su Propia Gama */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-
-        {/* 1. UCS (Naranja Neón) */}
+        {/* KPI 4: UCS */}
         <div
           onClick={() => onNavigateTab('ucs')}
-          className="p-5 rounded-2xl border border-orange-500/30 bg-orange-500/[0.03] bg-gradient-to-br from-orange-500/[0.08] to-transparent shadow-[0_0_20px_rgba(249,115,22,0.12)] hover:border-orange-500/50 hover:bg-orange-500/[0.06] hover:shadow-[0_0_25px_rgba(249,115,22,0.22)] cursor-pointer transition-all duration-300 active:scale-[0.98] flex flex-col justify-between h-32"
+          className="glass-panel p-5 rounded-xl border border-navy-800 bg-navy-950/20 flex items-center justify-between shadow-lg hover:border-sky-500/40 cursor-pointer transition-all active:scale-[0.98]"
         >
-          <div>
-            <div className="text-xs uppercase font-extrabold text-orange-400 tracking-wider flex items-center gap-2">
-              <FlaskConical size={13} />
-              <span>Compresión (UCS)</span>
-            </div>
-            <div className="mt-3 text-2xl font-black text-orange-400 font-mono tracking-tight">{countUCS}</div>
+          <div className="space-y-1">
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">
+              Compresión UCS
+            </span>
+            <span className="text-xl font-black text-sky-400 block font-mono">
+              {loading ? '...' : countUCS.toLocaleString()}
+            </span>
+            <span className="text-[10px] font-bold text-slate-400 block leading-none">
+              Roca Intacta
+            </span>
           </div>
-          <div className="text-xs text-slate-400 font-bold">Módulo Uniaxial</div>
+          <FlaskConical size={22} className="text-sky-400/40 shrink-0" />
         </div>
 
-        {/* 2. Elásticas (Rojo Neón) */}
+        {/* KPI 5: Elásticas */}
         <div
           onClick={() => onNavigateTab('elasticas')}
-          className="p-5 rounded-2xl border border-red-500/30 bg-red-500/[0.03] bg-gradient-to-br from-red-500/[0.08] to-transparent shadow-[0_0_20px_rgba(239,68,68,0.12)] hover:border-red-500/50 hover:bg-red-500/[0.06] hover:shadow-[0_0_25px_rgba(239,68,68,0.22)] cursor-pointer transition-all duration-300 active:scale-[0.98] flex flex-col justify-between h-32"
+          className="glass-panel p-5 rounded-xl border border-navy-800 bg-navy-950/20 flex items-center justify-between shadow-lg hover:border-indigo-500/40 cursor-pointer transition-all active:scale-[0.98]"
         >
-          <div>
-            <div className="text-xs uppercase font-extrabold text-red-400 tracking-wider flex items-center gap-2">
-              <Activity size={13} />
-              <span>Const. Elásticas</span>
-            </div>
-            <div className="mt-3 text-2xl font-black text-red-400 font-mono tracking-tight">{countElasticas}</div>
+          <div className="space-y-1">
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">
+              Elásticas
+            </span>
+            <span className="text-xl font-black text-indigo-400 block font-mono">
+              {loading ? '...' : countElasticas.toLocaleString()}
+            </span>
+            <span className="text-[10px] font-bold text-slate-400 block leading-none">
+              Young & Poisson
+            </span>
           </div>
-          <div className="text-xs text-slate-400 font-bold">Módulo Young/Poisson</div>
+          <Activity size={22} className="text-indigo-400/40 shrink-0" />
         </div>
 
-        {/* 3. Tracción (Amarillo Neón) */}
-        <div
-          onClick={() => onNavigateTab('traccion')}
-          className="p-5 rounded-2xl border border-yellow-500/30 bg-yellow-500/[0.03] bg-gradient-to-br from-yellow-500/[0.08] to-transparent shadow-[0_0_20px_rgba(234,179,8,0.12)] hover:border-yellow-500/50 hover:bg-yellow-500/[0.06] hover:shadow-[0_0_25px_rgba(234,179,8,0.22)] cursor-pointer transition-all duration-300 active:scale-[0.98] flex flex-col justify-between h-32"
-        >
-          <div>
-            <div className="text-xs uppercase font-extrabold text-yellow-400 tracking-wider flex items-center gap-2">
-              <TrendingUp size={13} />
-              <span>Tracción Indirecta</span>
-            </div>
-            <div className="mt-3 text-2xl font-black text-yellow-400 font-mono tracking-tight">{countTraccion}</div>
-          </div>
-          <div className="text-xs text-slate-400 font-bold">Módulo Brasileño</div>
-        </div>
-
-        {/* 4. Corte (Verde Neón) */}
+        {/* KPI 6: Corte & Triaxial */}
         <div
           onClick={() => onNavigateTab('corte')}
-          className="p-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.03] bg-gradient-to-br from-emerald-500/[0.08] to-transparent shadow-[0_0_20px_rgba(16,185,129,0.12)] hover:border-emerald-500/50 hover:bg-emerald-500/[0.06] hover:shadow-[0_0_25px_rgba(16,185,129,0.22)] cursor-pointer transition-all duration-300 active:scale-[0.98] flex flex-col justify-between h-32"
+          className="glass-panel p-5 rounded-xl border border-navy-800 bg-navy-950/20 flex items-center justify-between shadow-lg hover:border-teal-500/40 cursor-pointer transition-all active:scale-[0.98]"
         >
-          <div>
-            <div className="text-xs uppercase font-extrabold text-emerald-400 tracking-wider flex items-center gap-2">
-              <Scissors size={13} />
-              <span>Corte Directo</span>
-            </div>
-            <div className="mt-3 text-2xl font-black text-emerald-400 font-mono tracking-tight">{countCorte}</div>
+          <div className="space-y-1">
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">
+              Corte Directo
+            </span>
+            <span className="text-xl font-black text-teal-400 block font-mono">
+              {loading ? '...' : countCorte.toLocaleString()}
+            </span>
+            <span className="text-[10px] font-bold text-slate-400 block leading-none">
+              Discontinuidades
+            </span>
           </div>
-          <div className="text-xs text-slate-400 font-bold">Módulo Discontinuidades</div>
+          <Scissors size={22} className="text-teal-400/40 shrink-0" />
         </div>
-
-        {/* 5. Triaxial (Morado Neón) */}
-        <div
-          onClick={() => onNavigateTab('triaxial')}
-          className="p-5 rounded-2xl border border-purple-500/30 bg-purple-500/[0.03] bg-gradient-to-br from-purple-500/[0.08] to-transparent shadow-[0_0_20px_rgba(168,85,247,0.12)] hover:border-purple-500/50 hover:bg-purple-500/[0.06] hover:shadow-[0_0_25px_rgba(168,85,247,0.22)] cursor-pointer transition-all duration-300 active:scale-[0.98] flex flex-col justify-between h-32"
-        >
-          <div>
-            <div className="text-xs uppercase font-extrabold text-purple-400 tracking-wider flex items-center gap-2">
-              <Compass size={13} />
-              <span>Comp. Triaxial</span>
-            </div>
-            <div className="mt-3 text-2xl font-black text-purple-400 font-mono tracking-tight">{countTriaxial}</div>
-          </div>
-          <div className="text-xs text-slate-400 font-bold">Módulo Confinamiento</div>
-        </div>
-
       </div>
 
-      {/* Grid de Registros Recientes e Indicadores de Módulos */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        {/* Tabla Maestra de Registros Recientes */}
-        <div className="lg:col-span-2 glass-panel p-5 rounded-2xl bg-navy-950/15 border border-navy-900 shadow-xl">
-          <h3 className="text-xs font-black text-slate-100 uppercase tracking-widest border-b border-navy-900 pb-3 mb-4">Últimas Muestras Registradas</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-navy-850 text-slate-400 font-bold uppercase tracking-wider">
-                  <th className="pb-3 w-16">IDD</th>
-                  <th className="pb-3">Sondaje</th>
-                  <th className="pb-3">Código Muestra</th>
-                  <th className="pb-3">Proyecto</th>
-                  <th className="pb-3 text-center">Acción</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-navy-900/40 text-slate-300 font-semibold">
-                {recentRecords.map((rec) => (
-                  <tr key={rec.idd} className="hover:bg-navy-900/10 transition-colors">
-                    <td className="py-3 font-mono font-bold text-slate-400">{rec.idd}</td>
-                    <td className="py-3">{rec.sondaje || '—'}</td>
-                    <td className="py-3 font-bold text-orange-400 font-mono">{rec.codigo_muestra || '—'}</td>
-                    <td className="py-3">{rec.proyecto || '—'}</td>
-                    <td className="py-3 text-center">
-                      <button
-                        onClick={() => onNavigateTab('registro_maestro')}
-                        className="text-xs font-black text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 px-3 py-1.5 rounded border border-indigo-500/20 uppercase flex items-center gap-1 mx-auto transition-all active:scale-95"
-                      >
-                        <span>Ver Grid</span>
-                        <ArrowRight size={12} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {recentRecords.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="py-8 text-center text-slate-500 font-semibold italic">
-                      No se registran muestras en la base de datos local.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+      {/* 3. Módulos y Familias con Navegación Rápida */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+            <span>Distribución de Ensayos por Módulo</span>
+          </h3>
+          <button
+            onClick={() => onNavigateTab('distribucion')}
+            className="text-xs text-sky-400 hover:text-sky-300 font-bold flex items-center gap-1"
+          >
+            <span>Ver informe detallado</span>
+            <ChevronRight size={13} />
+          </button>
         </div>
 
-        {/* Panel de Control Lateral - MÓDULOS GEOMECÁNICOS Completo con los 6 Ensayos y Redirección al Clic */}
-        <div className="glass-panel p-5 rounded-2xl bg-navy-950/15 border border-navy-900 shadow-xl flex flex-col justify-between">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {modulesList.map((m) => {
+            const Icon = m.icon;
+            const pct = totalGlobal > 0 ? Math.round((m.count / totalGlobal) * 100) : 0;
+            return (
+              <div
+                key={m.id}
+                onClick={() => onNavigateTab(m.id)}
+                className="glass-panel p-4 rounded-xl border border-navy-800 bg-navy-950/25 hover:border-sky-500/40 hover:bg-navy-900/30 cursor-pointer transition-all active:scale-[0.98] flex flex-col justify-between h-32 group"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="p-2 rounded-lg bg-navy-900 border border-navy-800 text-sky-400 group-hover:scale-105 transition-transform">
+                    <Icon size={16} />
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-500 font-mono">{pct}%</span>
+                </div>
+
+                <div>
+                  <div className="text-lg font-black text-slate-100 font-mono leading-tight">
+                    {m.count.toLocaleString()}
+                  </div>
+                  <div className="text-[11px] font-bold text-slate-300 truncate mt-0.5">{m.label}</div>
+                  <div className="text-[10px] text-slate-500 truncate">{m.short}</div>
+                </div>
+
+                <div className="w-full bg-navy-900 rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-sky-500 transition-all duration-500"
+                    style={{ width: `${Math.min(100, pct)}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 4. Tabla de Muestras Recientes */}
+      <div className="glass-panel p-5 rounded-xl border border-navy-800 bg-navy-950/15 shadow-xl space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-navy-800">
           <div>
-            <h3 className="text-xs font-black text-slate-100 uppercase tracking-widest border-b border-navy-900 pb-3 mb-4">Módulos Geomecánicos</h3>
-            <div className="space-y-4">
-
-              {/* 1. UCS Compresión (Naranja) */}
-              <div
-                onClick={() => onNavigateTab('ucs')}
-                className="group cursor-pointer hover:bg-white/[0.02] p-1.5 rounded-xl transition-all"
-                title="Ir al Módulo de Compresión Uniaxial"
-              >
-                <div className="flex justify-between text-xs mb-1.5 font-bold">
-                  <span className="text-orange-400 group-hover:text-orange-300 flex items-center gap-1.5 transition-colors">
-                    <span>UCS Compresión</span>
-                    <ArrowRight size={11} className="opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-x-[-4px] group-hover:translate-x-0" />
-                  </span>
-                  <span className="text-slate-200 font-black font-mono">{countUCS}</span>
-                </div>
-                <div className="h-2 bg-navy-900 rounded-full overflow-hidden">
-                  <div className="h-full bg-orange-500 shadow-[0_0_8px_#f97316] rounded-full" style={{ width: `${total > 0 ? (countUCS / total) * 100 : 0}%` }}></div>
-                </div>
-              </div>
-
-              {/* 2. Constantes Elásticas (Rojo) */}
-              <div
-                onClick={() => onNavigateTab('elasticas')}
-                className="group cursor-pointer hover:bg-white/[0.02] p-1.5 rounded-xl transition-all"
-                title="Ir al Módulo de Constantes Elásticas"
-              >
-                <div className="flex justify-between text-xs mb-1.5 font-bold">
-                  <span className="text-red-400 group-hover:text-red-300 flex items-center gap-1.5 transition-colors">
-                    <span>Constantes Elásticas</span>
-                    <ArrowRight size={11} className="opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-x-[-4px] group-hover:translate-x-0" />
-                  </span>
-                  <span className="text-slate-200 font-black font-mono">{countElasticas}</span>
-                </div>
-                <div className="h-2 bg-navy-900 rounded-full overflow-hidden">
-                  <div className="h-full bg-red-500 shadow-[0_0_8px_#ef4444] rounded-full" style={{ width: `${total > 0 ? (countElasticas / total) * 100 : 0}%` }}></div>
-                </div>
-              </div>
-
-              {/* 3. Tracción Indirecta (Amarillo) */}
-              <div
-                onClick={() => onNavigateTab('traccion')}
-                className="group cursor-pointer hover:bg-white/[0.02] p-1.5 rounded-xl transition-all"
-                title="Ir al Módulo de Tracción Indirecta"
-              >
-                <div className="flex justify-between text-xs mb-1.5 font-bold">
-                  <span className="text-yellow-400 group-hover:text-yellow-300 flex items-center gap-1.5 transition-colors">
-                    <span>Tracción Indirecta</span>
-                    <ArrowRight size={11} className="opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-x-[-4px] group-hover:translate-x-0" />
-                  </span>
-                  <span className="text-slate-200 font-black font-mono">{countTraccion}</span>
-                </div>
-                <div className="h-2 bg-navy-900 rounded-full overflow-hidden">
-                  <div className="h-full bg-yellow-500 shadow-[0_0_8px_#eab308] rounded-full" style={{ width: `${total > 0 ? (countTraccion / total) * 100 : 0}%` }}></div>
-                </div>
-              </div>
-
-              {/* 4. Corte Directo (Verde) */}
-              <div
-                onClick={() => onNavigateTab('corte')}
-                className="group cursor-pointer hover:bg-white/[0.02] p-1.5 rounded-xl transition-all"
-                title="Ir al Módulo de Corte Directo"
-              >
-                <div className="flex justify-between text-xs mb-1.5 font-bold">
-                  <span className="text-emerald-400 group-hover:text-emerald-300 flex items-center gap-1.5 transition-colors">
-                    <span>Corte Directo</span>
-                    <ArrowRight size={11} className="opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-x-[-4px] group-hover:translate-x-0" />
-                  </span>
-                  <span className="text-slate-200 font-black font-mono">{countCorte}</span>
-                </div>
-                <div className="h-2 bg-navy-900 rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-500 shadow-[0_0_8px_#10b981] rounded-full" style={{ width: `${total > 0 ? (countCorte / total) * 100 : 0}%` }}></div>
-                </div>
-              </div>
-
-              {/* 5. Triaxial (Morado) */}
-              <div
-                onClick={() => onNavigateTab('triaxial')}
-                className="group cursor-pointer hover:bg-white/[0.02] p-1.5 rounded-xl transition-all"
-                title="Ir al Módulo de Compresión Triaxial"
-              >
-                <div className="flex justify-between text-xs mb-1.5 font-bold">
-                  <span className="text-purple-400 group-hover:text-purple-300 flex items-center gap-1.5 transition-colors">
-                    <span>Compresión Triaxial</span>
-                    <ArrowRight size={11} className="opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-x-[-4px] group-hover:translate-x-0" />
-                  </span>
-                  <span className="text-slate-200 font-black font-mono">{countTriaxial}</span>
-                </div>
-                <div className="h-2 bg-navy-900 rounded-full overflow-hidden">
-                  <div className="h-full bg-purple-500 shadow-[0_0_8px_#a855f7] rounded-full" style={{ width: `${total > 0 ? (countTriaxial / total) * 100 : 0}%` }}></div>
-                </div>
-              </div>
-
-              {/* 6. Propiedades Físicas (Celeste) */}
-              <div
-                onClick={() => onNavigateTab('propiedades')}
-                className="group cursor-pointer hover:bg-white/[0.02] p-1.5 rounded-xl transition-all"
-                title="Ir al Módulo de Propiedades Físicas"
-              >
-                <div className="flex justify-between text-xs mb-1.5 font-bold">
-                  <span className="text-sky-400 group-hover:text-sky-300 flex items-center gap-1.5 transition-colors">
-                    <span>Propiedades Físicas</span>
-                    <ArrowRight size={11} className="opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-x-[-4px] group-hover:translate-x-0" />
-                  </span>
-                  <span className="text-slate-200 font-black font-mono">{countPropiedades}</span>
-                </div>
-                <div className="h-2 bg-navy-900 rounded-full overflow-hidden">
-                  <div className="h-full bg-sky-500 shadow-[0_0_8px_#38bdf8] rounded-full" style={{ width: `${total > 0 ? (countPropiedades / total) * 100 : 0}%` }}></div>
-                </div>
-              </div>
-
-            </div>
+            <h3 className="text-xs font-black text-slate-100 uppercase tracking-widest flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <span>Muestras Geotécnicas Recientes</span>
+            </h3>
+            <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+              Registros activos procesados en la base de datos de Ensayos Especiales
+            </p>
           </div>
-
-          <div className="mt-5 pt-3 border-t border-navy-900/60 text-xs text-slate-400 font-semibold italic">
-            Haga clic en cualquiera de las filas superiores para navegar directamente al módulo correspondiente.
-          </div>
+          <button
+            onClick={() => onNavigateTab('registro_maestro')}
+            className="flex items-center gap-1.5 bg-sky-500/10 border border-sky-500/30 hover:bg-sky-500/20 text-sky-400 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95"
+          >
+            <span>Ver Toda la Matriz</span>
+            <ChevronRight size={13} />
+          </button>
         </div>
 
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="bg-navy-900/80 text-slate-400 uppercase tracking-wider text-[11px] border-b border-navy-800">
+                <th className="py-2.5 px-3 w-16">IDD</th>
+                <th className="py-2.5 px-3">Sondaje</th>
+                <th className="py-2.5 px-3">Código Muestra</th>
+                <th className="py-2.5 px-3">Tipo Ensayo</th>
+                <th className="py-2.5 px-3">Proyecto</th>
+                <th className="py-2.5 px-3">Campaña</th>
+                <th className="py-2.5 px-3 text-right">Acción</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-navy-900 font-sans text-slate-300">
+              {recentRecords.map((rec) => (
+                <tr key={rec.idd} className="hover:bg-navy-900/40 transition-colors">
+                  <td className="py-2.5 px-3 font-mono font-bold text-slate-400">#{rec.idd}</td>
+                  <td className="py-2.5 px-3 font-bold text-slate-100">{rec.sondaje || '—'}</td>
+                  <td className="py-2.5 px-3 font-mono text-sky-400 font-semibold">
+                    {rec.codigo_muestra || '—'}
+                  </td>
+                  <td className="py-2.5 px-3">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-navy-900 text-slate-300 border border-navy-800">
+                      {rec.tipo_ensayo || 'Laboratorio'}
+                    </span>
+                  </td>
+                  <td className="py-2.5 px-3 text-slate-400">{rec.proyecto || '—'}</td>
+                  <td className="py-2.5 px-3 font-mono text-slate-400">{rec.campana || '—'}</td>
+                  <td className="py-2.5 px-3 text-right">
+                    <button
+                      onClick={() => onNavigateTab('registro_maestro')}
+                      className="text-[11px] font-bold text-sky-400 hover:text-sky-300 bg-sky-500/10 hover:bg-sky-500/20 px-2.5 py-1 rounded-lg border border-sky-500/25 transition-all inline-flex items-center gap-1"
+                    >
+                      <span>Inspeccionar</span>
+                      <ChevronRight size={12} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {recentRecords.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-slate-500">
+                    No se encontraron registros en la base de datos.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
-};
-
-export default Dashboard;
+}

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { FileSpreadsheet, Download, ShieldCheck, Plus, Trash2, Search, HelpCircle, ChevronDown, ChevronRight, BarChart, Compass, Database } from 'lucide-react';
+import { FileSpreadsheet, Download, ShieldCheck, Plus, Trash2, Search, HelpCircle, ChevronDown, ChevronRight, BarChart, Compass, Database, CheckCircle2 } from 'lucide-react';
 import DataGrid from './DataGrid';
 import { type QAQCAlert } from '../utils/qaqcValidator';
 import { COLUMNS_CONFIG } from '../utils/columnsConfig';
@@ -169,24 +169,36 @@ export default function GeotechPage({
     const isMaster = moduleName === 'registro_maestro';
 
     return (
-        <div className="space-y-4 text-left select-none animate-fade-in text-xs font-semibold">
+        <div className="space-y-4 text-left select-none animate-fade-in text-xs font-semibold view-dashboard view-geotech">
             {/* Pestañas de Vista */}
-            <div className="flex gap-1 border-b border-navy-850 pb-2 text-xs">
+            <div className="flex gap-2 border-b border-navy-800 pb-2 text-xs">
                 <button
                     onClick={() => setActiveTab('table')}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${activeTab === 'table' ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' : 'border-transparent text-slate-400 hover:bg-slate-900/10'}`}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
+                        activeTab === 'table'
+                            ? 'bg-sky-500/10 border-sky-500/30 text-sky-400 font-extrabold shadow-[0_0_15px_rgba(14,165,233,0.1)]'
+                            : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-navy-900/40'
+                    }`}
                 >
-                    {isMaster ? 'Registro Maestro' : 'Tabla de Ensayos'}
+                    {isMaster ? 'Registro Maestro Geotécnico' : 'Grilla de Ensayos'}
                 </button>
                 <button
                     onClick={() => setActiveTab('graphs')}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${activeTab === 'graphs' ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' : 'border-transparent text-slate-400 hover:bg-slate-900/10'}`}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
+                        activeTab === 'graphs'
+                            ? 'bg-sky-500/10 border-sky-500/30 text-sky-400 font-extrabold shadow-[0_0_15px_rgba(14,165,233,0.1)]'
+                            : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-navy-900/40'
+                    }`}
                 >
-                    Gráficos (Pendiente)
+                    Curvas y Envolventes
                 </button>
                 <button
                     onClick={() => setActiveTab('qaqc')}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${activeTab === 'qaqc' ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' : 'border-transparent text-slate-400 hover:bg-slate-900/10'}`}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
+                        activeTab === 'qaqc'
+                            ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 font-extrabold shadow-[0_0_15px_rgba(245,158,11,0.1)]'
+                            : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-navy-900/40'
+                    }`}
                 >
                     Auditoría QA/QC
                 </button>
@@ -194,11 +206,11 @@ export default function GeotechPage({
 
             {activeTab === 'table' && (
                 <div className="space-y-4">
-                    {/* Cabecera de Página con Botones neón */}
-                    <div className="flex flex-wrap justify-between items-center bg-navy-950/20 border border-navy-850 p-4 rounded-xl gap-3 text-xs">
+                    {/* Cabecera de Página */}
+                    <div className="glass-panel flex flex-wrap justify-between items-center bg-navy-950/20 border border-navy-800 p-4 rounded-2xl gap-3 text-xs shadow-md">
                         <div>
                             <h4 className="text-sm font-black text-slate-100 uppercase tracking-wider">{TITLE_MAP[moduleName]}</h4>
-                            <p className="text-xs text-slate-500 uppercase tracking-widest font-bold font-sans">Consolidación y auditoría en tiempo real</p>
+                            <p className="text-[11px] text-slate-400 font-normal">Consolidación, edición y validación en tiempo real</p>
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2">
@@ -211,14 +223,14 @@ export default function GeotechPage({
                                             setRecords([...records, newRec]);
                                             setTimeout(() => onFocusField(nextId, 'sondaje', 'registro_maestro'), 100);
                                         }}
-                                        className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 shadow-md shadow-indigo-950/15"
+                                        className="flex items-center gap-1.5 bg-sky-500 hover:bg-sky-400 text-slate-950 px-3.5 py-1.5 rounded-xl text-xs font-black transition-all active:scale-95 shadow-md shadow-sky-500/20"
                                     >
                                         <Plus size={13} />
                                         <span>Nuevo Registro</span>
                                     </button>
                                     <button
                                         onClick={onOpenImport}
-                                        className="flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all shadow-[0_0_15px_rgba(16,185,129,0.1)] active:scale-95"
+                                        className="flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
                                     >
                                         <FileSpreadsheet size={13} />
                                         <span>Importar Excel</span>
@@ -227,95 +239,93 @@ export default function GeotechPage({
                             )}
                             <button
                                 onClick={onOpenExport}
-                                className="flex items-center gap-1.5 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all shadow-[0_0_15px_rgba(56,189,248,0.1)] active:scale-95"
+                                className="flex items-center gap-1.5 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
                             >
                                 <Download size={13} />
                                 <span>Exportar Excel</span>
                             </button>
                             <button
                                 onClick={onValidate}
-                                className="flex items-center gap-1.5 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all shadow-[0_0_15px_rgba(249,115,22,0.1)] active:scale-95"
+                                className="flex items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
                             >
                                 <ShieldCheck size={13} />
-                                <span>Boton Validacion</span>
+                                <span>Validar QA/QC</span>
                             </button>
                         </div>
                     </div>
 
-                    {/* Bloque de Filtros */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 bg-navy-950/40 border border-navy-900 p-4 rounded-xl text-xs">
+                    {/* Bloque de Filtros Responsivo */}
+                    <div className="glass-panel grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 bg-navy-950/20 border border-navy-800 p-4 rounded-2xl text-xs shadow-md">
                         <div className="space-y-1">
-                            <span className="text-xs font-bold text-slate-500 uppercase">Sondaje</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sondaje</span>
                             <input
                                 type="text"
-                                placeholder="CHS-..."
+                                placeholder="Ej. CHS-19..."
                                 value={inputSondaje}
                                 onChange={e => setInputSondaje(e.target.value)}
-                                className="w-full bg-navy-900 border border-navy-800 rounded-lg px-2.5 py-1.5 text-white outline-none focus:border-indigo-500/50 font-sans"
+                                className="w-full bg-navy-900 border border-navy-800 rounded-xl px-2.5 py-1.5 text-slate-100 outline-none focus:border-sky-500 transition-colors font-mono"
                             />
                         </div>
                         <div className="space-y-1">
-                            <span className="text-xs font-bold text-slate-500 uppercase">Muestra</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Muestra</span>
                             <input
                                 type="text"
                                 placeholder="Código..."
                                 value={inputMuestra}
                                 onChange={e => setInputMuestra(e.target.value)}
-                                className="w-full bg-navy-900 border border-navy-800 rounded-lg px-2.5 py-1.5 text-white outline-none focus:border-indigo-500/50 font-sans"
+                                className="w-full bg-navy-900 border border-navy-800 rounded-xl px-2.5 py-1.5 text-slate-100 outline-none focus:border-sky-500 transition-colors font-mono"
                             />
                         </div>
                         <div className="space-y-1">
-                            <span className="text-xs font-bold text-slate-500 uppercase">Laboratorio</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Laboratorio</span>
                             <select
                                 value={inputLaboratorio}
                                 onChange={e => setInputLaboratorio(e.target.value)}
-                                className="w-full bg-navy-900 border border-navy-800 rounded-lg px-2 py-1.5 text-white cursor-pointer outline-none focus:border-indigo-500/50 font-sans font-semibold"
+                                className="w-full bg-navy-900 border border-navy-800 rounded-xl px-2 py-1.5 text-slate-200 cursor-pointer outline-none focus:border-sky-500 transition-colors"
                             >
-                                <option value="">Todos</option>
+                                <option value="">Todos los Labs</option>
                                 {uniqueLaboratorios.map(l => (
                                     <option key={l} value={l}>{l}</option>
                                 ))}
                             </select>
                         </div>
                         <div className="space-y-1">
-                            <span className="text-xs font-bold text-slate-500 uppercase">Estado QA/QC</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Estado QA/QC</span>
                             <select
                                 value={inputQaqcStatus}
                                 onChange={e => setInputQaqcStatus(e.target.value)}
-                                className="w-full bg-navy-900 border border-navy-800 rounded-lg px-2 py-1.5 text-white cursor-pointer outline-none focus:border-indigo-500/50 font-sans font-semibold"
+                                className="w-full bg-navy-900 border border-navy-800 rounded-xl px-2 py-1.5 text-slate-200 cursor-pointer outline-none focus:border-sky-500 transition-colors"
                             >
-                                <option value="Todos">Todos</option>
+                                <option value="Todos">Todos los Estados</option>
                                 <option value="Validado">Validado</option>
                                 <option value="Sin Validar">Con Advertencia</option>
                                 <option value="No Valido">Crítico / Fallido</option>
                             </select>
                         </div>
 
-                        <div className="flex items-center justify-between col-span-2 w-full pl-4 border-l border-navy-800 gap-4">
+                        <div className="flex flex-wrap items-center justify-between col-span-1 sm:col-span-2 md:col-span-4 lg:col-span-2 w-full gap-3 pt-2 lg:pt-0 lg:pl-4 lg:border-l lg:border-navy-800">
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={handleSearch}
-                                    className="bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-lg text-white font-bold transition-all active:scale-95 flex items-center gap-1.5 text-xs shadow-[0_0_12px_rgba(99,102,241,0.2)]"
+                                    className="bg-sky-500 hover:bg-sky-400 px-4 py-2 rounded-xl text-slate-950 font-black transition-all active:scale-95 flex items-center gap-1.5 text-xs shadow-md shadow-sky-500/20"
                                 >
                                     <Search size={13} />
                                     <span>Buscar</span>
                                 </button>
                                 <button
                                     onClick={handleClearFilters}
-                                    className="bg-slate-500/10 border border-slate-500/35 hover:bg-slate-500/20 text-slate-300 hover:text-white px-5 py-2 rounded-lg text-xs font-bold transition-all active:scale-95 shadow-[0_0_12px_rgba(148,163,184,0.1)] hover:shadow-[0_0_18px_rgba(148,163,184,0.2)]"
+                                    className="bg-navy-900 border border-navy-800 hover:bg-navy-850 hover:border-slate-500/40 text-slate-300 hover:text-slate-100 px-3.5 py-2 rounded-xl text-xs font-bold transition-all active:scale-95"
                                 >
-                                    Limpiar Filtros
+                                    Limpiar
                                 </button>
                             </div>
 
-                            <div className="flex flex-col justify-center gap-1.5 text-right select-none shrink-0 font-bold h-full">
-                                <div className="flex items-center justify-end gap-2 text-xs md:text-sm text-slate-300">
-                                    <Compass size={14} className="text-indigo-400 shrink-0 animate-pulse" />
-                                    <span>Sondajes: <span className="text-slate-100 font-black font-mono">{totalSondajes}</span></span>
+                            <div className="flex items-center gap-4 text-right font-bold ml-auto">
+                                <div className="text-xs text-slate-400">
+                                    Sondajes: <span className="text-slate-100 font-mono font-black">{totalSondajes}</span>
                                 </div>
-                                <div className="flex items-center justify-end gap-2 text-xs md:text-sm text-slate-300">
-                                    <Database size={14} className="text-emerald-400 shrink-0" />
-                                    <span>Registros: <span className="text-slate-100 font-black font-mono">{filteredRecords.length}</span></span>
+                                <div className="text-xs text-slate-400">
+                                    Filas: <span className="text-sky-400 font-mono font-black">{filteredRecords.length}</span>
                                 </div>
                             </div>
                         </div>
@@ -437,13 +447,17 @@ export default function GeotechPage({
                                                             <span className="text-xs text-slate-500 font-mono">Campo: {alert.field}</span>
                                                         </div>
                                                         <p className="text-slate-300 leading-normal">{alert.message}</p>
-                                                        <span className="text-xs text-blue-400 hover:underline mt-2 block font-sans font-bold">Haga clic para auditar la celda &raquo;</span>
+                                                        <span className="text-xs text-sky-400 hover:underline mt-2 flex items-center gap-1 font-sans font-bold">
+                                                            <span>Haga clic para auditar la celda</span>
+                                                            <ChevronRight size={12} />
+                                                        </span>
                                                     </div>
                                                 );
                                             })}
                                             {sectionAlerts.length === 0 && (
-                                                <div className="col-span-2 py-4 text-center text-slate-500 italic font-semibold">
-                                                    ✓ Sección aprobada. No se registran avisos en este módulo.
+                                                <div className="col-span-2 py-4 text-center text-slate-500 italic font-semibold flex items-center justify-center gap-1.5">
+                                                    <CheckCircle2 size={13} className="text-emerald-400" />
+                                                    <span>Sección aprobada. No se registran avisos en este módulo.</span>
                                                 </div>
                                             )}
                                         </div>

@@ -246,9 +246,9 @@ export default function BulkAuditor({ apiBase, onAuditSynced }: BulkAuditorProps
   };
 
   return (
-    <div className="space-y-6 text-left select-none animate-fade-in text-xs font-semibold">
+    <div className="space-y-6 text-left select-none animate-fade-in text-xs font-semibold view-dashboard">
       {/* 1. Header Banner */}
-      <div className="flex flex-wrap justify-between items-center bg-navy-950/40 border border-navy-800 p-5 rounded-2xl gap-4">
+      <div className="glass-panel flex flex-wrap justify-between items-center bg-navy-950/20 border border-navy-800 p-5 rounded-2xl gap-4 shadow-md">
         <div>
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
@@ -416,7 +416,7 @@ export default function BulkAuditor({ apiBase, onAuditSynced }: BulkAuditorProps
 
           {/* Incidencias Table Section */}
           <div className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-navy-950/40 p-4 rounded-xl border border-navy-900">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-navy-950/40 p-4 rounded-xl border border-navy-800">
               <div className="flex items-center gap-3 flex-1 min-w-[280px]">
                 <div className="relative flex-1 max-w-sm">
                   <Search size={14} className="absolute left-3 top-2.5 text-slate-500" />
@@ -486,7 +486,7 @@ export default function BulkAuditor({ apiBase, onAuditSynced }: BulkAuditorProps
                       <th className="py-3 px-3">Sugerencia Corrección</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-navy-900 font-sans">
+                  <tbody className="divide-y divide-navy-800/60 font-sans">
                     {loadingTable ? (
                       <tr>
                         <td colSpan={8} className="py-12 text-center text-slate-500">
@@ -502,7 +502,7 @@ export default function BulkAuditor({ apiBase, onAuditSynced }: BulkAuditorProps
                       </tr>
                     ) : (
                       incidencias.map((inc, idx) => (
-                        <tr key={idx} className="hover:bg-slate-900/40 transition-colors">
+                        <tr key={idx} className="hover:bg-navy-900/40 transition-colors">
                           <td className="py-2.5 px-3 font-mono text-slate-400">#{inc.fila_excel}</td>
                           <td className="py-2.5 px-3 font-bold text-slate-200">{inc.sondaje || '—'}</td>
                           <td className="py-2.5 px-3 text-slate-300 font-mono">{inc.codigo_muestra || '—'}</td>
@@ -587,7 +587,7 @@ export default function BulkAuditor({ apiBase, onAuditSynced }: BulkAuditorProps
                 className={`p-3 rounded-xl border cursor-pointer transition-all ${
                   selectedAuditId === h.audit_id
                     ? 'border-indigo-500 bg-indigo-500/10'
-                    : 'border-navy-800 bg-navy-950/30 hover:border-slate-700'
+                    : 'border-navy-800 bg-navy-950/30 hover:border-navy-700'
                 }`}
               >
                 <div className="flex items-center justify-between">

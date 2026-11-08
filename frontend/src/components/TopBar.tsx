@@ -1,224 +1,220 @@
 import React, { useState } from 'react';
-import { ArrowLeft, BookOpen, Save, ChevronDown, RefreshCw, Menu, AlignLeft } from 'lucide-react';
+import {
+  ArrowLeft,
+  BookOpen,
+  Save,
+  ChevronDown,
+  RefreshCw,
+  Menu,
+  ShieldCheck,
+  Check,
+  Layers,
+  Database
+} from 'lucide-react';
 
 interface TopBarProps {
-    currentTab: string;
-    setCurrentTab: (tab: string) => void;
-    onBack: () => void;
-    canGoBack: boolean;
-    onOpenCatalogs: () => void;
-    onSaveAll: () => void;
-    onSaveSpecific: (tab: string) => void;
-    onReconnect: () => void;
-    isConnected: boolean;
-    saveStatus: 'synced' | 'unsaved' | 'error' | 'saving';
-    isSidebarCollapsed: boolean;
-    onToggleSidebar: () => void;
-    hasAlerts: boolean;
-    checkModuleModified: (tab: string) => boolean;
+  currentTab: string;
+  setCurrentTab: (tab: string) => void;
+  onBack: () => void;
+  canGoBack: boolean;
+  onOpenCatalogs: () => void;
+  onSaveAll: () => void;
+  onSaveSpecific: (tab: string) => void;
+  onReconnect: () => void;
+  isConnected: boolean;
+  saveStatus: 'synced' | 'unsaved' | 'error' | 'saving';
+  isSidebarCollapsed: boolean;
+  onToggleSidebar: () => void;
+  hasAlerts: boolean;
+  checkModuleModified: (tab: string) => boolean;
 }
 
 const MODULE_LABELS: Record<string, string> = {
-    dashboard: "Dashboard",
-    registro_maestro: "Registro Maestro",
-    proyectos: "Proyectos",
-    ucs: "Compresión Uniaxial",
-    elasticas: "Constantes Elásticas",
-    traccion: "Tracción Indirecta",
-    corte: "Corte Directo",
-    triaxial: "Compresión Triaxial",
-    propiedades: "Propiedades Físicas",
-    auditoria: "Auditoría QA/QC",
-    reportes: "Reportes"
+  dashboard: 'Dashboard Ejecutivo',
+  registro_maestro: 'Registro Maestro',
+  ucs: 'Compresión Uniaxial (UCS)',
+  elasticas: 'Constantes Elásticas',
+  traccion: 'Tracción Indirecta (Brasileño)',
+  corte: 'Corte Directo',
+  triaxial: 'Compresión Triaxial',
+  propiedades: 'Propiedades Físicas',
+  auditoria: 'Auditoría QA/QC Masiva',
+  proyectos: 'Proyectos y Canteras',
+  reportes: 'Reportes Estadísticos'
 };
 
 export default function TopBar({
-    currentTab,
-    setCurrentTab,
-    onBack,
-    canGoBack,
-    onOpenCatalogs,
-    onSaveAll,
-    onSaveSpecific,
-    onReconnect,
-    isConnected,
-    saveStatus,
-    isSidebarCollapsed,
-    onToggleSidebar,
-    hasAlerts,
-    checkModuleModified
+  currentTab,
+  setCurrentTab,
+  onBack,
+  canGoBack,
+  onOpenCatalogs,
+  onSaveAll,
+  onSaveSpecific,
+  onReconnect,
+  isConnected,
+  saveStatus,
+  isSidebarCollapsed,
+  onToggleSidebar,
+  hasAlerts,
+  checkModuleModified
 }: TopBarProps) {
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-    const getBreadcrumbs = () => {
-        if (currentTab === 'dashboard') {
-            return (
-                <button onClick={() => setCurrentTab('dashboard')} className="text-indigo-400 font-black tracking-wider uppercase bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-lg text-xs">
-                    Dashboard
-                </button>
-            );
-        }
+  const testModules = ['ucs', 'elasticas', 'traccion', 'corte', 'triaxial'];
+  const isTestModule = testModules.includes(currentTab);
+  const isModified = checkModuleModified(currentTab);
 
-        const underDistribution = ['ucs', 'elasticas', 'traccion', 'corte', 'triaxial'].includes(currentTab);
+  return (
+    <header className="min-h-16 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3 md:px-6 py-2 border-b border-navy-800 bg-navy-950/40 backdrop-blur z-10 shrink-0 select-none text-left">
+      {/* 1. Left items: Toggle, Back, Module Name */}
+      <div className="flex items-center gap-2 md:gap-3 shrink-0">
+        <button
+          onClick={onToggleSidebar}
+          className="p-2 rounded-lg bg-navy-900 hover:bg-navy-850 border border-navy-800 text-slate-400 hover:text-slate-100 transition-all shadow-md active:scale-95 shrink-0"
+          title={isSidebarCollapsed ? 'Expandir menú lateral' : 'Contraer menú lateral'}
+        >
+          <Menu size={16} />
+        </button>
 
-        if (underDistribution) {
-            return (
-                <div className="flex items-center gap-2 text-xs">
-                    <button onClick={() => setCurrentTab('distribucion')} className="text-slate-400 hover:text-slate-100 transition-colors font-bold">
-                        Distribución
-                    </button>
-                    <span className="text-slate-600 font-semibold">&gt;</span>
-                    <button onClick={() => setCurrentTab(currentTab)} className="text-indigo-400 font-black tracking-wider uppercase bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-lg">
-                        {MODULE_LABELS[currentTab] || currentTab}
-                    </button>
-                </div>
-            );
-        }
+        {currentTab !== 'dashboard' && (
+          <button
+            onClick={() => setCurrentTab('dashboard')}
+            className="flex items-center gap-1.5 bg-navy-900 hover:bg-navy-850 text-slate-300 hover:text-white border border-navy-800 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 shrink-0"
+          >
+            <ArrowLeft size={14} />
+            <span className="hidden sm:inline">Volver al Panel</span>
+          </button>
+        )}
 
-        if (currentTab === 'proyectos') {
-            return (
-                <div className="flex items-center gap-2 text-xs">
-                    <span className="text-slate-400 font-bold">Maestros</span>
-                    <span className="text-slate-600 font-semibold">&gt;</span>
-                    <button onClick={() => setCurrentTab('proyectos')} className="text-indigo-400 font-black tracking-wider uppercase bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-lg">
-                        Proyectos
-                    </button>
-                </div>
-            );
-        }
+        <div className="flex items-center gap-2 pl-1 min-w-0">
+          <span className="w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(14,165,233,0.8)] shrink-0" />
+          <h2 className="text-sm md:text-base font-black text-slate-100 tracking-wide truncate">
+            {MODULE_LABELS[currentTab] || currentTab}
+          </h2>
+        </div>
+      </div>
 
-        return (
-            <button onClick={() => setCurrentTab(currentTab)} className="text-indigo-400 font-black tracking-wider uppercase bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-lg text-xs">
-                {MODULE_LABELS[currentTab] || currentTab}
-            </button>
-        );
-    };
+      {/* 2. Right items: Connection Status, Action Buttons */}
+      <div className="flex items-center gap-2 md:gap-3 flex-wrap justify-end min-w-0">
+        {/* Server Connectivity Indicator */}
+        <div className="hidden md:flex items-center gap-2 pr-3 border-r border-navy-800 shrink-0">
+          <span
+            className={`w-2.5 h-2.5 rounded-full ${
+              isConnected
+                ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]'
+                : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)] animate-pulse'
+            }`}
+          />
+          <span
+            className="text-xs text-slate-400 font-semibold hidden lg:inline"
+            title={isConnected ? 'Conectado a SQL Server' : 'Servidor desconectado'}
+          >
+            {isConnected ? 'SQL Server Conectado' : 'Servidor Desconectado'}
+          </span>
+        </div>
 
-    return (
-        /* Se asigna z-50 de forma estricta para garantizar que el TopBar siempre esté por encima de la tabla scrollable */
-        <header className="h-16 border-b border-navy-800 flex items-center justify-between px-6 bg-navy-950/40 backdrop-blur z-50 shrink-0 select-none text-left">
-            <div className="flex items-center gap-3">
+        {/* Reconnect button if disconnected */}
+        {!isConnected && (
+          <button
+            onClick={onReconnect}
+            className="flex items-center gap-1.5 bg-red-500/10 border border-red-500/40 hover:bg-red-500/20 text-red-400 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 shrink-0"
+            title="Reconectar a SQL Server"
+          >
+            <RefreshCw size={14} className="animate-spin" />
+            <span>Reconectar</span>
+          </button>
+        )}
+
+        {/* Catálogos de Referencia button */}
+        <button
+          onClick={onOpenCatalogs}
+          className="flex items-center gap-1.5 bg-sky-500/10 border border-sky-500/40 hover:bg-sky-500/20 hover:border-sky-400 text-sky-400 px-3 md:px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-[0_0_12px_rgba(14,165,233,0.12)] active:scale-95 shrink-0"
+          title="Ver Catálogos de Referencia Geomecánica e ISRM"
+        >
+          <BookOpen size={14} className="text-sky-400" />
+          <span className="hidden sm:inline">Catálogos</span>
+        </button>
+
+        {/* Save Controls */}
+        {currentTab !== 'reportes' && currentTab !== 'dashboard' && (
+          <div className="relative shrink-0">
+            {isTestModule ? (
+              <div className="inline-flex rounded-lg shadow-sm border border-navy-800 bg-navy-900">
                 <button
-                    onClick={onToggleSidebar}
-                    className="p-1.5 rounded-lg bg-navy-900 border border-navy-800 hover:bg-navy-850 transition-all active:scale-95 shadow-sm h-10 w-10 flex items-center justify-center shrink-0"
-                    title={isSidebarCollapsed ? "Expandir Sidebar" : "Contraer Sidebar"}
+                  type="button"
+                  onClick={onSaveAll}
+                  disabled={saveStatus === 'saving' || hasAlerts}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-l-lg transition-all ${
+                    saveStatus === 'saving'
+                      ? 'text-slate-400 cursor-not-allowed'
+                      : isModified
+                      ? 'bg-emerald-500/10 border-r border-navy-800 text-emerald-400 hover:bg-emerald-500/20 shadow-[0_0_12px_rgba(16,185,129,0.15)]'
+                      : 'text-slate-400 hover:text-slate-200 border-r border-navy-800'
+                  }`}
+                  title={isModified ? 'Hay cambios sin guardar' : 'Todos los cambios sincronizados'}
                 >
-                    {isSidebarCollapsed ? (
-                        <Menu size={16} className="text-purple-400 drop-shadow-[0_0_8px_#a855f7] animate-pulse" />
-                    ) : (
-                        <AlignLeft size={16} className="text-purple-400 drop-shadow-[0_0_8px_#a855f7]" />
-                    )}
+                  <Save size={14} className={saveStatus === 'saving' ? 'animate-spin' : ''} />
+                  <span>
+                    {saveStatus === 'saving' ? 'Guardando...' : isModified ? 'Guardar Cambios' : 'Sincronizado'}
+                  </span>
                 </button>
 
-                {canGoBack && currentTab !== 'dashboard' && (
-                    <button
-                        onClick={onBack}
-                        className="flex items-center gap-1 bg-navy-900 hover:bg-navy-850 border border-navy-800 text-slate-300 hover:text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 shadow-sm h-10 shrink-0"
-                    >
-                        <ArrowLeft size={13} />
-                        <span>Atrás</span>
-                    </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="px-2 py-2 text-slate-400 hover:text-slate-200 hover:bg-navy-850 rounded-r-lg transition-colors border-l border-navy-800"
+                  title="Opciones de Guardado"
+                >
+                  <ChevronDown size={14} />
+                </button>
 
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest hidden lg:inline pr-3 border-r border-navy-800/80">
-                    SIGEG 2.0
+                {isDropdownOpen && (
+                  <div className="absolute right-0 top-full mt-1.5 w-64 glass-panel border border-navy-800 bg-navy-950/95 rounded-xl shadow-2xl p-1.5 z-50 text-left space-y-1">
+                    <button
+                      onClick={() => {
+                        onSaveSpecific(currentTab);
+                        setIsDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-navy-900/60 transition-colors flex items-center justify-between"
+                    >
+                      <span>Guardar sólo este módulo</span>
+                      <span className="text-[10px] text-sky-400 uppercase font-bold">{currentTab}</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        onSaveAll();
+                        setIsDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-navy-900/60 transition-colors flex items-center justify-between"
+                    >
+                      <span>Guardar toda la planilla</span>
+                      <span className="text-[10px] text-emerald-400 uppercase font-bold">Maestro</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={onSaveAll}
+                disabled={saveStatus === 'saving' || hasAlerts}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 border ${
+                  saveStatus === 'saving'
+                    ? 'bg-navy-900 border-navy-800 text-slate-400 cursor-not-allowed'
+                    : isModified
+                    ? 'bg-emerald-500/10 border-emerald-500/40 hover:bg-emerald-500/20 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.15)]'
+                    : 'bg-navy-900 border-navy-800 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Save size={14} className={saveStatus === 'saving' ? 'animate-spin' : ''} />
+                <span>
+                  {saveStatus === 'saving' ? 'Guardando...' : isModified ? 'Guardar Cambios' : 'Sincronizado'}
                 </span>
-
-                <div className="flex items-center gap-1.5">
-                    {getBreadcrumbs()}
-                </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-                {!isConnected && (
-                    <button
-                        onClick={onReconnect}
-                        className="flex items-center gap-1.5 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/40 text-rose-400 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 animate-pulse h-10"
-                    >
-                        <RefreshCw size={13} />
-                        <span>Reintentar Conexión</span>
-                    </button>
-                )}
-
-                <button
-                    onClick={onOpenCatalogs}
-                    className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/35 hover:bg-amber-500/20 text-amber-400 px-4 rounded-lg text-xs font-bold transition-all shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:shadow-[0_0_20px_rgba(245,158,11,0.25)] active:scale-95 h-10"
-                >
-                    <BookOpen size={13} className="text-amber-400 animate-pulse" />
-                    <span>Catálogos</span>
-                </button>
-
-                {/* MÓDULO DE GUARDADO SQL SERVER - PRIORIDAD Z-50 */}
-                <div className="relative flex items-center h-10 z-50">
-                    {/* Desplegable de Guardado Segmentado */}
-                    <button
-                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                        className={`px-3 border border-r-0 rounded-l-lg text-xs transition-all active:scale-95 h-10 flex items-center justify-center ${hasAlerts
-                                ? 'bg-slate-850 border-slate-800 text-slate-600 cursor-not-allowed'
-                                : saveStatus === 'unsaved'
-                                    ? 'bg-amber-600 hover:bg-amber-700 text-slate-900 border-amber-500/40 text-amber-100'
-                                    : saveStatus === 'saving'
-                                        ? 'bg-indigo-700 border-indigo-600 text-white'
-                                        : saveStatus === 'error'
-                                            ? 'bg-rose-700 border-rose-600 text-white'
-                                            : 'bg-emerald-700 hover:bg-emerald-800 border-emerald-600/40 text-emerald-100'
-                            }`}
-                    >
-                        <ChevronDown size={14} className={`transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {/* Botón Principal Guardar Todo */}
-                    <button
-                        onClick={onSaveAll}
-                        disabled={saveStatus === 'saving' || hasAlerts}
-                        className={`flex items-center gap-1.5 px-4 rounded-r-lg text-xs font-black border transition-all shadow-md active:scale-95 h-10 ${hasAlerts
-                                ? 'bg-slate-850 border-slate-800 text-slate-500 cursor-not-allowed'
-                                : saveStatus === 'unsaved'
-                                    ? 'bg-amber-500 hover:bg-amber-600 text-slate-900 border-amber-400/40 shadow-[0_0_15px_rgba(245,158,11,0.25)] animate-pulse'
-                                    : saveStatus === 'saving'
-                                        ? 'bg-indigo-600 text-white border-indigo-500/30 cursor-wait'
-                                        : saveStatus === 'error'
-                                            ? 'bg-rose-600 hover:bg-rose-700 text-white border-rose-500/30 shadow-[0_0_10px_rgba(244,63,94,0.15)]'
-                                            : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-500/20 shadow-[0_0_12px_rgba(16,185,129,0.2)]'
-                            }`}
-                    >
-                        <Save size={14} />
-                        <span>{saveStatus === 'saving' ? 'Guardando...' : 'Guardar Todo'}</span>
-                    </button>
-
-                    {/* Dropdown de Guardado Específico - PRIORIDAD ABSOLUTA Z-[999] */}
-                    {isDropdownOpen && (
-                        <div className="absolute right-0 top-11 mt-2.5 w-64 bg-slate-950 border border-navy-800 rounded-xl shadow-2xl p-2 space-y-1.5 z-[999] animate-scale-up">
-                            <div className="text-xs font-black text-slate-500 uppercase tracking-widest px-2.5 py-1 border-b border-navy-900">
-                                Guardado por Módulo
-                            </div>
-                            {Object.entries(MODULE_LABELS).map(([key, label]) => {
-                                if (key === 'dashboard' || key === 'reportes') return null;
-                                const isModified = checkModuleModified(key);
-                                return (
-                                    <button
-                                        key={key}
-                                        onClick={() => {
-                                            onSaveSpecific(key);
-                                            setIsDropdownOpen(false);
-                                        }}
-                                        disabled={hasAlerts}
-                                        className={`w-full text-left px-2.5 py-2 rounded-lg text-xs font-bold flex items-center justify-between transition-all truncate ${hasAlerts
-                                                ? 'text-slate-600 cursor-not-allowed bg-slate-900/10'
-                                                : isModified
-                                                    ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/25 shadow-[0_0_10px_rgba(245,158,11,0.05)]'
-                                                    : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/25 shadow-[0_0_10px_rgba(16,185,129,0.05)]'
-                                            }`}
-                                    >
-                                        <span>Guardar — {label}</span>
-                                        <span className={`w-2 h-2 rounded-full ${isModified ? 'bg-amber-400 shadow-[0_0_4px_#fbbf24]' : 'bg-emerald-500'}`} />
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
-            </div>
-        </header>
-    );
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </header>
+  );
 }

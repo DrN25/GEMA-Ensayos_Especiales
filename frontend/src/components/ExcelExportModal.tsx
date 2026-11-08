@@ -41,14 +41,14 @@ export default function ExcelExportModal({ isOpen, onClose, records, currentTab 
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-950/80 backdrop-blur-sm animate-fade-in text-left">
+        <div className="fixed inset-0 view-modal z-50 flex items-center justify-center p-4 bg-navy-950/80 backdrop-blur-sm animate-fade-in text-left">
             <div className="glass-panel w-full max-w-md p-6 rounded-2xl border border-navy-800 bg-navy-900/95 shadow-2xl flex flex-col overflow-hidden text-xs text-slate-100 space-y-4">
                 <div className="flex justify-between items-center border-b border-navy-850 pb-3 shrink-0">
                     <div className="flex items-center gap-2">
                         <Download size={16} className="text-sky-400" />
                         <h3 className="text-sm font-black text-slate-100 uppercase tracking-widest">Exportar Datos a Excel</h3>
                     </div>
-                    <button onClick={onClose} className="p-1 rounded hover:bg-navy-800 text-slate-400 hover:text-white transition-colors">
+                    <button onClick={onClose} className="p-1 rounded hover:bg-navy-800 text-slate-400 hover:text-slate-100 transition-colors">
                         <X size={14} />
                     </button>
                 </div>
@@ -69,7 +69,7 @@ export default function ExcelExportModal({ isOpen, onClose, records, currentTab 
                                 {exportMode === 'current' && <CheckCircle2 size={14} />}
                             </div>
                             <p className="text-[10px] text-slate-400 leading-normal">
-                                Exportar únicamente las columnas visibles del ensayo actual: <strong className="text-white capitalize">{currentTab.replace('_', ' ')}</strong>
+                                Exportar únicamente las columnas visibles del ensayo actual: <strong className="text-slate-100 capitalize">{currentTab.replace('_', ' ')}</strong>
                             </p>
                         </button>
 
