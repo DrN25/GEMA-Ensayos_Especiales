@@ -34,6 +34,7 @@ export interface GridColumnDef<T = Record<string, any>> {
 export interface CellCoordinate {
   rowIdx: number;
   colKey: string;
+  rowId?: number;
 }
 
 export interface FloatingEditorPosition {

@@ -6,45 +6,55 @@
       "eventTimingDuration": {
         "p50": 16,
         "p95": 16,
-        "mean": 16,
-        "std": 0,
+        "mean": 17.6,
+        "std": 8.76,
         "min": 16,
-        "max": 16,
+        "max": 64,
         "n": 30
       },
       "eventTimingProcessing": {
         "p50": 0.4,
         "p95": 0.4,
-        "mean": 0.4,
-        "std": 0,
+        "mean": 0.42,
+        "std": 0.09,
         "min": 0.4,
-        "max": 0.4,
+        "max": 0.9,
         "n": 30
       },
       "doubleRafLatency": {
-        "p50": 68.09,
-        "p95": 72.74,
-        "mean": 65.42,
-        "std": 5.97,
-        "min": 54.89,
-        "max": 73.62,
+        "p50": 63.01,
+        "p95": 70.11,
+        "mean": 63.53,
+        "std": 7.43,
+        "min": 53.66,
+        "max": 94.54,
         "n": 30
       },
       "raw30": [
         {
           "iteration": 6,
           "target": "[data-testid=\"cell-0-sondaje\"]",
-          "eventTimingDuration": 16,
-          "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 59.01,
-          "capturedEntriesCount": 0
+          "eventTimingDuration": 64,
+          "eventTimingProcessing": 0.9,
+          "doubleRafPaintLatency": 94.54,
+          "capturedEntriesCount": 13,
+          "clickEvent": {
+            "name": "click",
+            "entryType": "event",
+            "startTime": 7336.2,
+            "duration": 64,
+            "processingStart": 7375.5,
+            "processingEnd": 7376.4,
+            "processingDuration": 0.9,
+            "target": "TD# data-testid=cell-0-sondaje"
+          }
         },
         {
           "iteration": 7,
           "target": "[data-testid=\"cell-1-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 55.37,
+          "doubleRafPaintLatency": 67.76,
           "capturedEntriesCount": 0
         },
         {
@@ -52,7 +62,7 @@
           "target": "[data-testid=\"cell-0-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 55.68,
+          "doubleRafPaintLatency": 63.01,
           "capturedEntriesCount": 0
         },
         {
@@ -60,7 +70,7 @@
           "target": "[data-testid=\"cell-1-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 67.43,
+          "doubleRafPaintLatency": 67.01,
           "capturedEntriesCount": 0
         },
         {
@@ -68,7 +78,7 @@
           "target": "[data-testid=\"cell-0-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 59.68,
+          "doubleRafPaintLatency": 69.13,
           "capturedEntriesCount": 0
         },
         {
@@ -76,7 +86,7 @@
           "target": "[data-testid=\"cell-1-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 70.79,
+          "doubleRafPaintLatency": 67.83,
           "capturedEntriesCount": 0
         },
         {
@@ -84,7 +94,7 @@
           "target": "[data-testid=\"cell-0-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 60.15,
+          "doubleRafPaintLatency": 60.62,
           "capturedEntriesCount": 0
         },
         {
@@ -92,7 +102,7 @@
           "target": "[data-testid=\"cell-1-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 69.05,
+          "doubleRafPaintLatency": 60.53,
           "capturedEntriesCount": 0
         },
         {
@@ -100,7 +110,7 @@
           "target": "[data-testid=\"cell-0-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 73.62,
+          "doubleRafPaintLatency": 70.11,
           "capturedEntriesCount": 0
         },
         {
@@ -108,7 +118,7 @@
           "target": "[data-testid=\"cell-1-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 61.57,
+          "doubleRafPaintLatency": 55.87,
           "capturedEntriesCount": 0
         },
         {
@@ -116,7 +126,7 @@
           "target": "[data-testid=\"cell-0-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 69.79,
+          "doubleRafPaintLatency": 64.81,
           "capturedEntriesCount": 0
         },
         {
@@ -124,7 +134,7 @@
           "target": "[data-testid=\"cell-1-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 69.62,
+          "doubleRafPaintLatency": 60.57,
           "capturedEntriesCount": 0
         },
         {
@@ -132,7 +142,7 @@
           "target": "[data-testid=\"cell-0-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 58.77,
+          "doubleRafPaintLatency": 60.21,
           "capturedEntriesCount": 0
         },
         {
@@ -140,7 +150,7 @@
           "target": "[data-testid=\"cell-1-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 72.74,
+          "doubleRafPaintLatency": 63.42,
           "capturedEntriesCount": 0
         },
         {
@@ -148,7 +158,7 @@
           "target": "[data-testid=\"cell-0-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 61.34,
+          "doubleRafPaintLatency": 58.5,
           "capturedEntriesCount": 0
         },
         {
@@ -156,7 +166,7 @@
           "target": "[data-testid=\"cell-1-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 70.5,
+          "doubleRafPaintLatency": 67,
           "capturedEntriesCount": 0
         },
         {
@@ -164,7 +174,7 @@
           "target": "[data-testid=\"cell-0-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 72.03,
+          "doubleRafPaintLatency": 66.2,
           "capturedEntriesCount": 0
         },
         {
@@ -172,7 +182,7 @@
           "target": "[data-testid=\"cell-1-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 68.82,
+          "doubleRafPaintLatency": 58.1,
           "capturedEntriesCount": 0
         },
         {
@@ -180,7 +190,7 @@
           "target": "[data-testid=\"cell-0-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 71.59,
+          "doubleRafPaintLatency": 58.22,
           "capturedEntriesCount": 0
         },
         {
@@ -188,7 +198,7 @@
           "target": "[data-testid=\"cell-1-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 59.55,
+          "doubleRafPaintLatency": 54.61,
           "capturedEntriesCount": 0
         },
         {
@@ -196,7 +206,7 @@
           "target": "[data-testid=\"cell-0-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 58.58,
+          "doubleRafPaintLatency": 63.69,
           "capturedEntriesCount": 0
         },
         {
@@ -204,7 +214,7 @@
           "target": "[data-testid=\"cell-1-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 71.25,
+          "doubleRafPaintLatency": 55.05,
           "capturedEntriesCount": 0
         },
         {
@@ -212,7 +222,7 @@
           "target": "[data-testid=\"cell-0-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 70.32,
+          "doubleRafPaintLatency": 53.66,
           "capturedEntriesCount": 0
         },
         {
@@ -220,7 +230,7 @@
           "target": "[data-testid=\"cell-1-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 68.2,
+          "doubleRafPaintLatency": 63.87,
           "capturedEntriesCount": 0
         },
         {
@@ -228,7 +238,7 @@
           "target": "[data-testid=\"cell-0-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 70.26,
+          "doubleRafPaintLatency": 60.81,
           "capturedEntriesCount": 0
         },
         {
@@ -236,7 +246,7 @@
           "target": "[data-testid=\"cell-1-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 68.09,
+          "doubleRafPaintLatency": 68.15,
           "capturedEntriesCount": 0
         },
         {
@@ -244,7 +254,7 @@
           "target": "[data-testid=\"cell-0-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 59.06,
+          "doubleRafPaintLatency": 62.18,
           "capturedEntriesCount": 0
         },
         {
@@ -252,7 +262,7 @@
           "target": "[data-testid=\"cell-1-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 67.04,
+          "doubleRafPaintLatency": 61.8,
           "capturedEntriesCount": 0
         },
         {
@@ -260,7 +270,7 @@
           "target": "[data-testid=\"cell-0-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 54.89,
+          "doubleRafPaintLatency": 68.34,
           "capturedEntriesCount": 0
         },
         {
@@ -268,7 +278,7 @@
           "target": "[data-testid=\"cell-1-sondaje\"]",
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.4,
-          "doubleRafPaintLatency": 67.93,
+          "doubleRafPaintLatency": 60.16,
           "capturedEntriesCount": 0
         }
       ]
@@ -286,19 +296,19 @@
       "eventTimingProcessing": {
         "p50": 0.8,
         "p95": 0.8,
-        "mean": 0.74,
-        "std": 0.17,
-        "min": 0.2,
+        "mean": 0.8,
+        "std": 0,
+        "min": 0.8,
         "max": 0.8,
         "n": 30
       },
       "doubleRafLatency": {
-        "p50": 28.21,
-        "p95": 35.49,
-        "mean": 28.06,
-        "std": 4.64,
-        "min": 19.7,
-        "max": 36.01,
+        "p50": 27.32,
+        "p95": 34.04,
+        "mean": 27.71,
+        "std": 3.69,
+        "min": 20.56,
+        "max": 34.58,
         "n": 30
       },
       "raw30": [
@@ -306,342 +316,292 @@
           "iteration": 6,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 24.23,
+          "doubleRafPaintLatency": 23.83,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 7,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 24.5,
+          "doubleRafPaintLatency": 22.86,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 8,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 26.98,
+          "doubleRafPaintLatency": 31.11,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 9,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 19.7,
+          "doubleRafPaintLatency": 26.71,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 10,
           "eventTimingDuration": 16,
-          "eventTimingProcessing": 0.3,
-          "doubleRafPaintLatency": 35.49,
-          "capturedEntriesCount": 4,
-          "inputEvent": {
-            "name": "input",
-            "entryType": "event",
-            "startTime": 26699.3,
-            "duration": 16,
-            "processingStart": 26699.4,
-            "processingEnd": 26699.7,
-            "processingDuration": 0.3,
-            "target": "INPUT# data-testid=floating-input"
-          }
+          "eventTimingProcessing": 0.8,
+          "doubleRafPaintLatency": 29.11,
+          "capturedEntriesCount": 0
         },
         {
           "iteration": 11,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 33.87,
+          "doubleRafPaintLatency": 34.04,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 12,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 28.73,
+          "doubleRafPaintLatency": 29.15,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 13,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 25.08,
+          "doubleRafPaintLatency": 28.25,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 14,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 30.77,
+          "doubleRafPaintLatency": 26.11,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 15,
           "eventTimingDuration": 16,
-          "eventTimingProcessing": 0.2,
-          "doubleRafPaintLatency": 36.01,
-          "capturedEntriesCount": 5,
-          "inputEvent": {
-            "name": "input",
-            "entryType": "event",
-            "startTime": 29064.7,
-            "duration": 16,
-            "processingStart": 29064.7,
-            "processingEnd": 29064.9,
-            "processingDuration": 0.2,
-            "target": "INPUT# data-testid=floating-input"
-          }
+          "eventTimingProcessing": 0.8,
+          "doubleRafPaintLatency": 25.64,
+          "capturedEntriesCount": 0
         },
         {
           "iteration": 16,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 35.1,
+          "doubleRafPaintLatency": 33.83,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 17,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 27.72,
+          "doubleRafPaintLatency": 20.56,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 18,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 29.63,
+          "doubleRafPaintLatency": 22.03,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 19,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 28.21,
+          "doubleRafPaintLatency": 25.57,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 20,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 23.78,
+          "doubleRafPaintLatency": 29.01,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 21,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 25.74,
+          "doubleRafPaintLatency": 27.32,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 22,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 30.22,
+          "doubleRafPaintLatency": 34.58,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 23,
           "eventTimingDuration": 16,
-          "eventTimingProcessing": 0.2,
-          "doubleRafPaintLatency": 35.17,
-          "capturedEntriesCount": 4,
-          "inputEvent": {
-            "name": "input",
-            "entryType": "event",
-            "startTime": 32833.2,
-            "duration": 16,
-            "processingStart": 32833.2,
-            "processingEnd": 32833.4,
-            "processingDuration": 0.2,
-            "target": "INPUT# data-testid=floating-input"
-          }
+          "eventTimingProcessing": 0.8,
+          "doubleRafPaintLatency": 32.01,
+          "capturedEntriesCount": 0
         },
         {
           "iteration": 24,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 21.99,
+          "doubleRafPaintLatency": 25.63,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 25,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 28.53,
+          "doubleRafPaintLatency": 26.9,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 26,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 20.67,
+          "doubleRafPaintLatency": 32.11,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 27,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 23.1,
+          "doubleRafPaintLatency": 27.28,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 28,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 21.09,
+          "doubleRafPaintLatency": 32.1,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 29,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 29.22,
+          "doubleRafPaintLatency": 26.93,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 30,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 29.23,
+          "doubleRafPaintLatency": 24.6,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 31,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 27.74,
+          "doubleRafPaintLatency": 28.27,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 32,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 26.7,
+          "doubleRafPaintLatency": 27.49,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 33,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 26.65,
+          "doubleRafPaintLatency": 29.7,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 34,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 31.1,
+          "doubleRafPaintLatency": 27.2,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 35,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 0.8,
-          "doubleRafPaintLatency": 34.78,
+          "doubleRafPaintLatency": 21.39,
           "capturedEntriesCount": 0
         }
       ]
     },
     "actionButton": {
       "eventTimingDuration": {
-        "p50": 64,
-        "p95": 96,
-        "mean": 48.53,
-        "std": 33.21,
+        "p50": 16,
+        "p95": 16,
+        "mean": 17.07,
+        "std": 5.84,
         "min": 16,
-        "max": 112,
+        "max": 48,
         "n": 30
       },
       "eventTimingProcessing": {
-        "p50": 3.1,
-        "p95": 3.9,
-        "mean": 2.4,
-        "std": 1.18,
+        "p50": 1.2,
+        "p95": 1.2,
+        "mean": 1.27,
+        "std": 0.38,
         "min": 1.2,
-        "max": 4.8,
+        "max": 3.3,
         "n": 30
       },
       "doubleRafLatency": {
-        "p50": 113.51,
-        "p95": 191.41,
-        "mean": 119.18,
-        "std": 35.37,
-        "min": 71.48,
-        "max": 219.91,
+        "p50": 78.09,
+        "p95": 84.48,
+        "mean": 76.46,
+        "std": 11.26,
+        "min": 53.88,
+        "max": 118.69,
         "n": 30
       },
       "raw30": [
         {
           "iteration": 6,
-          "eventTimingDuration": 64,
-          "eventTimingProcessing": 4.8,
-          "doubleRafPaintLatency": 113.09,
-          "capturedEntriesCount": 5,
-          "actionEvent": {
-            "name": "click",
-            "entryType": "event",
-            "startTime": 42319.1,
-            "duration": 64,
-            "processingStart": 42320.8,
-            "processingEnd": 42325.6,
-            "processingDuration": 4.8,
-            "target": "path# data-testid=null"
-          }
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.2,
+          "doubleRafPaintLatency": 78.85,
+          "capturedEntriesCount": 0
         },
         {
           "iteration": 7,
-          "eventTimingDuration": 64,
-          "eventTimingProcessing": 3.9,
-          "doubleRafPaintLatency": 142.06,
-          "capturedEntriesCount": 5,
-          "actionEvent": {
-            "name": "click",
-            "entryType": "event",
-            "startTime": 42918.4,
-            "duration": 64,
-            "processingStart": 42919.7,
-            "processingEnd": 42923.6,
-            "processingDuration": 3.9,
-            "target": "path# data-testid=null"
-          }
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.2,
+          "doubleRafPaintLatency": 75.87,
+          "capturedEntriesCount": 0
         },
         {
           "iteration": 8,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 1.2,
-          "doubleRafPaintLatency": 71.48,
+          "doubleRafPaintLatency": 118.69,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 9,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 1.2,
-          "doubleRafPaintLatency": 112,
+          "doubleRafPaintLatency": 78.75,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 10,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 1.2,
-          "doubleRafPaintLatency": 113.23,
+          "doubleRafPaintLatency": 77.8,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 11,
-          "eventTimingDuration": 64,
-          "eventTimingProcessing": 3.7,
-          "doubleRafPaintLatency": 136.49,
+          "eventTimingDuration": 48,
+          "eventTimingProcessing": 3.3,
+          "doubleRafPaintLatency": 80.35,
           "capturedEntriesCount": 5,
           "actionEvent": {
             "name": "click",
             "entryType": "event",
-            "startTime": 45252.2,
-            "duration": 64,
-            "processingStart": 45253.3,
-            "processingEnd": 45257,
-            "processingDuration": 3.7,
+            "startTime": 48084.1,
+            "duration": 48,
+            "processingStart": 48085,
+            "processingEnd": 48088.3,
+            "processingDuration": 3.3,
             "target": "path# data-testid=null"
           }
         },
@@ -649,299 +609,169 @@
           "iteration": 12,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 1.2,
-          "doubleRafPaintLatency": 75.62,
+          "doubleRafPaintLatency": 78.09,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 13,
-          "eventTimingDuration": 64,
-          "eventTimingProcessing": 3.7,
-          "doubleRafPaintLatency": 116.85,
-          "capturedEntriesCount": 5,
-          "actionEvent": {
-            "name": "click",
-            "entryType": "event",
-            "startTime": 46401.9,
-            "duration": 64,
-            "processingStart": 46403.2,
-            "processingEnd": 46406.9,
-            "processingDuration": 3.7,
-            "target": "path# data-testid=null"
-          }
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.2,
+          "doubleRafPaintLatency": 83.97,
+          "capturedEntriesCount": 0
         },
         {
           "iteration": 14,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 1.2,
-          "doubleRafPaintLatency": 89.32,
+          "doubleRafPaintLatency": 78.44,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 15,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 1.2,
-          "doubleRafPaintLatency": 102.44,
+          "doubleRafPaintLatency": 76.29,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 16,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 1.2,
-          "doubleRafPaintLatency": 78.41,
+          "doubleRafPaintLatency": 84.48,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 17,
-          "eventTimingDuration": 64,
-          "eventTimingProcessing": 3.3,
-          "doubleRafPaintLatency": 126.42,
-          "capturedEntriesCount": 5,
-          "actionEvent": {
-            "name": "click",
-            "entryType": "event",
-            "startTime": 48717.6,
-            "duration": 64,
-            "processingStart": 48718.8,
-            "processingEnd": 48722.1,
-            "processingDuration": 3.3,
-            "target": "path# data-testid=null"
-          }
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.2,
+          "doubleRafPaintLatency": 57.48,
+          "capturedEntriesCount": 0
         },
         {
           "iteration": 18,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 1.2,
-          "doubleRafPaintLatency": 103.32,
+          "doubleRafPaintLatency": 59.22,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 19,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 1.2,
-          "doubleRafPaintLatency": 88.01,
+          "doubleRafPaintLatency": 79.74,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 20,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 1.2,
-          "doubleRafPaintLatency": 107.23,
+          "doubleRafPaintLatency": 72.17,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 21,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 1.2,
-          "doubleRafPaintLatency": 80.71,
+          "doubleRafPaintLatency": 78.71,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 22,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 1.2,
-          "doubleRafPaintLatency": 108.94,
+          "doubleRafPaintLatency": 61.48,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 23,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 1.2,
-          "doubleRafPaintLatency": 76.42,
+          "doubleRafPaintLatency": 76.45,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 24,
-          "eventTimingDuration": 64,
-          "eventTimingProcessing": 3.1,
-          "doubleRafPaintLatency": 113.51,
-          "capturedEntriesCount": 5,
-          "actionEvent": {
-            "name": "click",
-            "entryType": "event",
-            "startTime": 52668.2,
-            "duration": 64,
-            "processingStart": 52669.2,
-            "processingEnd": 52672.3,
-            "processingDuration": 3.1,
-            "target": "path# data-testid=null"
-          }
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.2,
+          "doubleRafPaintLatency": 76.06,
+          "capturedEntriesCount": 0
         },
         {
           "iteration": 25,
-          "eventTimingDuration": 64,
-          "eventTimingProcessing": 3,
-          "doubleRafPaintLatency": 135.17,
-          "capturedEntriesCount": 5,
-          "actionEvent": {
-            "name": "click",
-            "entryType": "event",
-            "startTime": 53252.3,
-            "duration": 64,
-            "processingStart": 53253.5,
-            "processingEnd": 53256.5,
-            "processingDuration": 3,
-            "target": "path# data-testid=null"
-          }
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.2,
+          "doubleRafPaintLatency": 77.28,
+          "capturedEntriesCount": 0
         },
         {
           "iteration": 26,
-          "eventTimingDuration": 80,
-          "eventTimingProcessing": 3.1,
-          "doubleRafPaintLatency": 148.73,
-          "capturedEntriesCount": 5,
-          "actionEvent": {
-            "name": "click",
-            "entryType": "event",
-            "startTime": 53868,
-            "duration": 80,
-            "processingStart": 53869,
-            "processingEnd": 53872.1,
-            "processingDuration": 3.1,
-            "target": "path# data-testid=null"
-          }
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.2,
+          "doubleRafPaintLatency": 79.51,
+          "capturedEntriesCount": 0
         },
         {
           "iteration": 27,
-          "eventTimingDuration": 80,
-          "eventTimingProcessing": 3.3,
-          "doubleRafPaintLatency": 128.21,
-          "capturedEntriesCount": 5,
-          "actionEvent": {
-            "name": "click",
-            "entryType": "event",
-            "startTime": 54534.9,
-            "duration": 80,
-            "processingStart": 54536,
-            "processingEnd": 54539.3,
-            "processingDuration": 3.3,
-            "target": "path# data-testid=null"
-          }
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.2,
+          "doubleRafPaintLatency": 80.72,
+          "capturedEntriesCount": 0
         },
         {
           "iteration": 28,
-          "eventTimingDuration": 96,
-          "eventTimingProcessing": 3.5,
-          "doubleRafPaintLatency": 157.84,
-          "capturedEntriesCount": 5,
-          "actionEvent": {
-            "name": "click",
-            "entryType": "event",
-            "startTime": 55168.2,
-            "duration": 96,
-            "processingStart": 55169.2,
-            "processingEnd": 55172.7,
-            "processingDuration": 3.5,
-            "target": "path# data-testid=null"
-          }
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.2,
+          "doubleRafPaintLatency": 75.15,
+          "capturedEntriesCount": 0
         },
         {
           "iteration": 29,
-          "eventTimingDuration": 96,
-          "eventTimingProcessing": 3.6,
-          "doubleRafPaintLatency": 154.24,
-          "capturedEntriesCount": 5,
-          "actionEvent": {
-            "name": "click",
-            "entryType": "event",
-            "startTime": 55884,
-            "duration": 96,
-            "processingStart": 55885,
-            "processingEnd": 55888.6,
-            "processingDuration": 3.6,
-            "target": "path# data-testid=null"
-          }
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.2,
+          "doubleRafPaintLatency": 79.49,
+          "capturedEntriesCount": 0
         },
         {
           "iteration": 30,
-          "eventTimingDuration": 96,
-          "eventTimingProcessing": 3.2,
-          "doubleRafPaintLatency": 219.91,
-          "capturedEntriesCount": 5,
-          "actionEvent": {
-            "name": "click",
-            "entryType": "event",
-            "startTime": 56567.4,
-            "duration": 96,
-            "processingStart": 56568.6,
-            "processingEnd": 56571.8,
-            "processingDuration": 3.2,
-            "target": "path# data-testid=null"
-          }
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.2,
+          "doubleRafPaintLatency": 77.06,
+          "capturedEntriesCount": 0
         },
         {
           "iteration": 31,
-          "eventTimingDuration": 96,
-          "eventTimingProcessing": 3.1,
-          "doubleRafPaintLatency": 167.48,
-          "capturedEntriesCount": 5,
-          "actionEvent": {
-            "name": "click",
-            "entryType": "event",
-            "startTime": 57418,
-            "duration": 96,
-            "processingStart": 57419,
-            "processingEnd": 57422.1,
-            "processingDuration": 3.1,
-            "target": "path# data-testid=null"
-          }
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.2,
+          "doubleRafPaintLatency": 80.65,
+          "capturedEntriesCount": 0
         },
         {
           "iteration": 32,
-          "eventTimingDuration": 112,
-          "eventTimingProcessing": 3.5,
-          "doubleRafPaintLatency": 191.41,
-          "capturedEntriesCount": 5,
-          "actionEvent": {
-            "name": "click",
-            "entryType": "event",
-            "startTime": 58184.6,
-            "duration": 112,
-            "processingStart": 58185.8,
-            "processingEnd": 58189.3,
-            "processingDuration": 3.5,
-            "target": "path# data-testid=null"
-          }
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.2,
+          "doubleRafPaintLatency": 60.73,
+          "capturedEntriesCount": 0
         },
         {
           "iteration": 33,
           "eventTimingDuration": 16,
           "eventTimingProcessing": 1.2,
-          "doubleRafPaintLatency": 76.43,
+          "doubleRafPaintLatency": 78.85,
           "capturedEntriesCount": 0
         },
         {
           "iteration": 34,
-          "eventTimingDuration": 64,
-          "eventTimingProcessing": 3.1,
-          "doubleRafPaintLatency": 121.06,
-          "capturedEntriesCount": 5,
-          "actionEvent": {
-            "name": "click",
-            "entryType": "event",
-            "startTime": 59667.5,
-            "duration": 64,
-            "processingStart": 59668.5,
-            "processingEnd": 59671.6,
-            "processingDuration": 3.1,
-            "target": "path# data-testid=null"
-          }
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.2,
+          "doubleRafPaintLatency": 77.63,
+          "capturedEntriesCount": 0
         },
         {
           "iteration": 35,
-          "eventTimingDuration": 64,
-          "eventTimingProcessing": 3.2,
-          "doubleRafPaintLatency": 119.48,
-          "capturedEntriesCount": 5,
-          "actionEvent": {
-            "name": "click",
-            "entryType": "event",
-            "startTime": 60250.7,
-            "duration": 64,
-            "processingStart": 60251.7,
-            "processingEnd": 60254.9,
-            "processingDuration": 3.2,
-            "target": "path# data-testid=null"
-          }
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.2,
+          "doubleRafPaintLatency": 53.88,
+          "capturedEntriesCount": 0
         }
       ]
     }
@@ -960,30 +790,30 @@
         "n": 10
       },
       "clickRaf": {
-        "p50": 66.53,
-        "p95": 70.37,
-        "mean": 65.35,
-        "std": 4.28,
-        "min": 55.95,
-        "max": 70.37,
+        "p50": 61.23,
+        "p95": 68.99,
+        "mean": 61.72,
+        "std": 6.53,
+        "min": 53.82,
+        "max": 68.99,
         "n": 10
       },
       "actionDuration": {
-        "p50": 40,
-        "p95": 64,
-        "mean": 31.2,
-        "std": 17.47,
+        "p50": 16,
+        "p95": 48,
+        "mean": 19.2,
+        "std": 10.12,
         "min": 16,
-        "max": 64,
+        "max": 48,
         "n": 10
       },
       "actionRaf": {
-        "p50": 88.43,
-        "p95": 138.29,
-        "mean": 96.37,
-        "std": 21.68,
-        "min": 72.34,
-        "max": 138.29,
+        "p50": 68.23,
+        "p95": 80.83,
+        "mean": 67.24,
+        "std": 6.62,
+        "min": 55.51,
+        "max": 80.83,
         "n": 10
       }
     },
@@ -1000,58 +830,58 @@
         "n": 10
       },
       "clickRaf": {
-        "p50": 87.78,
-        "p95": 89.67,
-        "mean": 82.8,
-        "std": 11.52,
-        "min": 55.43,
-        "max": 89.67,
+        "p50": 89.74,
+        "p95": 90.7,
+        "mean": 86.7,
+        "std": 7.03,
+        "min": 67.36,
+        "max": 90.7,
         "n": 10
       },
       "actionDuration": {
-        "p50": 208,
-        "p95": 384,
-        "mean": 180.8,
-        "std": 128.4,
+        "p50": 16,
+        "p95": 16,
+        "mean": 16,
+        "std": 0,
         "min": 16,
-        "max": 384,
+        "max": 16,
         "n": 10
       },
       "actionRaf": {
-        "p50": 449.56,
-        "p95": 633.2,
-        "mean": 425.92,
-        "std": 139.44,
-        "min": 184.69,
-        "max": 633.2,
+        "p50": 137.52,
+        "p95": 199.7,
+        "mean": 143.88,
+        "std": 22.28,
+        "min": 119.03,
+        "max": 199.7,
         "n": 10
       }
     }
   },
   "filteredTraces": {
     "click": {
-      "windowDurationMs": 15.5,
-      "scriptingJsMs": 0.92,
-      "recalculateStyleMs": 0.64,
+      "windowDurationMs": 15.12,
+      "scriptingJsMs": 1.18,
+      "recalculateStyleMs": 0.33,
       "layoutMs": 0,
-      "paintCompositeMs": 0.66,
-      "idleWaitMs": 13.28
+      "paintCompositeMs": 0.67,
+      "idleWaitMs": 12.95
     },
     "typing": {
-      "windowDurationMs": 17.04,
-      "scriptingJsMs": 0.39,
-      "recalculateStyleMs": 0.08,
-      "layoutMs": 0.33,
-      "paintCompositeMs": 0.23,
-      "idleWaitMs": 16.01
+      "windowDurationMs": 44.35,
+      "scriptingJsMs": 0.46,
+      "recalculateStyleMs": 0.11,
+      "layoutMs": 40.4,
+      "paintCompositeMs": 0.17,
+      "idleWaitMs": 3.21
     },
     "actionButton": {
-      "windowDurationMs": 65.16,
-      "scriptingJsMs": 4.01,
-      "recalculateStyleMs": 52.55,
-      "layoutMs": 0.66,
-      "paintCompositeMs": 3.77,
-      "idleWaitMs": 4.16
+      "windowDurationMs": 25.84,
+      "scriptingJsMs": 4.37,
+      "recalculateStyleMs": 13.6,
+      "layoutMs": 0.63,
+      "paintCompositeMs": 3.64,
+      "idleWaitMs": 3.59
     }
   }
 }

@@ -81,12 +81,12 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
 
   startEditing: (cell, initialValue) => {
     const { rowIds, recordsById } = get();
-    const rowId = rowIds[cell.rowIdx];
+    const rowId = cell.rowId !== undefined ? cell.rowId : rowIds[cell.rowIdx];
     const row = rowId !== undefined ? recordsById.get(rowId) : undefined;
     const currentVal = row ? row[cell.colKey] : '';
     set({
-      activeCell: cell,
-      editingCell: cell,
+      activeCell: { ...cell, rowId },
+      editingCell: { ...cell, rowId },
       editorValue: initialValue !== undefined ? initialValue : (currentVal ?? '')
     });
   },
@@ -99,7 +99,8 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
     const { editingCell, editorValue, rowIds, recordsById, rowVersions, dirtyRowIds } = get();
     if (!editingCell) return;
 
-    const rowId = rowIds[editingCell.rowIdx];
+    // Resuelve por rowId inmutable para no escribir en fila incorrecta tras inserciones o eliminaciones
+    const rowId = editingCell.rowId !== undefined ? editingCell.rowId : rowIds[editingCell.rowIdx];
     if (rowId === undefined) {
       set({ editingCell: null });
       return;
@@ -144,6 +145,12 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
   },
 
   insertRowBelow: (idx, defaults = {}) => {
+    // Si hay una edición activa, confirmarla en su fila original antes de desplazar índices
+    const state = get();
+    if (state.editingCell) {
+      state.commitEditing();
+    }
+
     const { rowIds, recordsById, maxIdd, rowVersions, dirtyRowIds } = get();
     const parentId = rowIds[idx];
     const parent = parentId !== undefined ? recordsById.get(parentId) : undefined;
@@ -169,13 +176,26 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
     set({
       maxIdd: newId,
       dataVersion: get().dataVersion + 1,
-      activeCell: { rowIdx: idx + 1, colKey: 'sondaje' }
+      activeCell: { rowIdx: idx + 1, colKey: 'sondaje', rowId: newId }
     });
 
     return newId;
   },
 
   deleteRow: (rowId) => {
+    // Si la celda en edición está en la fila eliminada, cancelar; si está en otra, confirmar
+    const state = get();
+    if (state.editingCell) {
+      const editingRowId = state.editingCell.rowId !== undefined
+        ? state.editingCell.rowId
+        : state.rowIds[state.editingCell.rowIdx];
+      if (editingRowId === rowId) {
+        state.cancelEditing();
+      } else {
+        state.commitEditing();
+      }
+    }
+
     const { rowIds, recordsById, dirtyRowIds } = get();
     const idx = rowIds.indexOf(rowId);
     if (idx === -1) return;
@@ -188,7 +208,7 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
     let nextActive = currentActive;
     if (currentActive && currentActive.rowIdx >= rowIds.length) {
       nextActive = rowIds.length > 0
-        ? { rowIdx: rowIds.length - 1, colKey: currentActive.colKey }
+        ? { rowIdx: rowIds.length - 1, colKey: currentActive.colKey, rowId: rowIds[rowIds.length - 1] }
         : null;
     }
 

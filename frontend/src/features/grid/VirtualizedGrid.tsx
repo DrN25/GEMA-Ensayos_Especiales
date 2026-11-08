@@ -65,7 +65,7 @@ const GridRow = React.memo<GridRowProps>(({
         display: 'table',
         tableLayout: 'fixed'
       }}
-      className={`border-b border-navy-900/30 hover:bg-navy-900/50 transition-colors ${rowBg}`}
+      className={`border-b border-navy-900/30 hover:bg-navy-900/50 ${rowBg}`}
     >
       {leafColumns.map(col => {
         const colKey = col.id;
@@ -80,7 +80,7 @@ const GridRow = React.memo<GridRowProps>(({
             <td
               key={colKey}
               style={{ width: `${col.getSize()}px`, right: 0 }}
-              className="sticky z-10 bg-navy-950 text-center py-1 px-1 border-l border-b border-navy-800 shadow-[-2px_0_5px_rgba(0,0,0,0.3)]"
+              className="sticky z-10 bg-navy-950 text-center py-1 px-1 border-l-2 border-b border-navy-800"
             >
               <div className="flex items-center justify-center gap-1.5">
                 <button
@@ -118,7 +118,7 @@ const GridRow = React.memo<GridRowProps>(({
         let stickyStyle: React.CSSProperties = EMPTY_STYLE;
 
         if (isStickyLeft) {
-          stickyClasses = 'sticky z-10 bg-navy-950 font-mono font-bold shadow-[2px_0_5px_rgba(0,0,0,0.3)] text-slate-200';
+          stickyClasses = 'sticky z-10 bg-navy-950 font-mono font-bold border-r-2 border-navy-800 text-slate-200';
           stickyStyle = { left: `${leftOffset}px` };
         }
 
