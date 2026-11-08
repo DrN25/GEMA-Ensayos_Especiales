@@ -410,12 +410,12 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
     return map;
   }, [qaqcAlerts]);
 
-  // Carga inicial al montar o cuando cambian los registros
+  // Carga inicial al montar o cuando cambian los registros (solo si el store está vacío)
   useEffect(() => {
-    if (initialRecords && initialRecords.length > 0) {
+    if (initialRecords && initialRecords.length > 0 && rowIds.length === 0) {
       setInitialRecords(initialRecords);
     }
-  }, [initialRecords, setInitialRecords]);
+  }, [initialRecords, rowIds.length, setInitialRecords]);
 
   // Obtener definiciones de columnas declarativas para este módulo
   const gridColumns = useMemo(() => {

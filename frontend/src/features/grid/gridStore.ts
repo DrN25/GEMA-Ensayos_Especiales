@@ -5,6 +5,7 @@ import type { CellCoordinate } from './types';
 export interface GridStoreState {
   // Datos normalizados
   recordsById: Map<number, Record<string, any>>;
+  originalRecordsById: Map<number, Record<string, any>>;
   rowIds: number[];
   maxIdd: number;
   rowVersions: Map<number, number>;
@@ -17,9 +18,10 @@ export interface GridStoreState {
 
   // Dirty tracking O(1)
   dirtyRowIds: Set<number>;
+  deletedRowIds: Set<number>;
 
   // Acciones
-  setInitialRecords: (records: Record<string, any>[]) => void;
+  setInitialRecords: (records: Record<string, any>[], options?: { markAllDirty?: boolean }) => void;
   setActiveCell: (cell: CellCoordinate | null) => void;
   startEditing: (cell: CellCoordinate, initialValue?: any) => void;
   setEditorValue: (val: any) => void;
@@ -29,14 +31,38 @@ export interface GridStoreState {
   deleteRow: (rowId: number) => void;
   updateCellValue: (rowIdx: number, colKey: string, value: any) => void;
 
+  // Operaciones de guardado y sincronización
+  getDirtyRecords: () => Record<string, any>[];
+  clearDirty: () => void;
+  clearAll: () => void;
+  importRecords: (records: Record<string, any>[]) => void;
+
   // Selectores de lectura rápida
   getRow: (idx: number) => Record<string, any> | undefined;
   getRowById: (rowId: number) => Record<string, any> | undefined;
   getAllRecords: () => Record<string, any>[];
 }
 
+/**
+ * Compara si un registro modificado difiere de su snapshot original.
+ */
+function isRecordDifferent(current: Record<string, any>, original?: Record<string, any>): boolean {
+  if (!original) return true; // Si no existía en el snapshot original, es una fila nueva (dirty)
+
+  // Comparar claves en current
+  for (const k of Object.keys(current)) {
+    if (current[k] !== original[k]) return true;
+  }
+  // Comparar si en original había claves que ya no están
+  for (const k of Object.keys(original)) {
+    if (current[k] !== original[k]) return true;
+  }
+  return false;
+}
+
 export const useGridStore = create<GridStoreState>((set, get) => ({
   recordsById: new Map(),
+  originalRecordsById: new Map(),
   rowIds: [],
   maxIdd: 0,
   rowVersions: new Map(),
@@ -46,11 +72,14 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
   editingCell: null,
   editorValue: '',
   dirtyRowIds: new Set(),
+  deletedRowIds: new Set(),
 
-  setInitialRecords: (records) => {
+  setInitialRecords: (records, options = {}) => {
     const map = new Map<number, Record<string, any>>();
+    const originals = new Map<number, Record<string, any>>();
     const ids: number[] = [];
     const versions = new Map<number, number>();
+    const dirty = new Set<number>();
     let max = 0;
 
     for (let i = 0; i < records.length; i++) {
@@ -58,18 +87,28 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
       const rawId = r.idd !== undefined ? Number(r.idd) : i + 1;
       const id = isNaN(rawId) ? i + 1 : rawId;
       if (id > max) max = id;
-      map.set(id, r);
+
+      // Clon superficial de cada registro para tracking de dirty/revert
+      const rowClone = { ...r, idd: id };
+      map.set(id, rowClone);
+      originals.set(id, { ...rowClone });
       ids.push(id);
       versions.set(id, 1);
+
+      if (options.markAllDirty) {
+        dirty.add(id);
+      }
     }
 
     set({
       recordsById: map,
+      originalRecordsById: originals,
       rowIds: ids,
       maxIdd: max,
       rowVersions: versions,
       dataVersion: get().dataVersion + 1,
-      dirtyRowIds: new Set(),
+      dirtyRowIds: dirty,
+      deletedRowIds: new Set(),
       activeCell: ids.length > 0 ? { rowIdx: 0, colKey: 'sondaje' } : null,
       editingCell: null
     });
@@ -96,10 +135,9 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
   },
 
   commitEditing: () => {
-    const { editingCell, editorValue, rowIds, recordsById, rowVersions, dirtyRowIds } = get();
+    const { editingCell, editorValue, rowIds, recordsById, originalRecordsById, rowVersions, dirtyRowIds } = get();
     if (!editingCell) return;
 
-    // Resuelve por rowId inmutable para no escribir en fila incorrecta tras inserciones o eliminaciones
     const rowId = editingCell.rowId !== undefined ? editingCell.rowId : rowIds[editingCell.rowIdx];
     if (rowId === undefined) {
       set({ editingCell: null });
@@ -116,7 +154,15 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
     if (row[colKey] !== editorValue) {
       // Mutación in-place del registro normalizado
       row[colKey] = editorValue;
-      dirtyRowIds.add(rowId);
+
+      // Verificar si la fila ahora difiere de su snapshot original
+      const orig = originalRecordsById.get(rowId);
+      if (isRecordDifferent(row, orig)) {
+        dirtyRowIds.add(rowId);
+      } else {
+        dirtyRowIds.delete(rowId); // Revertido al valor original
+      }
+
       rowVersions.set(rowId, (rowVersions.get(rowId) || 1) + 1);
       set({ editingCell: null, dataVersion: get().dataVersion + 1 });
     } else {
@@ -129,7 +175,7 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
   },
 
   updateCellValue: (rowIdx, colKey, value) => {
-    const { rowIds, recordsById, rowVersions, dirtyRowIds } = get();
+    const { rowIds, recordsById, originalRecordsById, rowVersions, dirtyRowIds } = get();
     const rowId = rowIds[rowIdx];
     if (rowId === undefined) return;
 
@@ -138,14 +184,20 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
 
     if (row[colKey] !== value) {
       row[colKey] = value;
-      dirtyRowIds.add(rowId);
+
+      const orig = originalRecordsById.get(rowId);
+      if (isRecordDifferent(row, orig)) {
+        dirtyRowIds.add(rowId);
+      } else {
+        dirtyRowIds.delete(rowId);
+      }
+
       rowVersions.set(rowId, (rowVersions.get(rowId) || 1) + 1);
       set({ dataVersion: get().dataVersion + 1 });
     }
   },
 
   insertRowBelow: (idx, defaults = {}) => {
-    // Si hay una edición activa, confirmarla en su fila original antes de desplazar índices
     const state = get();
     if (state.editingCell) {
       state.commitEditing();
@@ -183,7 +235,6 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
   },
 
   deleteRow: (rowId) => {
-    // Si la celda en edición está en la fila eliminada, cancelar; si está en otra, confirmar
     const state = get();
     if (state.editingCell) {
       const editingRowId = state.editingCell.rowId !== undefined
@@ -196,13 +247,18 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
       }
     }
 
-    const { rowIds, recordsById, dirtyRowIds } = get();
+    const { rowIds, recordsById, originalRecordsById, dirtyRowIds, deletedRowIds } = get();
     const idx = rowIds.indexOf(rowId);
     if (idx === -1) return;
 
     recordsById.delete(rowId);
     rowIds.splice(idx, 1);
     dirtyRowIds.delete(rowId);
+
+    // Si la fila existía en la base de datos (tenía original), agregar a eliminaciones pendientes
+    if (originalRecordsById.has(rowId)) {
+      deletedRowIds.add(rowId);
+    }
 
     const currentActive = get().activeCell;
     let nextActive = currentActive;
@@ -216,6 +272,73 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
       dataVersion: get().dataVersion + 1,
       activeCell: nextActive,
       editingCell: null
+    });
+  },
+
+  getDirtyRecords: () => {
+    const { dirtyRowIds, recordsById } = get();
+    const result: Record<string, any>[] = [];
+    for (const id of dirtyRowIds) {
+      const rec = recordsById.get(id);
+      if (rec) {
+        result.push(rec);
+      }
+    }
+    return result;
+  },
+
+  clearDirty: () => {
+    const { recordsById } = get();
+    const newOriginals = new Map<number, Record<string, any>>();
+    for (const [id, rec] of recordsById.entries()) {
+      newOriginals.set(id, { ...rec });
+    }
+    set({
+      dirtyRowIds: new Set(),
+      deletedRowIds: new Set(),
+      originalRecordsById: newOriginals,
+      dataVersion: get().dataVersion + 1
+    });
+  },
+
+  clearAll: () => {
+    set({
+      recordsById: new Map(),
+      originalRecordsById: new Map(),
+      rowIds: [],
+      maxIdd: 0,
+      rowVersions: new Map(),
+      dataVersion: get().dataVersion + 1,
+      dirtyRowIds: new Set(),
+      deletedRowIds: new Set(),
+      activeCell: null,
+      editingCell: null
+    });
+  },
+
+  importRecords: (records) => {
+    const { recordsById, originalRecordsById, rowIds, rowVersions, dirtyRowIds } = get();
+    let max = get().maxIdd;
+
+    for (let i = 0; i < records.length; i++) {
+      const r = records[i];
+      const rawId = r.idd !== undefined ? Number(r.idd) : max + 1;
+      const id = isNaN(rawId) ? max + 1 : rawId;
+      if (id > max) max = id;
+
+      const rowClone = { ...r, idd: id };
+      recordsById.set(id, rowClone);
+      if (!rowIds.includes(id)) {
+        rowIds.push(id);
+      }
+      rowVersions.set(id, (rowVersions.get(id) || 0) + 1);
+      dirtyRowIds.add(id); // Los registros importados quedan marcados como dirty para guardado
+    }
+
+    set({
+      maxIdd: max,
+      dataVersion: get().dataVersion + 1,
+      activeCell: rowIds.length > 0 ? { rowIdx: 0, colKey: 'sondaje' } : null
     });
   },
 

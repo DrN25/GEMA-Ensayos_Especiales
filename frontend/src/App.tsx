@@ -16,6 +16,8 @@ import BulkAuditor from './features/auditor/BulkAuditor';
 import { validateAllRecords, type QAQCAlert } from './utils/qaqcValidator';
 import { getColumnsForModule } from './utils/columnsConfig';
 import { getStoredDarkMode, persistTheme } from './utils/theme';
+import { getGridVersion } from './features/grid/flags';
+import { useGridStore } from './features/grid/gridStore';
 
 
 const API_BASE = import.meta.env.VITE_API_BASE || (
@@ -41,6 +43,10 @@ export default function App() {
   // --- 1. ESTADOS DE CONTROL PRINCIPALES ---
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
   const [history, setHistory] = useState<string[]>(['dashboard']);
+  const isV2 = getGridVersion() === 'v2';
+  const gridDirtyCount = useGridStore(s => s.dirtyRowIds.size);
+  const gridDeletedCount = useGridStore(s => s.deletedRowIds.size);
+  const gridDataVersion = useGridStore(s => s.dataVersion);
   const [records, setRecords] = useState<Record<string, any>[]>([]);
   const [lastSavedRecords, setLastSavedRecords] = useState<Record<string, any>[]>([]);
 
@@ -78,8 +84,9 @@ export default function App() {
   const [dbInfo, setDbInfo] = useState<{ db_type: string; is_local_fallback: boolean; server?: string } | null>(null);
 
   const qaqcAlerts = useMemo(() => {
-    return validateAllRecords(records);
-  }, [records]);
+    const dataToValidate = isV2 ? useGridStore.getState().getAllRecords() : records;
+    return validateAllRecords(dataToValidate);
+  }, [records, isV2, gridDataVersion]);
 
   // --- 2. EFECTOS GLOBALES Y CONFIGURACIONES ---
   useEffect(() => {
@@ -127,8 +134,12 @@ export default function App() {
       const res = await fetch(`${API_BASE}/api/ensayos?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
-        setRecords(data.items || []);
-        setLastSavedRecords(JSON.parse(JSON.stringify(data.items || [])));
+        const loadedItems = data.items || [];
+        setRecords(loadedItems);
+        setLastSavedRecords(JSON.parse(JSON.stringify(loadedItems)));
+        if (isV2) {
+          useGridStore.getState().setInitialRecords(loadedItems);
+        }
         setTotalPages(data.total_pages || 1);
         setTotalRecords(data.total_filtered || 0);
         setPage(data.page || 1);
@@ -174,17 +185,25 @@ export default function App() {
           const parsed = JSON.parse(cached);
           setRecords(parsed);
           setLastSavedRecords(JSON.parse(JSON.stringify(parsed)));
+          if (isV2) {
+            useGridStore.getState().setInitialRecords(parsed);
+          }
         }
         triggerNotification("Modo Offline", "Sin conexión con la API backend. Se trabajará de manera local.", "warning");
       });
   }, []);
 
-  // Detectar cambios en registros y eliminaciones pendientes
+  // Detectar cambios en registros y eliminaciones pendientes (O(1) en v2 sin JSON.stringify)
   useEffect(() => {
     if (saveStatus === 'saving') return;
-    const hasChanges = JSON.stringify(records) !== JSON.stringify(lastSavedRecords) || pendingDeleteIdds.length > 0;
-    setSaveStatus(hasChanges ? 'unsaved' : 'synced');
-  }, [records, lastSavedRecords, pendingDeleteIdds]);
+    if (isV2) {
+      const hasChanges = gridDirtyCount > 0 || gridDeletedCount > 0 || pendingDeleteIdds.length > 0;
+      setSaveStatus(hasChanges ? 'unsaved' : 'synced');
+    } else {
+      const hasChanges = JSON.stringify(records) !== JSON.stringify(lastSavedRecords) || pendingDeleteIdds.length > 0;
+      setSaveStatus(hasChanges ? 'unsaved' : 'synced');
+    }
+  }, [isV2, gridDirtyCount, gridDeletedCount, records, lastSavedRecords, pendingDeleteIdds]);
 
   // Detectar cambios en proyectos
   useEffect(() => {
@@ -280,6 +299,9 @@ export default function App() {
   };
 
   const handleDeleteRow = (id: number) => {
+    if (isV2) {
+      useGridStore.getState().deleteRow(id);
+    }
     setRecords(prev => prev.filter(r => r.idd !== id));
     setPendingDeleteIdds(prev => prev.includes(id) ? prev : [...prev, id]);
     setSaveStatus('unsaved');
@@ -304,6 +326,9 @@ export default function App() {
         throw new Error(err.detail || "Error al vaciar base de datos");
       }
       const data = await res.json();
+      if (isV2) {
+        useGridStore.getState().clearAll();
+      }
       setRecords([]);
       setLastSavedRecords([]);
       setPendingDeleteIdds([]);
@@ -347,6 +372,9 @@ export default function App() {
         value: unmappedValue
       });
     } else {
+      if (isV2) {
+        useGridStore.getState().importRecords(mapped);
+      }
       setRecords(mapped);
       setTotalRecords(mapped.length);
       setTotalPages(Math.max(1, Math.ceil(mapped.length / pageSize)));
@@ -404,45 +432,89 @@ export default function App() {
   };
 
   const handleSaveAll = async () => {
-    if (qaqcAlerts.length > 0) {
-      triggerNotification("Bloqueado", "No se puede guardar porque existen alertas de validación críticas.", "error");
-      return;
+    if (isV2) {
+      const dirtyIds = useGridStore.getState().dirtyRowIds;
+      const criticalDirty = qaqcAlerts.filter(a => dirtyIds.has(a.idd) && a.type === 'CRÍTICO');
+      if (criticalDirty.length > 0) {
+        triggerNotification("Bloqueado", `No se puede guardar porque hay ${criticalDirty.length} fila(s) modificada(s) con alertas críticas de QA/QC.`, "error");
+        return;
+      }
+    } else {
+      const criticalAlerts = qaqcAlerts.filter(a => a.type === 'CRÍTICO');
+      if (criticalAlerts.length > 0) {
+        triggerNotification("Bloqueado", "No se puede guardar porque existen alertas de validación críticas.", "error");
+        return;
+      }
     }
     setSaveStatus('saving');
     setIsFetchingEnsayos(true);
     try {
       // 1. Eliminar filas pendientes de borrado en base de datos
-      if (pendingDeleteIdds.length > 0) {
+      const storeDeleted = isV2 ? Array.from(useGridStore.getState().deletedRowIds) : [];
+      const allDeletes = [...new Set([...pendingDeleteIdds, ...storeDeleted])];
+
+      if (allDeletes.length > 0) {
         const delRes = await fetch(`${API_BASE}/api/ensayos/batch-delete`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(pendingDeleteIdds)
+          body: JSON.stringify(allDeletes)
         });
         if (!delRes.ok) throw new Error("Fallo al sincronizar eliminaciones en la base de datos");
         setPendingDeleteIdds([]);
       }
 
-      // 2. ponytail: chunked upsert prevents browser freezes and payload limits on mass datasets
-      const chunkSize = 500;
-      for (let i = 0; i < records.length; i += chunkSize) {
-        const chunk = records.slice(i, i + chunkSize);
-        const res = await fetch(`${API_BASE}/api/ensayos/batch-upsert`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(chunk)
-        });
-        if (!res.ok) throw new Error("Fallo en sincronización por lote");
+      // 2. Filas a sincronizar: En v2 se envían ÚNICAMENTE las modificadas/insertadas
+      if (isV2) {
+        const dirtyRecords = useGridStore.getState().getDirtyRecords();
+        if (dirtyRecords.length > 0) {
+          const chunkSize = 500;
+          for (let i = 0; i < dirtyRecords.length; i += chunkSize) {
+            const chunk = dirtyRecords.slice(i, i + chunkSize);
+            const res = await fetch(`${API_BASE}/api/ensayos/batch-upsert`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(chunk)
+            });
+            if (!res.ok) throw new Error("Fallo en sincronización por lote");
+          }
+        }
+        useGridStore.getState().clearDirty();
+        const allRecords = useGridStore.getState().getAllRecords();
+        safeSaveLocalStorage('sigeg_records_v2', allRecords);
+        setRecords(allRecords);
+        setLastSavedRecords(JSON.parse(JSON.stringify(allRecords)));
+        setSaveStatus('synced');
+        setHasUnsavedImport(false);
+        triggerNotification("Guardado Exitoso", `Se sincronizaron ${dirtyRecords.length} registros modificados con éxito en SQL Server.`, "success");
+      } else {
+        // En v1 se conserva el comportamiento original
+        const chunkSize = 500;
+        for (let i = 0; i < records.length; i += chunkSize) {
+          const chunk = records.slice(i, i + chunkSize);
+          const res = await fetch(`${API_BASE}/api/ensayos/batch-upsert`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(chunk)
+          });
+          if (!res.ok) throw new Error("Fallo en sincronización por lote");
+        }
+
+        safeSaveLocalStorage('sigeg_records_v2', records);
+        setLastSavedRecords(JSON.parse(JSON.stringify(records)));
+        setSaveStatus('synced');
+        setHasUnsavedImport(false);
+        triggerNotification("Guardado Exitoso", `Se sincronizaron ${records.length} registros con éxito en SQL Server.`, "success");
       }
 
-      safeSaveLocalStorage('sigeg_records_v2', records);
-      setLastSavedRecords(JSON.parse(JSON.stringify(records)));
-      setSaveStatus('synced');
-      setHasUnsavedImport(false);
-      triggerNotification("Guardado Exitoso", `Se sincronizaron ${records.length} registros con éxito en SQL Server.`, "success");
       await loadEnsayos(1, pageSize, searchQuery, currentTab);
     } catch {
-      safeSaveLocalStorage('sigeg_records_v2', records);
-      setLastSavedRecords(JSON.parse(JSON.stringify(records)));
+      if (isV2) {
+        const allRecords = useGridStore.getState().getAllRecords();
+        safeSaveLocalStorage('sigeg_records_v2', allRecords);
+      } else {
+        safeSaveLocalStorage('sigeg_records_v2', records);
+        setLastSavedRecords(JSON.parse(JSON.stringify(records)));
+      }
       setSaveStatus('error');
       triggerNotification("Guardado Fallido", "Sincronización fallida con SQL Server.", "warning");
     } finally {
@@ -484,37 +556,63 @@ export default function App() {
     const fullMergedList = [...recordsToSend, ...newRecordsCleaned];
 
     try {
-      if (pendingDeleteIdds.length > 0) {
+      const storeDeleted = isV2 ? Array.from(useGridStore.getState().deletedRowIds) : [];
+      const allDeletes = [...new Set([...pendingDeleteIdds, ...storeDeleted])];
+
+      if (allDeletes.length > 0) {
         const delRes = await fetch(`${API_BASE}/api/ensayos/batch-delete`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(pendingDeleteIdds)
+          body: JSON.stringify(allDeletes)
         });
         if (!delRes.ok) throw new Error("Fallo al sincronizar eliminaciones en la base de datos");
         setPendingDeleteIdds([]);
       }
 
-      const res = await fetch(`${API_BASE}/api/ensayos/batch-upsert`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(fullMergedList)
-      });
-      if (res.ok) {
-        setLastSavedRecords(prevLastSaved => {
-          return prevLastSaved.map(lastRec => {
-            const currentRec = records.find(r => r.idd === lastRec.idd);
-            if (!currentRec) return lastRec;
-            const updated = { ...lastRec };
-            moduleCols.forEach(col => {
-              updated[col.dbName] = currentRec[col.dbName];
+      if (isV2) {
+        const dirtyRecords = useGridStore.getState().getDirtyRecords();
+        if (dirtyRecords.length > 0) {
+          const chunkSize = 500;
+          for (let i = 0; i < dirtyRecords.length; i += chunkSize) {
+            const chunk = dirtyRecords.slice(i, i + chunkSize);
+            const res = await fetch(`${API_BASE}/api/ensayos/batch-upsert`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(chunk)
             });
-            return updated;
-          }).concat(newRecordsCleaned);
-        });
+            if (!res.ok) throw new Error("Fallo en sincronización por lote");
+          }
+        }
+        useGridStore.getState().clearDirty();
+        const allRecords = useGridStore.getState().getAllRecords();
+        safeSaveLocalStorage('sigeg_records_v2', allRecords);
+        setRecords(allRecords);
+        setLastSavedRecords(JSON.parse(JSON.stringify(allRecords)));
         setSaveStatus('synced');
         triggerNotification("Guardado Segmentado", `Los cambios del módulo ${tabKey.replace('_', ' ').toUpperCase()} se han sincronizado correctamente.`, "success");
       } else {
-        throw new Error();
+        const res = await fetch(`${API_BASE}/api/ensayos/batch-upsert`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(fullMergedList)
+        });
+        if (res.ok) {
+          setLastSavedRecords(prevLastSaved => {
+            return prevLastSaved.map(lastRec => {
+              const currentRec = records.find(r => r.idd === lastRec.idd);
+              if (!currentRec) return lastRec;
+              const updated = { ...lastRec };
+              moduleCols.forEach(col => {
+                updated[col.dbName] = currentRec[col.dbName];
+              });
+              return updated;
+            }).concat(newRecordsCleaned);
+          });
+          setSaveStatus('synced');
+          triggerNotification("Guardado Segmentado", `Los cambios del módulo ${tabKey.replace('_', ' ').toUpperCase()} se han sincronizado correctamente.`, "success");
+        } else {
+          throw new Error();
+        }
       }
     } catch {
       setSaveStatus('error');
@@ -559,6 +657,23 @@ export default function App() {
   const checkModuleModified = (tabKey: string): boolean => {
     if (tabKey === 'dashboard' || tabKey === 'reportes') return false;
 
+    if (isV2) {
+      const { dirtyRowIds, deletedRowIds, recordsById, originalRecordsById } = useGridStore.getState();
+      if (dirtyRowIds.size === 0 && deletedRowIds.size === 0) return false;
+      if (tabKey === 'registro_maestro') return true;
+
+      const moduleCols = getColumnsForModule(tabKey);
+      for (const id of dirtyRowIds) {
+        const cur = recordsById.get(id);
+        const orig = originalRecordsById.get(id);
+        if (!cur || !orig) return true; // Fila nueva insertada
+        for (const col of moduleCols) {
+          if (cur[col.dbName] !== orig[col.dbName]) return true;
+        }
+      }
+      return false;
+    }
+
     const moduleCols = getColumnsForModule(tabKey);
     if (records.length !== lastSavedRecords.length) return true;
 
@@ -579,6 +694,15 @@ export default function App() {
   const qaqcAlertsCount = useMemo(() => {
     return qaqcAlerts.length;
   }, [qaqcAlerts]);
+
+  const hasSavingBlockingAlerts = useMemo(() => {
+    if (isV2) {
+      const dirtyIds = useGridStore.getState().dirtyRowIds;
+      if (dirtyIds.size === 0) return false;
+      return qaqcAlerts.some(a => dirtyIds.has(a.idd) && a.type === 'CRÍTICO');
+    }
+    return qaqcAlerts.some(a => a.type === 'CRÍTICO');
+  }, [qaqcAlerts, isV2, gridDirtyCount]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-navy-950 text-slate-100 font-sans">
@@ -611,7 +735,7 @@ export default function App() {
           saveStatus={currentTab === 'proyectos' ? proyectosSaveStatus : saveStatus}
           isSidebarCollapsed={isSidebarCollapsed}
           onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          hasAlerts={qaqcAlertsCount > 0}
+          hasAlerts={hasSavingBlockingAlerts}
           checkModuleModified={checkModuleModified}
         />
 
