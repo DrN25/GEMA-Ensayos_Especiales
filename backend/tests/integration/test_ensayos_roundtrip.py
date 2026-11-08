@@ -197,3 +197,91 @@ def test_type_coercion_string_numbers_and_whitespace(client, sample_ensayo_dict)
     assert cleaned["dia"] == 20
     assert cleaned["anio"] == 2025
     assert cleaned["observacion"] == "Observación con espacios extras"
+
+def test_real_production_archetypes_roundtrip(client, real_production_samples):
+    """
+    Verifica que los 4 perfiles reales de ensayos geomecánicos (Corte Directo, Triaxial,
+    UCS/Elásticas y Tracción Indirecta) tomados de la base de datos de producción
+    se persistan, validen en QA/QC y recuperen exactamente como en el entorno real.
+    """
+    for archetype in real_production_samples:
+        payload = {k: v for k, v in archetype.items() if not k.startswith("_")}
+        idd = payload["idd"]
+
+        # 1. Inserción mediante Batch Upsert
+        res_post = client.post("/api/ensayos/batch-upsert", json=[payload])
+        assert res_post.status_code == 200, f"Fallo al insertar arquetipo {archetype.get('_label')}"
+        assert res_post.json()["upserted_count"] == 1
+
+        # 2. Lectura y validación campo por campo
+        res_get = client.get(f"/api/ensayos/{idd}")
+        assert res_get.status_code == 200
+        saved = res_get.json()
+
+        for k, v in payload.items():
+            if v is not None:
+                assert saved[k] == v, f"Discrepancia en {archetype['_label']} campo '{k}': esperado {v}, obtenido {saved[k]}"
+
+        # 3. Comprobar que dia sea None (realidad geomecánica donde solo se reporta mes/año)
+        assert saved["dia"] is None
+
+        # 4. Validar cálculo automático de longitud de muestra
+        expected_len = round(payload["hasta"] - payload["desde"], 4)
+        assert saved["longitud_muestra"] == expected_len
+
+        # 5. Comprobar que en la API paginada pase sin errores críticos de QA/QC
+        res_paged = client.get(f"/api/ensayos?q={payload['codigo_muestra']}")
+        assert res_paged.status_code == 200
+        items = res_paged.json()["items"]
+        assert len(items) >= 1
+        item = items[0]
+        assert item["_has_errors"] is False, f"Arquetipo {archetype['_label']} generó errores críticos de QA/QC"
+
+def test_utm_high_magnitude_coordinates_precision(client, sample_ensayo_dict):
+    """
+    Verifica que coordenadas UTM de 6 y 7 cifras (Este ~785948.60, Norte ~8443345.13)
+    no sufran degradación, redondeo destructivo a enteros ni notación científica en la BD.
+    """
+    client.post("/api/ensayos/batch-upsert", json=[sample_ensayo_dict])
+
+    real_este = 785961.87
+    real_norte = 8443358.97
+    real_elev = 4471.77
+
+    client.put(f"/api/ensayos/{sample_ensayo_dict['idd']}", json={
+        "este": real_este,
+        "norte": real_norte,
+        "elevacion": real_elev
+    })
+
+    res = client.get(f"/api/ensayos/{sample_ensayo_dict['idd']}")
+    assert res.status_code == 200
+    data = res.json()
+
+    assert data["este"] == real_este
+    assert data["norte"] == real_norte
+    assert data["elevacion"] == real_elev
+
+def test_real_world_sparse_nulls_atomic_update(client, real_production_samples):
+    """
+    Verifica que actualizar un único campo en un registro real disperso (donde más del 50%
+    de las columnas son NULL legítimas) no altere los campos nulos ni los existentes.
+    """
+    corte_real = [s for s in real_production_samples if "Corte" in s["_label"]][0]
+    payload = {k: v for k, v in corte_real.items() if not k.startswith("_")}
+    client.post("/api/ensayos/batch-upsert", json=[payload])
+
+    # Modificar únicamente el ángulo de fricción de 32.98 a 35.50
+    res_put = client.put(f"/api/ensayos/{payload['idd']}", json={"corte_angulo_friccion": 35.50})
+    assert res_put.status_code == 200
+
+    res_get = client.get(f"/api/ensayos/{payload['idd']}")
+    assert res_get.status_code == 200
+    updated = res_get.json()
+
+    assert updated["corte_angulo_friccion"] == 35.50
+    assert updated["corte_cohesion_mpa"] == 0.1
+    # Asegurar que los campos no pertenecientes a Corte siguen siendo estrictamente None
+    assert updated["triaxial_resistencia_mpa"] is None
+    assert updated["ucs_resistencia"] is None
+    assert updated["traccion_resistencia_mpa"] is None

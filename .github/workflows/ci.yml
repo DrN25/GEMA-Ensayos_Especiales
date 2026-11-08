@@ -34,7 +34,8 @@ jobs:
 
       - name: Run Pytest Suite
         env:
-          DATABASE_URL: sqlite:///:memory:
+          DATABASE_URL: "sqlite:///:memory:"
         run: |
           cd backend
           pytest -v --durations=10
+
