@@ -50,6 +50,9 @@ export default function App() {
   const [totalPages, setTotalPages] = useState<number>(1);
   const [totalRecords, setTotalRecords] = useState<number>(0);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isFetchingEnsayos, setIsFetchingEnsayos] = useState<boolean>(false);
+  const [hasUnsavedImport, setHasUnsavedImport] = useState<boolean>(false);
+  const [pendingDeleteIdds, setPendingDeleteIdds] = useState<number[]>([]);
 
   const [proyectos, setProyectos] = useState<Proyecto[]>([]);
   const [lastSavedProyectos, setLastSavedProyectos] = useState<Proyecto[]>([]);
@@ -99,7 +102,18 @@ export default function App() {
     return () => document.removeEventListener('wheel', handleWheel);
   }, []);
 
+  // ponytail: safe storage prevents browser QuotaExceededError when caching large datasets (+9000 rows)
+  const safeSaveLocalStorage = (key: string, data: any) => {
+    try {
+      const dataToSave = Array.isArray(data) && data.length > 100 ? data.slice(0, 100) : data;
+      localStorage.setItem(key, JSON.stringify(dataToSave));
+    } catch (e) {
+      console.warn("localStorage quota exceeded, skipping local cache", e);
+    }
+  };
+
   const loadEnsayos = async (p = 1, ps = pageSize, q = searchQuery, tab = currentTab) => {
+    setIsFetchingEnsayos(true);
     try {
       const params = new URLSearchParams({
         page: String(p),
@@ -119,9 +133,13 @@ export default function App() {
         setTotalRecords(data.total_filtered || 0);
         setPage(data.page || 1);
         setSaveStatus('synced');
+        setHasUnsavedImport(false);
+        setPendingDeleteIdds([]);
       }
     } catch (e) {
       console.warn("Fallo al cargar ensayos paginados", e);
+    } finally {
+      setIsFetchingEnsayos(false);
     }
   };
 
@@ -161,12 +179,12 @@ export default function App() {
       });
   }, []);
 
-  // Detectar cambios en registros
+  // Detectar cambios en registros y eliminaciones pendientes
   useEffect(() => {
     if (saveStatus === 'saving') return;
-    const hasChanges = JSON.stringify(records) !== JSON.stringify(lastSavedRecords);
+    const hasChanges = JSON.stringify(records) !== JSON.stringify(lastSavedRecords) || pendingDeleteIdds.length > 0;
     setSaveStatus(hasChanges ? 'unsaved' : 'synced');
-  }, [records, lastSavedRecords]);
+  }, [records, lastSavedRecords, pendingDeleteIdds]);
 
   // Detectar cambios en proyectos
   useEffect(() => {
@@ -261,6 +279,48 @@ export default function App() {
     setProyectos(prev => [...prev, { nombre: '', sinonimos: '' }]);
   };
 
+  const handleDeleteRow = (id: number) => {
+    setRecords(prev => prev.filter(r => r.idd !== id));
+    setPendingDeleteIdds(prev => prev.includes(id) ? prev : [...prev, id]);
+    setSaveStatus('unsaved');
+  };
+
+  const handleClearDatabase = async () => {
+    const confirmed = window.confirm(
+      "ADVERTENCIA DE PRUEBA:\n\n" +
+      "¿Estás completamente seguro de que deseas ELIMINAR TODOS los registros de Ensayos Especiales de la Base de Datos?\n\n" +
+      "Esta acción es irreversible y vaciará la tabla registro_maestro para permitir pruebas de importación limpia."
+    );
+    if (!confirmed) return;
+
+    setIsFetchingEnsayos(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/ensayos/clear-all`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Error al vaciar base de datos");
+      }
+      const data = await res.json();
+      setRecords([]);
+      setLastSavedRecords([]);
+      setPendingDeleteIdds([]);
+      setTotalRecords(0);
+      setTotalPages(1);
+      setPage(1);
+      setSaveStatus('synced');
+      setHasUnsavedImport(false);
+      safeSaveLocalStorage('sigeg_records_v2', []);
+      triggerNotification("Base de Datos Vaciada", `Se eliminaron ${data.deleted_count ?? 0} registros correctamente. La base de datos está lista para pruebas.`, "success");
+    } catch (e: any) {
+      triggerNotification("Error", e?.message || "No se pudo vaciar la base de datos.", "error");
+    } finally {
+      setIsFetchingEnsayos(false);
+    }
+  };
+
   const handleImportExcel = (importedData: Record<string, any>[]) => {
     let unmappedValue = '';
     const mapped = importedData.map(row => {
@@ -287,8 +347,13 @@ export default function App() {
         value: unmappedValue
       });
     } else {
-      setRecords(prev => [...prev, ...mapped]);
-      triggerNotification("Importación Exitosa", `Se han cargado ${importedData.length} registros geotécnicos.`, "success");
+      setRecords(mapped);
+      setTotalRecords(mapped.length);
+      setTotalPages(Math.max(1, Math.ceil(mapped.length / pageSize)));
+      setPage(1);
+      setHasUnsavedImport(true);
+      setSaveStatus('unsaved');
+      triggerNotification("Importación en Grilla", `Se han cargado ${importedData.length} registros en la grilla para revisión.`, "success");
     }
   };
 
@@ -304,19 +369,34 @@ export default function App() {
 
     if (action === 'empty') {
       resolvedRecords = tempRecords.map(r => r.proyecto === value ? { ...r, proyecto: '' } : r);
-      setRecords(prev => [...prev, ...resolvedRecords]);
+      setRecords(resolvedRecords);
+      setTotalRecords(resolvedRecords.length);
+      setTotalPages(Math.max(1, Math.ceil(resolvedRecords.length / pageSize)));
+      setPage(1);
+      setHasUnsavedImport(true);
+      setSaveStatus('unsaved');
       triggerNotification("Sincronización de Importación", "Los registros sin proyecto coincidente han sido inyectados vacíos.", "info");
     }
     else if (action === 'associate' && selectedName) {
       resolvedRecords = tempRecords.map(r => r.proyecto === value ? { ...r, proyecto: selectedName } : r);
-      setRecords(prev => [...prev, ...resolvedRecords]);
+      setRecords(resolvedRecords);
+      setTotalRecords(resolvedRecords.length);
+      setTotalPages(Math.max(1, Math.ceil(resolvedRecords.length / pageSize)));
+      setPage(1);
+      setHasUnsavedImport(true);
+      setSaveStatus('unsaved');
       triggerNotification("Asociación de Importación", `Registros mapeados exitosamente al proyecto ${selectedName}.`, "success");
     }
     else if (action === 'create') {
       const newProj: Proyecto = { nombre: value.toUpperCase(), sinonimos: value.toUpperCase() };
       setProyectos(prev => [...prev, newProj]);
       resolvedRecords = tempRecords.map(r => r.proyecto === value ? { ...r, proyecto: newProj.nombre } : r);
-      setRecords(prev => [...prev, ...resolvedRecords]);
+      setRecords(resolvedRecords);
+      setTotalRecords(resolvedRecords.length);
+      setTotalPages(Math.max(1, Math.ceil(resolvedRecords.length / pageSize)));
+      setPage(1);
+      setHasUnsavedImport(true);
+      setSaveStatus('unsaved');
       triggerNotification("Maestro Actualizado", `Se ha inyectado un nuevo proyecto '${newProj.nombre}' al maestro de SIGEG.`, "success");
     }
 
@@ -329,25 +409,44 @@ export default function App() {
       return;
     }
     setSaveStatus('saving');
+    setIsFetchingEnsayos(true);
     try {
-      const res = await fetch(`${API_BASE}/api/ensayos/batch-upsert`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(records)
-      });
-      if (res.ok) {
-        localStorage.setItem('sigeg_records_v2', JSON.stringify(records));
-        setLastSavedRecords(JSON.parse(JSON.stringify(records)));
-        setSaveStatus('synced');
-        triggerNotification("Guardado Exitoso", "Registros sincronizados con éxito en SQL Server.", "success");
-      } else {
-        throw new Error();
+      // 1. Eliminar filas pendientes de borrado en base de datos
+      if (pendingDeleteIdds.length > 0) {
+        const delRes = await fetch(`${API_BASE}/api/ensayos/batch-delete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(pendingDeleteIdds)
+        });
+        if (!delRes.ok) throw new Error("Fallo al sincronizar eliminaciones en la base de datos");
+        setPendingDeleteIdds([]);
       }
+
+      // 2. ponytail: chunked upsert prevents browser freezes and payload limits on mass datasets
+      const chunkSize = 500;
+      for (let i = 0; i < records.length; i += chunkSize) {
+        const chunk = records.slice(i, i + chunkSize);
+        const res = await fetch(`${API_BASE}/api/ensayos/batch-upsert`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(chunk)
+        });
+        if (!res.ok) throw new Error("Fallo en sincronización por lote");
+      }
+
+      safeSaveLocalStorage('sigeg_records_v2', records);
+      setLastSavedRecords(JSON.parse(JSON.stringify(records)));
+      setSaveStatus('synced');
+      setHasUnsavedImport(false);
+      triggerNotification("Guardado Exitoso", `Se sincronizaron ${records.length} registros con éxito en SQL Server.`, "success");
+      await loadEnsayos(1, pageSize, searchQuery, currentTab);
     } catch {
-      localStorage.setItem('sigeg_records_v2', JSON.stringify(records));
+      safeSaveLocalStorage('sigeg_records_v2', records);
       setLastSavedRecords(JSON.parse(JSON.stringify(records)));
       setSaveStatus('error');
-      triggerNotification("Guardado Local", "Sincronización fallida. Cambios guardados de forma local.", "warning");
+      triggerNotification("Guardado Fallido", "Sincronización fallida con SQL Server.", "warning");
+    } finally {
+      setIsFetchingEnsayos(false);
     }
   };
 
@@ -385,6 +484,16 @@ export default function App() {
     const fullMergedList = [...recordsToSend, ...newRecordsCleaned];
 
     try {
+      if (pendingDeleteIdds.length > 0) {
+        const delRes = await fetch(`${API_BASE}/api/ensayos/batch-delete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(pendingDeleteIdds)
+        });
+        if (!delRes.ok) throw new Error("Fallo al sincronizar eliminaciones en la base de datos");
+        setPendingDeleteIdds([]);
+      }
+
       const res = await fetch(`${API_BASE}/api/ensayos/batch-upsert`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -543,14 +652,21 @@ export default function App() {
               pageSize={pageSize}
               totalPages={totalPages}
               totalRecords={totalRecords}
+              isLoading={isFetchingEnsayos}
+              onDeleteRow={handleDeleteRow}
+              onClearDatabase={handleClearDatabase}
               onPageChange={(newPage) => {
                 setPage(newPage);
-                loadEnsayos(newPage, pageSize, searchQuery, currentTab);
+                if (!hasUnsavedImport) {
+                  loadEnsayos(newPage, pageSize, searchQuery, currentTab);
+                }
               }}
               onPageSizeChange={(newSize) => {
                 setPageSize(newSize);
                 setPage(1);
-                loadEnsayos(1, newSize, searchQuery, currentTab);
+                if (!hasUnsavedImport) {
+                  loadEnsayos(1, newSize, searchQuery, currentTab);
+                }
               }}
               onSearchServer={(q) => {
                 setSearchQuery(q);
@@ -654,6 +770,11 @@ export default function App() {
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         onImport={handleImportExcel}
+        apiBase={API_BASE}
+        onDirectSaveComplete={() => {
+          loadEnsayos(1, pageSize, searchQuery, currentTab);
+          triggerNotification("Sincronización Masiva", "Planilla guardada directamente en la base de datos.", "success");
+        }}
       />
 
       <ExcelExportModal

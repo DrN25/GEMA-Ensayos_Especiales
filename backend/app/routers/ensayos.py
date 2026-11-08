@@ -279,6 +279,49 @@ def batch_upsert_ensayos(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Fallo en batch upsert de ensayos: {e}")
 
+@router.post("/batch-delete")
+def batch_delete_ensayos(
+    idds: List[int],
+    db: Session = Depends(get_db)
+):
+    """
+    Eliminación masiva por lote de registros específicos por su IDD.
+    Maneja partición en lotes de 500 para SQL Server.
+    """
+    if not idds:
+        return {"status": "success", "deleted_count": 0}
+
+    try:
+        deleted_count = 0
+        chunk_size = 500
+        for i in range(0, len(idds), chunk_size):
+            chunk = idds[i:i + chunk_size]
+            count = db.query(models.RegistroMaestro).filter(
+                models.RegistroMaestro.idd.in_(chunk)
+            ).delete(synchronize_session=False)
+            deleted_count += count
+        db.commit()
+        return {"status": "success", "deleted_count": deleted_count}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Fallo al eliminar registros por lote: {e}")
+
+@router.post("/clear-all")
+def clear_all_ensayos(
+    db: Session = Depends(get_db)
+):
+    """
+    Eliminación total de todos los registros de Ensayos Especiales (registro_maestro).
+    Diseñado para pruebas y restablecimiento limpio de importaciones.
+    """
+    try:
+        deleted_count = db.query(models.RegistroMaestro).delete(synchronize_session=False)
+        db.commit()
+        return {"status": "success", "deleted_count": deleted_count, "message": f"Se eliminaron {deleted_count} registros."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Fallo al vaciar la tabla de ensayos: {e}")
+
 @router.put("/{idd}", response_model=schemas.RegistroMaestroResponse)
 def update_single_ensayo(idd: int, data: Dict[str, Any], db: Session = Depends(get_db)):
     item = db.query(models.RegistroMaestro).filter_by(idd=idd).first()

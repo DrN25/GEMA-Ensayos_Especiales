@@ -24,6 +24,9 @@ interface GeotechPageProps {
     onPageChange?: (page: number) => void;
     onPageSizeChange?: (pageSize: number) => void;
     onSearchServer?: (query: string) => void;
+    isLoading?: boolean;
+    onDeleteRow?: (id: number) => void;
+    onClearDatabase?: () => void;
 }
 
 const TITLE_MAP: Record<string, string> = {
@@ -56,7 +59,10 @@ export default function GeotechPage({
     totalRecords,
     onPageChange,
     onPageSizeChange,
-    onSearchServer
+    onSearchServer,
+    isLoading = false,
+    onDeleteRow,
+    onClearDatabase
 }: GeotechPageProps) {
     const [activeTab, setActiveTab] = useState<'table' | 'graphs' | 'qaqc'>('table');
     const [openAccordions, setOpenAccordions] = useState<Record<string, boolean>>({
@@ -235,6 +241,17 @@ export default function GeotechPage({
                                         <FileSpreadsheet size={13} />
                                         <span>Importar Excel</span>
                                     </button>
+                                    {onClearDatabase && (
+                                        <button
+                                            type="button"
+                                            onClick={onClearDatabase}
+                                            className="flex items-center gap-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
+                                            title="Elimina todos los registros de la base de datos para pruebas limpias de importación"
+                                        >
+                                            <Trash2 size={13} />
+                                            <span>Vaciar BD (Pruebas)</span>
+                                        </button>
+                                    )}
                                 </>
                             )}
                             <button
@@ -338,7 +355,7 @@ export default function GeotechPage({
                         setRecords={setRecords}
                         qaqcAlerts={qaqcAlerts}
                         onAddRow={() => { }}
-                        onDeleteRow={(id) => setRecords(prev => prev.filter(r => r.idd !== id))}
+                        onDeleteRow={onDeleteRow ? onDeleteRow : (id) => setRecords(prev => prev.filter(r => r.idd !== id))}
                         onInsertRowBelow={(idx) => {
                             const parent = filteredRecords[idx];
                             const nextId = Math.max(...records.map(r => Number(r.idd) || 0)) + 1;
@@ -356,6 +373,7 @@ export default function GeotechPage({
                         totalRecords={totalRecords}
                         onPageChange={onPageChange}
                         onPageSizeChange={onPageSizeChange}
+                        isLoading={isLoading}
                     />
                 </div>
             )}

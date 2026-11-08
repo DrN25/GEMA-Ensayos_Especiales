@@ -21,6 +21,7 @@ interface DataGridProps {
   totalRecords?: number;
   onPageChange?: (page: number) => void;
   onPageSizeChange?: (pageSize: number) => void;
+  isLoading?: boolean;
 }
 
 export default function DataGrid({
@@ -39,7 +40,8 @@ export default function DataGrid({
   totalPages = 1,
   totalRecords,
   onPageChange,
-  onPageSizeChange
+  onPageSizeChange,
+  isLoading = false
 }: DataGridProps) {
   const isMasterView = moduleName === 'registro_maestro';
   const baseCols = getColumnsForModule(moduleName);
@@ -194,8 +196,31 @@ export default function DataGrid({
     );
   };
 
+  // ponytail: Map indexing eliminates O(N) linear scans per cell and per row,
+  // making border and badge lookups instant O(1) regardless of dataset size (+9000 rows).
+  const alertsByCell = useMemo(() => {
+    const map = new Map<string, QAQCAlert>();
+    for (let i = 0; i < qaqcAlerts.length; i++) {
+      const a = qaqcAlerts[i];
+      map.set(`${a.idd}:${a.field}`, a);
+    }
+    return map;
+  }, [qaqcAlerts]);
+
+  const alertsByRow = useMemo(() => {
+    const map = new Map<number, { hasCritical: boolean; hasWarning: boolean }>();
+    for (let i = 0; i < qaqcAlerts.length; i++) {
+      const a = qaqcAlerts[i];
+      const entry = map.get(a.idd) || { hasCritical: false, hasWarning: false };
+      if (a.type === 'CRÍTICO') entry.hasCritical = true;
+      else entry.hasWarning = true;
+      map.set(a.idd, entry);
+    }
+    return map;
+  }, [qaqcAlerts]);
+
   const getCellBorderClass = (idd: number, field: string) => {
-    const alert = qaqcAlerts.find(a => a.idd === idd && a.field === field);
+    const alert = alertsByCell.get(`${idd}:${field}`);
     if (!alert) return "border border-navy-800";
     if (alert.type === 'CRÍTICO') {
       return "border-2 border-rose-500 shadow-[inset_0_0_8px_rgba(244,63,94,0.3)]";
@@ -204,7 +229,6 @@ export default function DataGrid({
   };
 
   const getQaqcValidationBadge = (idd: number, rec: any) => {
-    const rowAlerts = qaqcAlerts.filter(a => a.idd === idd);
     if (!rec.sondaje) {
       return (
         <span className="px-2.5 py-1 rounded text-xs font-medium bg-slate-500/10 text-slate-400 border border-slate-500/20 uppercase tracking-wide">
@@ -212,8 +236,8 @@ export default function DataGrid({
         </span>
       );
     }
-    const hasCritical = rowAlerts.some(a => a.type === 'CRÍTICO');
-    if (hasCritical) {
+    const rowStatus = alertsByRow.get(idd);
+    if (rowStatus?.hasCritical) {
       return (
         <span className="px-2.5 py-1 rounded text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 uppercase tracking-wide animate-pulse">
           No Válido
@@ -226,6 +250,16 @@ export default function DataGrid({
       </span>
     );
   };
+
+  // ponytail: client-side slicing ensures DOM only ever renders pageSize (<=50) rows,
+  // preventing browser freeze when user loads or imports hundreds or thousands of rows.
+  const isClientPaginated = records.length > pageSize;
+  const computedTotalPages = isClientPaginated ? Math.ceil(records.length / pageSize) : (totalPages || 1);
+  const displayedRecords = useMemo(() => {
+    if (!isClientPaginated) return records;
+    const start = (page - 1) * pageSize;
+    return records.slice(start, start + pageSize);
+  }, [records, isClientPaginated, page, pageSize]);
 
   const colStyles = useMemo(() => {
     const s: Record<string, string> = {};
@@ -313,7 +347,7 @@ export default function DataGrid({
     const fieldIndex = fields.indexOf(dbName);
     if (fieldIndex === -1) return;
 
-    const rowIds = records.map(r => r.idd);
+    const rowIds = displayedRecords.map(r => r.idd);
     const rowIndex = rowIds.indexOf(idd);
     if (rowIndex === -1) return;
 
@@ -372,6 +406,22 @@ export default function DataGrid({
   return (
     <div className="space-y-4 select-none animate-fade-in text-xs font-normal view-dashboard view-geotech">
       <div className="border border-navy-800 rounded-2xl bg-navy-950/20 shadow-xl overflow-hidden relative">
+        {/* Loading Overlay */}
+        {isLoading && (
+          <div className="absolute inset-0 z-50 bg-navy-950/75 backdrop-blur-[2px] flex flex-col items-center justify-center gap-3 animate-fade-in pointer-events-auto">
+            <div className="relative">
+              <div className="w-10 h-10 rounded-full border-2 border-sky-500/20 border-t-sky-400 animate-spin" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+              </div>
+            </div>
+            <div className="text-center space-y-0.5">
+              <p className="text-xs font-bold text-slate-200 uppercase tracking-wider">Cargando ensayos geotécnicos...</p>
+              <p className="text-[11px] text-slate-400 font-medium">Sincronizando grilla y validaciones QA/QC</p>
+            </div>
+          </div>
+        )}
+
         <div className="overflow-x-auto overflow-y-auto max-h-[74vh] custom-scrollbar max-w-full relative">
           <table className="border-collapse text-left table-fixed border-spacing-0" style={{ width: 'max-content' }} onKeyDown={handleGridKeyDown}>
 
@@ -492,7 +542,7 @@ export default function DataGrid({
 
             {/* CUERPO DE REGISTROS */}
             <tbody className="divide-y divide-navy-900/40 text-xs text-slate-300 font-normal">
-              {records.map((rec, rIdx) => {
+              {displayedRecords.map((rec, rIdx) => {
                 const isEven = rIdx % 2 === 0;
                 const rowBg = isEven ? "bg-navy-900/10 hover:bg-navy-900/30" : "bg-navy-950/30 hover:bg-navy-900/30";
                 const isInputDisabled = !isMasterView;
@@ -909,12 +959,10 @@ export default function DataGrid({
           <div className="flex items-center gap-3">
             <span>
               Página <span className="font-bold text-slate-200">{page}</span> de{' '}
-              <span className="font-bold text-slate-200">{totalPages}</span>
-              {totalRecords !== undefined && (
-                <span className="text-slate-500 ml-1.5">
-                  ({totalRecords.toLocaleString()} registros totales)
-                </span>
-              )}
+              <span className="font-bold text-slate-200">{computedTotalPages}</span>
+              <span className="text-slate-500 ml-1.5 font-mono">
+                ({(isClientPaginated ? records.length : (totalRecords !== undefined ? totalRecords : records.length)).toLocaleString()} registros totales)
+              </span>
             </span>
 
             {onPageSizeChange && (
@@ -943,8 +991,8 @@ export default function DataGrid({
               <span>Anterior</span>
             </button>
             <button
-              onClick={() => onPageChange && onPageChange(Math.min(totalPages, page + 1))}
-              disabled={page >= totalPages || !onPageChange}
+              onClick={() => onPageChange && onPageChange(Math.min(computedTotalPages, page + 1))}
+              disabled={page >= computedTotalPages || !onPageChange}
               className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-navy-800 bg-navy-900 text-slate-300 hover:bg-navy-800 hover:text-white transition-all disabled:opacity-30 disabled:pointer-events-none font-bold"
             >
               <span>Siguiente</span>

@@ -7,6 +7,8 @@ interface ExcelImportModalProps {
     isOpen: boolean;
     onClose: () => void;
     onImport: (importedData: Record<string, any>[]) => void;
+    apiBase?: string;
+    onDirectSaveComplete?: () => void;
 }
 
 // Sinonimos para detectar automaticamente la fila de cabecera en el Excel
@@ -32,7 +34,7 @@ const MODULE_GROUPS: Record<string, string> = {
 
 const CRITICAL_IMPORT_FIELDS = ['sondaje', 'desde', 'hasta', 'proyecto'];
 
-export default function ExcelImportModal({ isOpen, onClose, onImport }: ExcelImportModalProps) {
+export default function ExcelImportModal({ isOpen, onClose, onImport, apiBase, onDirectSaveComplete }: ExcelImportModalProps) {
     const [file, setFile] = useState<File | null>(null);
     const [sheets, setSheets] = useState<string[]>([]);
     const [selectedSheet, setSelectedSheet] = useState<string>('');
@@ -62,6 +64,7 @@ export default function ExcelImportModal({ isOpen, onClose, onImport }: ExcelImp
     const [showConfirmMasivo, setShowConfirmMasivo] = useState<boolean>(false);
     const [showSuccessOverlay, setShowSuccessOverlay] = useState<boolean>(false);
     const [successCount, setSuccessCount] = useState<number>(0);
+    const [isParsingFile, setIsParsingFile] = useState<boolean>(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -80,6 +83,7 @@ export default function ExcelImportModal({ isOpen, onClose, onImport }: ExcelImp
         setShowConfirmMasivo(false);
         setShowSuccessOverlay(false);
         setSuccessCount(0);
+        setIsParsingFile(false);
         setOpenAccordions({
             common: true,
             ucs: false,
@@ -99,19 +103,24 @@ export default function ExcelImportModal({ isOpen, onClose, onImport }: ExcelImp
 
     const loadWorkbook = (selectedFile: File) => {
         setFile(selectedFile);
+        setIsParsingFile(true);
         const reader = new FileReader();
         reader.onload = (evt) => {
-            try {
-                const data = new Uint8Array(evt.target?.result as ArrayBuffer);
-                const wb = XLSX.read(data, { type: 'array' });
-                setWorkbook(wb);
-                setSheets(wb.SheetNames);
-                setSelectedSheet(wb.SheetNames[0]);
-                processSheet(wb, wb.SheetNames[0]);
-            } catch (err) {
-                alert("Error al parsear el libro de Excel.");
-                resetState();
-            }
+            setTimeout(() => {
+                try {
+                    const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+                    const wb = XLSX.read(data, { type: 'array' });
+                    setWorkbook(wb);
+                    setSheets(wb.SheetNames);
+                    setSelectedSheet(wb.SheetNames[0]);
+                    processSheet(wb, wb.SheetNames[0]);
+                } catch (err) {
+                    alert("Error al parsear el libro de Excel.");
+                    resetState();
+                } finally {
+                    setIsParsingFile(false);
+                }
+            }, 30);
         };
         reader.readAsArrayBuffer(selectedFile);
     };
@@ -298,6 +307,8 @@ export default function ExcelImportModal({ isOpen, onClose, onImport }: ExcelImp
         setOpenAccordions(prev => ({ ...prev, [key]: !prev[key] }));
     };
 
+
+
     const handleImportClick = () => {
         if (rowsToImport.length === 0) return;
         if (rowsToImport.length > 500) {
@@ -338,14 +349,19 @@ export default function ExcelImportModal({ isOpen, onClose, onImport }: ExcelImp
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
                     {!file ? (
                         <div
-                            onClick={() => fileInputRef.current?.click()}
+                            onClick={() => !isParsingFile && fileInputRef.current?.click()}
                             className="border-2 border-dashed border-navy-800 hover:border-emerald-500/40 bg-navy-950/45 hover:bg-navy-950/70 rounded-xl p-10 text-center cursor-pointer transition-all space-y-4 group"
                         >
-                            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".xlsx, .xls" className="hidden" />
+                            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".xlsx, .xls" className="hidden" disabled={isParsingFile} />
                             <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
-                                <Upload size={22} />
+                                {isParsingFile ? (
+                                    <div className="w-6 h-6 border-2 border-emerald-500/20 border-t-emerald-400 rounded-full animate-spin" />
+                                ) : (
+                                    <Upload size={22} />
+                                )}
                             </div>
-                            <p className="text-sm font-bold text-slate-200">Arrastra tu planilla de Ensayos aquí o haz clic para explorar</p>
+                            <p className="text-sm font-bold text-slate-200">{isParsingFile ? "Leyendo y analizando planilla Excel..." : "Arrastra tu planilla de Ensayos aquí o haz clic para explorar"}</p>
+                            <p className="text-xs text-slate-500 font-mono">{isParsingFile ? "Detectando cabeceras y mapeando columnas..." : "Soporta planillas .xlsx y .xls masivas (+9,000 registros)"}</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -556,7 +572,7 @@ export default function ExcelImportModal({ isOpen, onClose, onImport }: ExcelImp
                     )}
                 </div>
 
-                <div className="flex gap-2 justify-end px-6 py-4 border-t border-navy-800/80 shrink-0 bg-navy-950/40">
+                <div className="flex flex-wrap gap-2 justify-end px-6 py-4 border-t border-navy-800/80 shrink-0 bg-navy-950/40">
                     <button type="button" onClick={() => { onClose(); resetState(); }} className="bg-navy-900 border border-navy-800 hover:bg-navy-850 text-slate-400 px-4 py-2 rounded-lg text-xs font-semibold">
                         Cancelar
                     </button>
@@ -564,10 +580,11 @@ export default function ExcelImportModal({ isOpen, onClose, onImport }: ExcelImp
                         type="button"
                         onClick={handleImportClick}
                         disabled={rowsToImport.length === 0}
-                        className="bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/25 text-emerald-400 px-4.5 py-2 rounded-lg text-xs font-black flex items-center gap-1.5 disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="bg-emerald-500/20 border border-emerald-500/40 hover:bg-emerald-500/30 text-emerald-300 hover:text-white px-5 py-2 rounded-lg text-xs font-black flex items-center gap-1.5 disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/10 transition-all"
+                        title="Carga los registros en la grilla para revisión antes de guardar"
                     >
-                        <FileSpreadsheet size={14} />
-                        <span>Importar Planilla</span>
+                        <FileSpreadsheet size={14} className="text-emerald-400" />
+                        <span>Cargar en Grilla ({rowsToImport.length.toLocaleString()})</span>
                     </button>
                 </div>
 

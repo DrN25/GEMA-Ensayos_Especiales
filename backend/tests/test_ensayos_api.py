@@ -103,3 +103,44 @@ def test_ensayos_stats(client):
     assert isinstance(data["counts"], dict)
     assert "ucs" in data["counts"]
     assert "elasticas" in data["counts"]
+
+def test_batch_delete_api(client):
+    rows = [
+        {"idd": 88801, "sondaje": "DH-DEL-01", "codigo_muestra": "S-01"},
+        {"idd": 88802, "sondaje": "DH-DEL-02", "codigo_muestra": "S-02"},
+        {"idd": 88803, "sondaje": "DH-DEL-03", "codigo_muestra": "S-03"},
+    ]
+    upsert_res = client.post("/api/ensayos/batch-upsert", json=rows)
+    assert upsert_res.status_code == 200
+    assert upsert_res.json()["upserted_count"] == 3
+
+    # Delete 88801 and 88803 in batch
+    del_res = client.post("/api/ensayos/batch-delete", json=[88801, 88803])
+    assert del_res.status_code == 200
+    assert del_res.json()["deleted_count"] == 2
+
+    # Verify 88801 and 88803 are gone, 88802 remains
+    assert client.get("/api/ensayos/88801").status_code == 404
+    assert client.get("/api/ensayos/88803").status_code == 404
+    assert client.get("/api/ensayos/88802").status_code == 200
+
+    # Cleanup remaining row
+    client.delete("/api/ensayos/88802")
+
+def test_clear_all_api(client):
+    rows = [
+        {"idd": 77701, "sondaje": "DH-CLR-01"},
+        {"idd": 77702, "sondaje": "DH-CLR-02"}
+    ]
+    client.post("/api/ensayos/batch-upsert", json=rows)
+    
+    # Vaciar todos los registros
+    clear_res = client.post("/api/ensayos/clear-all")
+    assert clear_res.status_code == 200
+    assert clear_res.json()["status"] == "success"
+    assert clear_res.json()["deleted_count"] >= 2
+
+    # Verificar que el total de registros es 0
+    res = client.get("/api/ensayos?page=1&page_size=10")
+    assert res.status_code == 200
+    assert res.json()["total_filtered"] == 0
