@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
+"""
+tests/test_ensayos_api.py — Pruebas de endpoints API y validaciones generales.
+Utiliza el fixture `client` con base de datos en memoria para aislamiento 100% seguro.
+"""
 import pytest
-from fastapi.testclient import TestClient
-from app.main import app
 from app.core.rules import validate_record_qaqc, calculate_derived_fields, clamp_value
 
-client = TestClient(app)
-
-def test_root_and_health():
+def test_root_and_health(client):
     res = client.get("/")
     assert res.status_code == 200
     assert res.json()["status"] == "online"
@@ -15,7 +15,7 @@ def test_root_and_health():
     assert res_h.status_code == 200
     assert res_h.json()["bd"] == "ok"
 
-def test_config_columnas_ssot():
+def test_config_columnas_ssot(client):
     res = client.get("/api/config/columnas")
     assert res.status_code == 200
     data = res.json()
@@ -38,7 +38,7 @@ def test_rules_validation():
     derived = calculate_derived_fields({"desde": 10.0, "hasta": 12.35})
     assert derived["longitud_muestra"] == 2.35
 
-def test_ensayos_paginated_api():
+def test_ensayos_paginated_api(client):
     res = client.get("/api/ensayos?page=1&page_size=20")
     assert res.status_code == 200
     data = res.json()
@@ -47,7 +47,7 @@ def test_ensayos_paginated_api():
     assert "total_pages" in data
     assert data["page"] == 1
 
-def test_batch_upsert_non_destructive():
+def test_batch_upsert_non_destructive(client):
     test_rows = [
         {
             "idd": 999901,
@@ -68,11 +68,11 @@ def test_batch_upsert_non_destructive():
     assert res_get.status_code == 200
     assert res_get.json()["sondaje"] == "TEST-PONITAIL-01"
 
-    # Limpiar el registro de prueba
+    # Eliminar
     res_del = client.delete("/api/ensayos/999901")
     assert res_del.status_code == 200
 
-def test_legacy_aliases():
+def test_legacy_aliases(client):
     res_db = client.get("/api/db-status")
     assert res_db.status_code == 200
     assert "db_type" in res_db.json()
@@ -88,13 +88,12 @@ def test_legacy_aliases():
 
     client.delete("/api/ensayos/999902")
 
-def test_auditoria_history():
+def test_auditoria_history(client):
     res = client.get("/api/auditoria/history")
     assert res.status_code == 200
     assert "history" in res.json()
 
-
-def test_ensayos_stats():
+def test_ensayos_stats(client):
     res = client.get("/api/ensayos/stats")
     assert res.status_code == 200
     data = res.json()
@@ -104,4 +103,3 @@ def test_ensayos_stats():
     assert isinstance(data["counts"], dict)
     assert "ucs" in data["counts"]
     assert "elasticas" in data["counts"]
-

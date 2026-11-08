@@ -285,12 +285,19 @@ def update_single_ensayo(idd: int, data: Dict[str, Any], db: Session = Depends(g
     if not item:
         raise HTTPException(status_code=404, detail=f"Ensayo con IDD {idd} no encontrado.")
 
-    data = calculate_derived_fields(data)
     valid_cols = {col.name for col in models.RegistroMaestro.__table__.columns}
 
+    # 1. Aplicar cambios a los campos enviados con clamping
     for k, v in data.items():
         if k in valid_cols and k != "idd":
             setattr(item, k, clamp_value(k, v))
+
+    # 2. Recalcular campos derivados sobre el registro combinado (evita borrar campos no enviados)
+    current_state = {col.name: getattr(item, col.name) for col in models.RegistroMaestro.__table__.columns}
+    recalculated = calculate_derived_fields(current_state)
+    for derived_col in ["longitud_muestra", "corte_esf_normal_mpa", "corte_esf_corte_mpa", "ucs_resistencia_calculada"]:
+        if derived_col in recalculated:
+            setattr(item, derived_col, recalculated[derived_col])
 
     db.commit()
     db.refresh(item)

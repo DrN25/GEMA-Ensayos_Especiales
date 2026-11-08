@@ -23,7 +23,8 @@ def get_columns_config():
 def get_db_status(db: Session = Depends(get_db)):
     """Verifica el estado del motor de persistencia activo."""
     bind_engine = db.get_bind()
-    url_str = str(bind_engine.url)
+    engine_obj = getattr(bind_engine, "engine", bind_engine)
+    url_str = str(getattr(engine_obj, "url", ""))
 
     is_sqlite = "sqlite" in url_str
     is_mssql = "mssql" in url_str
