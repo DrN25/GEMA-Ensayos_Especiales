@@ -84,8 +84,10 @@ export default function App() {
   const [dbInfo, setDbInfo] = useState<{ db_type: string; is_local_fallback: boolean; server?: string } | null>(null);
 
   const qaqcAlerts = useMemo(() => {
-    const dataToValidate = isV2 ? useGridStore.getState().getAllRecords() : records;
-    return validateAllRecords(dataToValidate);
+    if (isV2) {
+      return useGridStore.getState().getQaqcAlerts();
+    }
+    return validateAllRecords(records);
   }, [records, isV2, gridDataVersion]);
 
   // --- 2. EFECTOS GLOBALES Y CONFIGURACIONES ---
@@ -240,7 +242,11 @@ export default function App() {
     const testModules = ['registro_maestro', 'ucs', 'elasticas', 'traccion', 'corte', 'triaxial', 'propiedades'];
     if (testModules.includes(tabName)) {
       setPage(1);
-      loadEnsayos(1, pageSize, searchQuery, tabName);
+      // En v2 el store normalizado contiene la planilla completa en memoria.
+      // Cambiar de módulo solo reconfigura las columnas visibles del grid sin destruir cambios pendientes.
+      if (!isV2 || useGridStore.getState().rowIds.length === 0) {
+        loadEnsayos(1, pageSize, searchQuery, tabName);
+      }
     }
   };
 
@@ -428,6 +434,9 @@ export default function App() {
       triggerNotification("Maestro Actualizado", `Se ha inyectado un nuevo proyecto '${newProj.nombre}' al maestro de SIGEG.`, "success");
     }
 
+    if (isV2) {
+      useGridStore.getState().importRecords(resolvedRecords);
+    }
     setUnrecognizedProjectModal(null);
   };
 
@@ -479,10 +488,6 @@ export default function App() {
           }
         }
         useGridStore.getState().clearDirty();
-        const allRecords = useGridStore.getState().getAllRecords();
-        safeSaveLocalStorage('sigeg_records_v2', allRecords);
-        setRecords(allRecords);
-        setLastSavedRecords(JSON.parse(JSON.stringify(allRecords)));
         setSaveStatus('synced');
         setHasUnsavedImport(false);
         triggerNotification("Guardado Exitoso", `Se sincronizaron ${dirtyRecords.length} registros modificados con éxito en SQL Server.`, "success");
@@ -584,10 +589,6 @@ export default function App() {
           }
         }
         useGridStore.getState().clearDirty();
-        const allRecords = useGridStore.getState().getAllRecords();
-        safeSaveLocalStorage('sigeg_records_v2', allRecords);
-        setRecords(allRecords);
-        setLastSavedRecords(JSON.parse(JSON.stringify(allRecords)));
         setSaveStatus('synced');
         triggerNotification("Guardado Segmentado", `Los cambios del módulo ${tabKey.replace('_', ' ').toUpperCase()} se han sincronizado correctamente.`, "success");
       } else {

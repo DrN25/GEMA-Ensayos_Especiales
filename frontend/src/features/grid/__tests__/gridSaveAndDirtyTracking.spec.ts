@@ -135,3 +135,4 @@ describe('Bloque 4: Dirty Tracking O(1), Reversión y Payload de Guardado', () =
     expect(state.getDirtyRecords().length).toBe(2);
   });
 });
+

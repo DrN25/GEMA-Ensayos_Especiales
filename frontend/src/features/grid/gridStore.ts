@@ -1,6 +1,7 @@
 // frontend/src/features/grid/gridStore.ts
 import { create } from 'zustand';
 import type { CellCoordinate } from './types';
+import { validateSingleRecord, type QAQCAlert } from '../../utils/qaqcValidator';
 
 export interface GridStoreState {
   // Datos normalizados
@@ -10,6 +11,9 @@ export interface GridStoreState {
   maxIdd: number;
   rowVersions: Map<number, number>;
   dataVersion: number;
+
+  // QA/QC Incremental en O(1)
+  qaqcAlertsByRowId: Map<number, QAQCAlert[]>;
 
   // Celda activa y editor flotante
   activeCell: CellCoordinate | null;
@@ -41,6 +45,8 @@ export interface GridStoreState {
   getRow: (idx: number) => Record<string, any> | undefined;
   getRowById: (rowId: number) => Record<string, any> | undefined;
   getAllRecords: () => Record<string, any>[];
+  getQaqcAlerts: () => QAQCAlert[];
+  getQaqcAlertsForRow: (rowId: number) => QAQCAlert[];
 }
 
 /**
@@ -68,6 +74,8 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
   rowVersions: new Map(),
   dataVersion: 0,
 
+  qaqcAlertsByRowId: new Map(),
+
   activeCell: null,
   editingCell: null,
   editorValue: '',
@@ -80,6 +88,7 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
     const ids: number[] = [];
     const versions = new Map<number, number>();
     const dirty = new Set<number>();
+    const alertsMap = new Map<number, QAQCAlert[]>();
     let max = 0;
 
     for (let i = 0; i < records.length; i++) {
@@ -95,6 +104,12 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
       ids.push(id);
       versions.set(id, 1);
 
+      // Validación QA/QC incremental inicial (solo almacena si hay alertas)
+      const rowAlerts = validateSingleRecord(rowClone);
+      if (rowAlerts.length > 0) {
+        alertsMap.set(id, rowAlerts);
+      }
+
       if (options.markAllDirty) {
         dirty.add(id);
       }
@@ -107,6 +122,7 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
       maxIdd: max,
       rowVersions: versions,
       dataVersion: get().dataVersion + 1,
+      qaqcAlertsByRowId: alertsMap,
       dirtyRowIds: dirty,
       deletedRowIds: new Set(),
       activeCell: ids.length > 0 ? { rowIdx: 0, colKey: 'sondaje' } : null,
@@ -135,7 +151,7 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
   },
 
   commitEditing: () => {
-    const { editingCell, editorValue, rowIds, recordsById, originalRecordsById, rowVersions, dirtyRowIds } = get();
+    const { editingCell, editorValue, rowIds, recordsById, originalRecordsById, rowVersions, dirtyRowIds, qaqcAlertsByRowId } = get();
     if (!editingCell) return;
 
     const rowId = editingCell.rowId !== undefined ? editingCell.rowId : rowIds[editingCell.rowIdx];
@@ -163,6 +179,14 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
         dirtyRowIds.delete(rowId); // Revertido al valor original
       }
 
+      // Revalidación QA/QC incremental SOLO para la fila modificada O(1)
+      const rowAlerts = validateSingleRecord(row);
+      if (rowAlerts.length > 0) {
+        qaqcAlertsByRowId.set(rowId, rowAlerts);
+      } else {
+        qaqcAlertsByRowId.delete(rowId);
+      }
+
       rowVersions.set(rowId, (rowVersions.get(rowId) || 1) + 1);
       set({ editingCell: null, dataVersion: get().dataVersion + 1 });
     } else {
@@ -175,7 +199,7 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
   },
 
   updateCellValue: (rowIdx, colKey, value) => {
-    const { rowIds, recordsById, originalRecordsById, rowVersions, dirtyRowIds } = get();
+    const { rowIds, recordsById, originalRecordsById, rowVersions, dirtyRowIds, qaqcAlertsByRowId } = get();
     const rowId = rowIds[rowIdx];
     if (rowId === undefined) return;
 
@@ -192,6 +216,14 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
         dirtyRowIds.delete(rowId);
       }
 
+      // Revalidación QA/QC incremental O(1)
+      const rowAlerts = validateSingleRecord(row);
+      if (rowAlerts.length > 0) {
+        qaqcAlertsByRowId.set(rowId, rowAlerts);
+      } else {
+        qaqcAlertsByRowId.delete(rowId);
+      }
+
       rowVersions.set(rowId, (rowVersions.get(rowId) || 1) + 1);
       set({ dataVersion: get().dataVersion + 1 });
     }
@@ -203,7 +235,7 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
       state.commitEditing();
     }
 
-    const { rowIds, recordsById, maxIdd, rowVersions, dirtyRowIds } = get();
+    const { rowIds, recordsById, maxIdd, rowVersions, dirtyRowIds, qaqcAlertsByRowId } = get();
     const parentId = rowIds[idx];
     const parent = parentId !== undefined ? recordsById.get(parentId) : undefined;
 
@@ -224,6 +256,12 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
     rowIds.splice(idx + 1, 0, newId);
     rowVersions.set(newId, 1);
     dirtyRowIds.add(newId);
+
+    // QA/QC incremental para la nueva fila
+    const newAlerts = validateSingleRecord(newRow);
+    if (newAlerts.length > 0) {
+      qaqcAlertsByRowId.set(newId, newAlerts);
+    }
 
     set({
       maxIdd: newId,
@@ -247,15 +285,17 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
       }
     }
 
-    const { rowIds, recordsById, originalRecordsById, dirtyRowIds, deletedRowIds } = get();
+    const { rowIds, recordsById, originalRecordsById, dirtyRowIds, deletedRowIds, qaqcAlertsByRowId } = get();
     const idx = rowIds.indexOf(rowId);
-    if (idx === -1) return;
-
+    if (idx >= 0) {
+      rowIds.splice(idx, 1);
+    }
     recordsById.delete(rowId);
-    rowIds.splice(idx, 1);
-    dirtyRowIds.delete(rowId);
+    qaqcAlertsByRowId.delete(rowId);
 
-    // Si la fila existía en la base de datos (tenía original), agregar a eliminaciones pendientes
+    if (dirtyRowIds.has(rowId)) {
+      dirtyRowIds.delete(rowId);
+    }
     if (originalRecordsById.has(rowId)) {
       deletedRowIds.add(rowId);
     }
@@ -311,13 +351,14 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
       dataVersion: get().dataVersion + 1,
       dirtyRowIds: new Set(),
       deletedRowIds: new Set(),
+      qaqcAlertsByRowId: new Map(),
       activeCell: null,
       editingCell: null
     });
   },
 
   importRecords: (records) => {
-    const { recordsById, originalRecordsById, rowIds, rowVersions, dirtyRowIds } = get();
+    const { recordsById, rowIds, rowVersions, dirtyRowIds, qaqcAlertsByRowId } = get();
     let max = get().maxIdd;
 
     for (let i = 0; i < records.length; i++) {
@@ -332,7 +373,14 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
         rowIds.push(id);
       }
       rowVersions.set(id, (rowVersions.get(id) || 0) + 1);
-      dirtyRowIds.add(id); // Los registros importados quedan marcados como dirty para guardado
+      dirtyRowIds.add(id);
+
+      const rowAlerts = validateSingleRecord(rowClone);
+      if (rowAlerts.length > 0) {
+        qaqcAlertsByRowId.set(id, rowAlerts);
+      } else {
+        qaqcAlertsByRowId.delete(id);
+      }
     }
 
     set({
@@ -359,5 +407,20 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
       result[i] = recordsById.get(rowIds[i])!;
     }
     return result;
+  },
+
+  getQaqcAlerts: () => {
+    const { qaqcAlertsByRowId } = get();
+    const result: QAQCAlert[] = [];
+    for (const alerts of qaqcAlertsByRowId.values()) {
+      for (let i = 0; i < alerts.length; i++) {
+        result.push(alerts[i]);
+      }
+    }
+    return result;
+  },
+
+  getQaqcAlertsForRow: (rowId: number) => {
+    return get().qaqcAlertsByRowId.get(rowId) || [];
   }
 }));
