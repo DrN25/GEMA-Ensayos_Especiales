@@ -3,6 +3,8 @@ import { FileSpreadsheet, Download, ShieldCheck, Plus, Trash2, Search, HelpCircl
 import DataGrid from './DataGrid';
 import { type QAQCAlert } from '../utils/qaqcValidator';
 import { COLUMNS_CONFIG } from '../utils/columnsConfig';
+import { getGridVersion } from '../features/grid/flags';
+import { VirtualizedGrid } from '../features/grid/VirtualizedGrid';
 
 
 interface GeotechPageProps {
@@ -348,33 +350,43 @@ export default function GeotechPage({
                         </div>
                     </div>
 
-                    {/* Grilla Principal */}
-                    <DataGrid
-                        moduleName={moduleName}
-                        records={filteredRecords}
-                        setRecords={setRecords}
-                        qaqcAlerts={qaqcAlerts}
-                        onAddRow={() => { }}
-                        onDeleteRow={onDeleteRow ? onDeleteRow : (id) => setRecords(prev => prev.filter(r => r.idd !== id))}
-                        onInsertRowBelow={(idx) => {
-                            const parent = filteredRecords[idx];
-                            const nextId = Math.max(...records.map(r => Number(r.idd) || 0)) + 1;
-                            const newRow = { idd: nextId, sondaje: parent?.sondaje || '', codigo_muestra: '', laboratorio: parent?.laboratorio || '', dia: parent?.dia || 1, mes: parent?.mes || 'Enero', anio: parent?.anio || new Date().getFullYear(), proyecto: parent?.proyecto || '' };
-                            const updated = [...records];
-                            updated.splice(idx + 1, 0, newRow);
-                            setRecords(updated);
-                        }}
-                        highlightedCell={highlightedCell}
-                        clearHighlight={clearHighlight}
-                        proyectosList={proyectosList}
-                        page={page}
-                        pageSize={pageSize}
-                        totalPages={totalPages}
-                        totalRecords={totalRecords}
-                        onPageChange={onPageChange}
-                        onPageSizeChange={onPageSizeChange}
-                        isLoading={isLoading}
-                    />
+                    {/* Grilla Principal - v1 clásica o v2 virtualizada de alto rendimiento */}
+                    {getGridVersion() === 'v2' ? (
+                        <VirtualizedGrid
+                            moduleName={moduleName}
+                            initialRecords={filteredRecords}
+                            proyectosList={proyectosList}
+                            onDeleteRow={onDeleteRow ? onDeleteRow : (id) => setRecords(prev => prev.filter(r => r.idd !== id))}
+                            height="calc(100vh - 280px)"
+                        />
+                    ) : (
+                        <DataGrid
+                            moduleName={moduleName}
+                            records={filteredRecords}
+                            setRecords={setRecords}
+                            qaqcAlerts={qaqcAlerts}
+                            onAddRow={() => { }}
+                            onDeleteRow={onDeleteRow ? onDeleteRow : (id) => setRecords(prev => prev.filter(r => r.idd !== id))}
+                            onInsertRowBelow={(idx) => {
+                                const parent = filteredRecords[idx];
+                                const nextId = Math.max(...records.map(r => Number(r.idd) || 0)) + 1;
+                                const newRow = { idd: nextId, sondaje: parent?.sondaje || '', codigo_muestra: '', laboratorio: parent?.laboratorio || '', dia: parent?.dia || 1, mes: parent?.mes || 'Enero', anio: parent?.anio || new Date().getFullYear(), proyecto: parent?.proyecto || '' };
+                                const updated = [...records];
+                                updated.splice(idx + 1, 0, newRow);
+                                setRecords(updated);
+                            }}
+                            highlightedCell={highlightedCell}
+                            clearHighlight={clearHighlight}
+                            proyectosList={proyectosList}
+                            page={page}
+                            pageSize={pageSize}
+                            totalPages={totalPages}
+                            totalRecords={totalRecords}
+                            onPageChange={onPageChange}
+                            onPageSizeChange={onPageSizeChange}
+                            isLoading={isLoading}
+                        />
+                    )}
                 </div>
             )}
 

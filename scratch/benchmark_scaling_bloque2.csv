@@ -1,0 +1,5 @@
+scenario,visible_rows,eventTiming_p50,eventTiming_p95,doubleRaf_p50
+cell_click,10,16,16,N/A
+cell_click,100,16,16,N/A
+action_button,10,40,64,N/A
+action_button,100,208,384,N/A
