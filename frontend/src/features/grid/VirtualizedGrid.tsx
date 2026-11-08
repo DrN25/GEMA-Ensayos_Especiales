@@ -5,10 +5,10 @@ import {
   getCoreRowModel,
   flexRender
 } from '@tanstack/react-table';
-import type { ColumnDef } from '@tanstack/react-table';
+import type { ColumnDef, Table, HeaderGroup, Header } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Plus, Trash2 } from 'lucide-react';
-import type { GridColumnDef, FloatingEditorPosition } from './types';
+import type { GridColumnDef, FloatingEditorPosition, ColumnPinned } from './types';
 import { getGridColumnsForModule } from './columnsDefinition';
 import { useGridStore } from './gridStore';
 import { FloatingEditor } from './FloatingEditor';
@@ -20,6 +20,8 @@ export interface VirtualizedGridProps {
   qaqcAlerts?: any[];
   onDeleteRow?: (idd: number) => void;
   height?: string | number;
+  pinnedConfig?: Record<string, ColumnPinned>;
+  onColumnResize?: (colId: string, newWidth: number) => void;
 }
 
 // Array estático vacío para que TanStack Table NO procese las 10,000 filas
@@ -58,6 +60,139 @@ export function formatDisplayValue(val: any, colDef?: GridColumnDef): string {
   return s === '' ? '—' : s;
 }
 
+// =========================================================================
+// COMPONENTE HEADER AISLADO (MEMOIZADO: No re-renderiza con activeCell)
+// =========================================================================
+interface GridHeaderProps {
+  headerGroups: HeaderGroup<any>[];
+  colWidths: Record<string, number>;
+  onResizeCommit: (colId: string, newWidth: number) => void;
+}
+
+const GridHeader = React.memo<GridHeaderProps>(({
+  headerGroups,
+  colWidths,
+  onResizeCommit
+}) => {
+  // Manejador de Resize sin re-render de celdas mediante manipulación directa de DOM (<col> y <th>)
+  const handleStartResize = useCallback((header: Header<any, unknown>, e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const colDef: GridColumnDef | undefined = (header.column.columnDef.meta as any)?.gridDef;
+    const colId = header.id;
+    const minW = colDef?.minWidth ?? 60;
+    const maxW = colDef?.maxWidth ?? 600;
+    const startX = e.clientX;
+    const startWidth = colWidths[colId] || header.getSize();
+
+    const handleEl = e.currentTarget;
+    try {
+      handleEl.setPointerCapture(e.pointerId);
+    } catch (_) {}
+
+    const colEl = document.getElementById(`grid-col-${colId}`);
+    const thEl = document.querySelector(`th[data-col-id="${colId}"]`) as HTMLElement | null;
+
+    let currentCalculatedWidth = startWidth;
+
+    const onPointerMove = (moveEvt: PointerEvent) => {
+      const delta = moveEvt.clientX - startX;
+      currentCalculatedWidth = Math.max(minW, Math.min(maxW, Math.round(startWidth + delta)));
+      if (colEl) colEl.style.width = `${currentCalculatedWidth}px`;
+      if (thEl) thEl.style.width = `${currentCalculatedWidth}px`;
+    };
+
+    const onPointerUp = (upEvt: PointerEvent) => {
+      handleEl.removeEventListener('pointermove', onPointerMove);
+      handleEl.removeEventListener('pointerup', onPointerUp);
+      try {
+        handleEl.releasePointerCapture(upEvt.pointerId);
+      } catch (_) {}
+
+      onResizeCommit(colId, currentCalculatedWidth);
+    };
+
+    handleEl.addEventListener('pointermove', onPointerMove);
+    handleEl.addEventListener('pointerup', onPointerUp);
+  }, [colWidths, onResizeCommit]);
+
+  return (
+    <thead className="bg-navy-900 border-b border-navy-800 text-slate-300">
+      {headerGroups.map((headerGroup, gIdx) => (
+        <tr key={headerGroup.id} className="h-7">
+          {headerGroup.headers.map(header => {
+            const meta: any = header.column.columnDef.meta;
+            const isStickyLeft = meta?.isStickyLeft;
+            const isStickyRight = meta?.isStickyRight;
+            const leftOffset = meta?.stickyOffset ?? 0;
+            const rightOffset = meta?.stickyRightOffset ?? 0;
+            const colDef: GridColumnDef | undefined = meta?.gridDef;
+
+            // Nivel 0 (Grupos) vs Nivel 1 (Columnas Hoja)
+            const isGroupLevel = gIdx === 0;
+            const headerHeight = isGroupLevel ? 28 : 34;
+            const topOffset = isGroupLevel ? 0 : 28;
+
+            let stickyClasses = 'bg-navy-900 sticky select-none';
+            let styleObj: React.CSSProperties = {
+              top: topOffset,
+              height: headerHeight,
+              width: `${header.getSize()}px`,
+              minWidth: `${header.getSize()}px`,
+              maxWidth: `${header.getSize()}px`
+            };
+
+            if (isStickyLeft) {
+              stickyClasses += isGroupLevel ? ' z-40 border-r-2 border-navy-800' : ' z-30 border-r-2 border-navy-800';
+              styleObj.left = `${leftOffset}px`;
+            } else if (isStickyRight) {
+              stickyClasses += isGroupLevel ? ' z-40 border-l-2 border-navy-800' : ' z-30 border-l-2 border-navy-800';
+              styleObj.right = `${rightOffset}px`;
+            } else {
+              stickyClasses += ' z-20';
+            }
+
+            return (
+              <th
+                key={header.id}
+                data-col-id={header.id}
+                colSpan={header.colSpan}
+                style={styleObj}
+                className={`px-2 py-1 border-r border-b border-navy-800 font-bold text-center truncate relative ${stickyClasses}`}
+              >
+                <div className="flex items-center justify-center relative w-full h-full overflow-hidden">
+                  <span className="truncate">
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                  </span>
+                  {colDef?.unit && (
+                    <span className="text-[10px] text-sky-400 font-normal ml-1">({colDef.unit})</span>
+                  )}
+                </div>
+
+                {/* Handle de redimensionamiento sólo en cabeceras de columnas hoja (Nivel 1) */}
+                {!isGroupLevel && colDef && (
+                  <div
+                    data-testid={`resize-handle-${header.id}`}
+                    onPointerDown={(e) => handleStartResize(header, e)}
+                    className="absolute right-0 top-0 bottom-0 w-2.5 cursor-col-resize select-none hover:bg-sky-400/80 active:bg-sky-500 z-50 flex items-center justify-end group"
+                    title={`Redimensionar columna ${colDef.header} (${colDef.minWidth ?? 60}px - ${colDef.maxWidth ?? 600}px)`}
+                  >
+                    <div className="w-[1.5px] h-full bg-navy-700/60 group-hover:bg-sky-300" />
+                  </div>
+                )}
+              </th>
+            );
+          })}
+        </tr>
+      ))}
+    </thead>
+  );
+});
+
+// =========================================================================
+// FILA DE DATOS MEMOIZADA
+// =========================================================================
 interface GridRowProps {
   virtualRow: { index: number; start: number; size: number };
   rowId: number;
@@ -90,16 +225,7 @@ const GridRow = React.memo<GridRowProps>(({
   return (
     <tr
       key={rowId}
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: `${virtualRow.size}px`,
-        transform: `translateY(${virtualRow.start}px)`,
-        display: 'table',
-        tableLayout: 'fixed'
-      }}
+      style={{ height: `${virtualRow.size}px` }}
       className={`border-b border-navy-900/30 hover:bg-navy-900/50 ${rowBg}`}
     >
       {leafColumns.map(col => {
@@ -117,7 +243,7 @@ const GridRow = React.memo<GridRowProps>(({
           return (
             <td
               key={colKey}
-              style={{ width: `${col.getSize()}px`, right: `${rightOffset}px` }}
+              style={{ right: `${rightOffset}px` }}
               className="sticky z-10 bg-navy-950 text-center py-1 px-1 border-l-2 border-b border-navy-800"
             >
               <div className="flex items-center justify-center gap-1.5">
@@ -156,6 +282,7 @@ const GridRow = React.memo<GridRowProps>(({
               Validado
             </span>
           );
+
           if (!sondaje) {
             badge = (
               <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-500/10 text-slate-400 border border-slate-500/20 uppercase tracking-wide">
@@ -164,13 +291,13 @@ const GridRow = React.memo<GridRowProps>(({
             );
           } else if (qaqcRowStatus?.hasCritical) {
             badge = (
-              <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 uppercase tracking-wide">
+              <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-rose-500/15 text-rose-400 border border-rose-500/30 uppercase tracking-wide">
                 No Válido
               </span>
             );
           } else if (qaqcRowStatus?.hasWarning) {
             badge = (
-              <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase tracking-wide">
+              <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30 uppercase tracking-wide">
                 Con Avisos
               </span>
             );
@@ -180,7 +307,6 @@ const GridRow = React.memo<GridRowProps>(({
             <td
               key={colKey}
               data-testid={`cell-${virtualRow.index}-${colKey}`}
-              style={{ width: `${col.getSize()}px` }}
               className="px-2 py-1 text-center border-r border-navy-850/60 select-none"
             >
               {badge}
@@ -196,14 +322,17 @@ const GridRow = React.memo<GridRowProps>(({
         let stickyStyle: React.CSSProperties = EMPTY_STYLE;
 
         if (isStickyLeft) {
-          stickyClasses = 'sticky z-10 bg-navy-950 font-mono font-bold border-r-2 border-navy-800 text-slate-200';
-          stickyStyle = { left: `${leftOffset}px` };
+          stickyClasses = 'sticky z-10 font-mono font-bold border-r-2 border-navy-800 text-slate-200';
+          stickyStyle = { left: `${leftOffset}px`, backgroundColor: '#02040a' };
         } else if (isStickyRight) {
-          stickyClasses = 'sticky z-10 bg-navy-950 border-l-2 border-navy-800 text-slate-200';
-          stickyStyle = { right: `${rightOffset}px` };
+          stickyClasses = 'sticky z-10 border-l-2 border-navy-800 text-slate-200';
+          stickyStyle = { right: `${rightOffset}px`, backgroundColor: '#02040a' };
         }
 
-        const activeRing = isActive ? 'ring-2 ring-sky-400 bg-sky-500/15 z-20' : '';
+        const activeRing = isActive ? 'ring-2 ring-inset ring-sky-400 z-20 font-semibold' : '';
+        if (isActive) {
+          stickyStyle = { ...stickyStyle, backgroundColor: '#0c2240' };
+        }
 
         return (
           <td
@@ -211,10 +340,7 @@ const GridRow = React.memo<GridRowProps>(({
             data-testid={`cell-${virtualRow.index}-${colKey}`}
             onClick={(e) => onCellClick(virtualRow.index, colKey, e)}
             onDoubleClick={(e) => onCellDoubleClick(virtualRow.index, colKey, e)}
-            style={{
-              width: `${col.getSize()}px`,
-              ...stickyStyle
-            }}
+            style={stickyStyle}
             className={`px-2 py-1.5 text-center truncate cursor-cell border-r border-navy-850/60 select-none ${stickyClasses} ${activeRing}`}
           >
             {displayVal}
@@ -237,13 +363,18 @@ const GridRow = React.memo<GridRowProps>(({
   );
 });
 
+// =========================================================================
+// COMPONENTE PRINCIPAL VIRTUALIZED GRID
+// =========================================================================
 export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
   moduleName = 'registro_maestro',
   initialRecords,
   proyectosList = [],
   qaqcAlerts = [],
   onDeleteRow,
-  height = '600px'
+  height = '600px',
+  pinnedConfig,
+  onColumnResize
 }) => {
   // 1. Store global zustand normalizado
   const rowIds = useGridStore(s => s.rowIds);
@@ -272,8 +403,8 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
     if (!qaqcAlerts || qaqcAlerts.length === 0) return map;
     for (const alert of qaqcAlerts) {
       const cur = map.get(alert.idd) || { hasCritical: false, hasWarning: false };
-      if (alert.severity === 'critical') cur.hasCritical = true;
-      if (alert.severity === 'warning') cur.hasWarning = true;
+      if (alert.type === 'CRÍTICO' || alert.severity === 'critical') cur.hasCritical = true;
+      if (alert.type === 'AVISO' || alert.severity === 'warning') cur.hasWarning = true;
       map.set(alert.idd, cur);
     }
     return map;
@@ -293,7 +424,7 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
     });
   }, [moduleName, proyectosList]);
 
-  // Construir columnas de TanStack Table agrupadas por 2 niveles
+  // Construir columnas de TanStack Table agrupadas por 2 niveles con sticky offsets
   const tanstackColumns = useMemo<ColumnDef<any, any>[]>(() => {
     const groupsMap = new Map<string, GridColumnDef[]>();
     for (const col of gridColumns) {
@@ -304,8 +435,8 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
       groupsMap.get(groupKey)!.push(col);
     }
 
-    // Calcular offsets acumulados de pinned right
-    const rightPinnedCols = gridColumns.filter(c => c.pinned === 'right');
+    // Calcular offsets acumulados de pinned right respetando overrides
+    const rightPinnedCols = gridColumns.filter(c => (pinnedConfig?.[c.id] ?? c.pinned) === 'right');
     const rightOffsets: Record<string, number> = {};
     let rightAcc = 0;
     for (let i = rightPinnedCols.length - 1; i >= 0; i--) {
@@ -318,18 +449,27 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
     const result: ColumnDef<any, any>[] = [];
 
     for (const [groupTitle, cols] of groupsMap.entries()) {
+      let groupLeftStart = leftAccumulator;
+      let groupHasStickyLeft = false;
+      let groupHasStickyRight = false;
+      let groupRightOffsetMin = Infinity;
+
       const childCols: ColumnDef<any, any>[] = cols.map(c => {
         const width = colWidths[c.id] || c.defaultWidth;
-        const isStickyLeft = c.pinned === 'left';
-        const isStickyRight = c.pinned === 'right';
+        const pinSetting = pinnedConfig?.[c.id] ?? c.pinned;
+        const isStickyLeft = pinSetting === 'left';
+        const isStickyRight = pinSetting === 'right';
 
         let offset = 0;
         let rightOffset = 0;
         if (isStickyLeft) {
           offset = leftAccumulator;
           leftAccumulator += width;
+          groupHasStickyLeft = true;
         } else if (isStickyRight) {
           rightOffset = rightOffsets[c.id] ?? 0;
+          groupHasStickyRight = true;
+          if (rightOffset < groupRightOffsetMin) groupRightOffsetMin = rightOffset;
         }
 
         return {
@@ -339,7 +479,7 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
           size: width,
           meta: {
             gridDef: c,
-            pinned: c.pinned,
+            pinned: pinSetting,
             stickyOffset: offset,
             stickyRightOffset: rightOffset,
             isStickyLeft,
@@ -348,17 +488,30 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
         };
       });
 
+      // El grupo es sticky left si todos sus hijos son sticky left
+      const allStickyLeft = childCols.length > 0 && childCols.every(c => (c.meta as any)?.isStickyLeft);
+      // El grupo es sticky right si todos sus hijos son sticky right
+      const allStickyRight = childCols.length > 0 && childCols.every(c => (c.meta as any)?.isStickyRight);
+
       result.push({
         id: `group_${groupTitle}`,
         header: groupTitle,
-        columns: childCols
+        columns: childCols,
+        meta: {
+          isGroup: true,
+          isStickyLeft: allStickyLeft,
+          isStickyRight: allStickyRight,
+          stickyOffset: allStickyLeft ? groupLeftStart : undefined,
+          stickyRightOffset: allStickyRight ? (groupRightOffsetMin === Infinity ? 0 : groupRightOffsetMin) : undefined,
+          groupTitle
+        }
       });
     }
 
     return result;
-  }, [gridColumns, colWidths]);
+  }, [gridColumns, colWidths, pinnedConfig]);
 
-  // TanStack Table SOLO para cabeceras y orden
+  // TanStack Table SOLO para cabeceras y estructura de columnas
   const table = useReactTable({
     data: EMPTY_DATA,
     columns: tanstackColumns,
@@ -374,19 +527,35 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
   });
 
   const virtualRows = rowVirtualizer.getVirtualItems();
-  const leafColumns = table.getAllLeafColumns();
+  const totalVirtualSize = rowVirtualizer.getTotalSize();
+  const virtualPaddingTop = virtualRows.length > 0 ? virtualRows[0].start : 0;
+  const virtualPaddingBottom = virtualRows.length > 0
+    ? totalVirtualSize - virtualRows[virtualRows.length - 1].end
+    : 0;
 
-  // Posicionar editor flotante sobre celda activa
+  const leafColumns = useMemo(() => table.getAllLeafColumns(), [table]);
+
+  // Commit de Resize persistente en estado
+  const handleResizeCommit = useCallback((colId: string, newWidth: number) => {
+    setColWidths(prev => ({
+      ...prev,
+      [colId]: newWidth
+    }));
+    onColumnResize?.(colId, newWidth);
+  }, [onColumnResize]);
+
+  // Manejo de Clic y Doble Clic para Edición Flotante
   const openEditorForCell = useCallback((rowIdx: number, colKey: string) => {
+    const colDef = gridColumns.find(c => c.id === colKey);
+    if (!colDef || colDef.editor === 'none' || colDef.type === 'readonly') return;
+
     const rowId = rowIds[rowIdx];
     if (rowId === undefined) return;
-    const colDef = gridColumns.find(c => c.id === colKey);
-    if (!colDef || colDef.type === 'readonly' || colDef.editor === 'none') return;
 
     if (containerRef.current) {
       const cellEl = containerRef.current.querySelector(
         `[data-testid="cell-${rowIdx}-${colKey}"]`
-      ) as HTMLElement;
+      );
 
       if (cellEl) {
         const cRect = containerRef.current.getBoundingClientRect();
@@ -458,34 +627,23 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
       if (nextIdx >= 0 && nextIdx < leafColumns.length) {
         setActiveCell({ rowIdx, colKey: leafColumns[nextIdx].id, rowId: activeCell.rowId });
       }
-    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      openEditorForCell(rowIdx, colKey);
     }
   };
 
-  const handleInsertRow = useCallback((rIdx: number) => {
-    if (isEditing) {
-      commitEditing();
-      setEditorPos(null);
-    }
-    insertRowBelow(rIdx);
-  }, [isEditing, commitEditing, insertRowBelow]);
+  const handleInsertRow = useCallback((rowIdx: number) => {
+    insertRowBelow(rowIdx);
+  }, [insertRowBelow]);
 
-  const handleDeleteRow = useCallback((rId: number) => {
-    if (isEditing) {
-      cancelEditing();
-      setEditorPos(null);
-    }
-    deleteRow(rId);
-    if (onDeleteRow) {
-      onDeleteRow(rId);
-    }
-  }, [isEditing, cancelEditing, deleteRow, onDeleteRow]);
+  const handleDeleteRow = useCallback((rowId: number) => {
+    if (onDeleteRow) onDeleteRow(rowId);
+    else deleteRow(rowId);
+  }, [onDeleteRow, deleteRow]);
 
-  const activeColumnDef = gridColumns.find(c => c.id === editingCell?.colKey);
+  const activeColumnDef = editingCell ? gridColumns.find(c => c.id === editingCell.colKey) : undefined;
+  const headerGroups = useMemo(() => table.getHeaderGroups(), [table]);
 
   return (
-    <div className="flex flex-col w-full h-full border border-navy-800 rounded-xl overflow-hidden bg-navy-950 select-none">
+    <div className="relative w-full border border-navy-800 rounded-lg overflow-hidden bg-navy-950 font-sans shadow-lg">
       <div
         ref={containerRef}
         tabIndex={0}
@@ -493,69 +651,36 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
         style={{ height, overflow: 'auto', position: 'relative' }}
         className="w-full focus:outline-none scrollbar-thin scrollbar-thumb-navy-700 scrollbar-track-navy-950"
       >
-        <table className="w-full border-collapse text-xs select-none" style={{ tableLayout: 'fixed' }}>
-          {/* Colgroup para ancho fijo O(1) */}
+        <table className="border-collapse text-xs select-none" style={{ tableLayout: 'fixed', width: 'max-content' }}>
+          {/* Colgroup para ancho fijo O(1) gobernado por el navegador */}
           <colgroup>
             {leafColumns.map(col => (
-              <col key={col.id} style={{ width: `${colWidths[col.id] || col.getSize()}px` }} />
+              <col
+                key={col.id}
+                id={`grid-col-${col.id}`}
+                style={{ width: `${colWidths[col.id] || col.getSize()}px` }}
+              />
             ))}
           </colgroup>
 
-          {/* Cabecera de 2 niveles con Sticky Top */}
-          <thead className="bg-navy-900 border-b border-navy-800 text-slate-300">
-            {table.getHeaderGroups().map((headerGroup, gIdx) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map(header => {
-                  const meta: any = header.column.columnDef.meta;
-                  const isStickyLeft = meta?.isStickyLeft;
-                  const isStickyRight = meta?.isStickyRight;
-                  const leftOffset = meta?.stickyOffset ?? 0;
-                  const rightOffset = meta?.stickyRightOffset ?? 0;
+          {/* Cabecera aislada de 2 niveles (Sticky Top, Sticky Groups y Resize) */}
+          <GridHeader
+            headerGroups={headerGroups}
+            colWidths={colWidths}
+            onResizeCommit={handleResizeCommit}
+          />
 
-                  const colDef: GridColumnDef | undefined = meta?.gridDef;
-
-                  let stickyClasses = 'bg-navy-900 z-20 sticky';
-                  let styleObj: React.CSSProperties = {
-                    top: gIdx === 0 ? 0 : 28,
-                    height: gIdx === 0 ? 28 : 34,
-                    width: `${header.getSize()}px`
-                  };
-
-                  if (isStickyLeft) {
-                    stickyClasses += ' z-30 border-r-2 border-navy-800';
-                    styleObj.left = `${leftOffset}px`;
-                  } else if (isStickyRight) {
-                    stickyClasses += ' z-30 border-l-2 border-navy-800';
-                    styleObj.right = `${rightOffset}px`;
-                  }
-
-                  return (
-                    <th
-                      key={header.id}
-                      data-col-id={header.id}
-                      colSpan={header.colSpan}
-                      style={styleObj}
-                      className={`px-2 py-1 border-r border-b border-navy-800 font-bold text-center truncate ${stickyClasses}`}
-                    >
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                      {colDef?.unit && (
-                        <span className="text-[10px] text-sky-400 font-normal ml-1">({colDef.unit})</span>
-                      )}
-                    </th>
-                  );
-                })}
+          {/* Cuerpo virtualizado nativo con filas espaciadoras */}
+          <tbody>
+            {virtualPaddingTop > 0 && (
+              <tr style={{ height: `${virtualPaddingTop}px` }}>
+                <td
+                  colSpan={leafColumns.length}
+                  style={{ height: `${virtualPaddingTop}px`, padding: 0, border: 0 }}
+                />
               </tr>
-            ))}
-          </thead>
+            )}
 
-          {/* Cuerpo virtualizado */}
-          <tbody
-            style={{
-              height: `${rowVirtualizer.getTotalSize()}px`,
-              position: 'relative',
-              display: 'block'
-            }}
-          >
             {virtualRows.map(virtualRow => {
               const rowId = rowIds[virtualRow.index];
               const rec = rowId !== undefined ? getRowById(rowId) : undefined;
@@ -582,6 +707,15 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
                 />
               );
             })}
+
+            {virtualPaddingBottom > 0 && (
+              <tr style={{ height: `${virtualPaddingBottom}px` }}>
+                <td
+                  colSpan={leafColumns.length}
+                  style={{ height: `${virtualPaddingBottom}px`, padding: 0, border: 0 }}
+                />
+              </tr>
+            )}
           </tbody>
         </table>
 
@@ -597,19 +731,6 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
             onCancel={() => {
               cancelEditing();
               setEditorPos(null);
-            }}
-            onNavigateNext={(dir) => {
-              if (!activeCell) return;
-              const { rowIdx, colKey } = activeCell;
-              const cIdx = leafColumns.findIndex(c => c.id === colKey);
-              if (dir === 'down' && rowIdx < rowIds.length - 1) {
-                const nxtId = rowIds[rowIdx + 1];
-                setActiveCell({ rowIdx: rowIdx + 1, colKey, rowId: nxtId });
-              } else if (dir === 'right' && cIdx < leafColumns.length - 1) {
-                setActiveCell({ rowIdx, colKey: leafColumns[cIdx + 1].id, rowId: activeCell.rowId });
-              } else if (dir === 'left' && cIdx > 0) {
-                setActiveCell({ rowIdx, colKey: leafColumns[cIdx - 1].id, rowId: activeCell.rowId });
-              }
             }}
           />
         )}
