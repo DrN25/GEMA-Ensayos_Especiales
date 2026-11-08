@@ -4,7 +4,14 @@ from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 def load_dotenv():
-    for path in [".env", "../.env", "app/.env"]:
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    candidates = [
+        os.path.join(base_dir, ".env"),
+        ".env",
+        "../.env",
+        "app/.env"
+    ]
+    for path in candidates:
         if os.path.exists(path):
             with open(path, "r", encoding="utf-8") as f:
                 for line in f:
@@ -26,8 +33,12 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 engine = None
 connect_args = {}
 
-# Verificar y crear base de datos SQL Server si es necesario
+# Verificar y crear base de datos SQL Server si es necesario (solo en entornos locales o con Trusted Connection)
 def verify_and_create_db(driver, server, db_name, trusted, user, password):
+    # Evitar consultar 'master' y 'CREATE DATABASE' en servidores remotos / hosting compartido
+    is_local = server.lower() in ["localhost", "127.0.0.1"] or "sqlexpress" in server.lower()
+    if not is_local and not trusted:
+        return
     try:
         import pyodbc
         if trusted:
@@ -153,11 +164,17 @@ if not engine:
     db_user = os.environ.get("DB_USER", "")
     db_password = os.environ.get("DB_PASSWORD", "")
     
-    drivers_to_try = [
+    preferred_driver = os.environ.get("DB_DRIVER", "ODBC Driver 17 for SQL Server")
+    candidate_drivers = [
+        preferred_driver,
         "ODBC Driver 17 for SQL Server",
         "ODBC Driver 18 for SQL Server",
-        os.environ.get("DB_DRIVER", "SQL Server")
+        "SQL Server"
     ]
+    drivers_to_try = []
+    for d in candidate_drivers:
+        if d and d not in drivers_to_try:
+            drivers_to_try.append(d)
     
     for driver in drivers_to_try:
         try:

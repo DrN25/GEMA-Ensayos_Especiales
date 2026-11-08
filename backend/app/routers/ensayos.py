@@ -131,6 +131,44 @@ def get_ensayos_paginated(
         }
     }
 
+@router.get("/stats")
+def get_ensayos_stats(db: Session = Depends(get_db)):
+    tot = db.query(func.count(models.RegistroMaestro.idd)).scalar() or 0
+    ucs = db.query(func.count(models.RegistroMaestro.idd)).filter(
+        or_(models.RegistroMaestro.tipo_ensayo.ilike("%ucs%"), models.RegistroMaestro.ucs_resistencia.isnot(None), models.RegistroMaestro.ucs_diametro.isnot(None))
+    ).scalar() or 0
+    elas = db.query(func.count(models.RegistroMaestro.idd)).filter(
+        or_(models.RegistroMaestro.tipo_ensayo.ilike("%elastic%"), models.RegistroMaestro.elasticas_modulo_young.isnot(None))
+    ).scalar() or 0
+    trac = db.query(func.count(models.RegistroMaestro.idd)).filter(
+        or_(models.RegistroMaestro.tipo_ensayo.ilike("%traccion%"), models.RegistroMaestro.tipo_ensayo.ilike("%brasil%"), models.RegistroMaestro.traccion_resistencia_mpa.isnot(None))
+    ).scalar() or 0
+    corte = db.query(func.count(models.RegistroMaestro.idd)).filter(
+        or_(models.RegistroMaestro.tipo_ensayo.ilike("%corte%"), models.RegistroMaestro.corte_cohesion_mpa.isnot(None), models.RegistroMaestro.corte_area.isnot(None))
+    ).scalar() or 0
+    triax = db.query(func.count(models.RegistroMaestro.idd)).filter(
+        or_(models.RegistroMaestro.tipo_ensayo.ilike("%triaxial%"), models.RegistroMaestro.triaxial_esfuerzo_maximo.isnot(None))
+    ).scalar() or 0
+    prop = db.query(func.count(models.RegistroMaestro.idd)).filter(
+        models.RegistroMaestro.prop_peso_unitario_geometrico.isnot(None)
+    ).scalar() or 0
+
+    recent_rows = db.query(models.RegistroMaestro).order_by(models.RegistroMaestro.idd.desc()).limit(5).all()
+    recent = [{col.name: getattr(r, col.name) for col in r.__table__.columns} for r in recent_rows]
+
+    return {
+        "total": tot,
+        "counts": {
+            "ucs": ucs,
+            "elasticas": elas,
+            "traccion": trac,
+            "corte": corte,
+            "triaxial": triax,
+            "propiedades": prop
+        },
+        "recent": recent
+    }
+
 @router.get("/sondajes", response_model=List[str])
 def get_sondajes_list(db: Session = Depends(get_db)):
     results = db.query(models.RegistroMaestro.sondaje).distinct().all()

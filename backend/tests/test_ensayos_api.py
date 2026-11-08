@@ -93,3 +93,15 @@ def test_auditoria_history():
     assert res.status_code == 200
     assert "history" in res.json()
 
+
+def test_ensayos_stats():
+    res = client.get("/api/ensayos/stats")
+    assert res.status_code == 200
+    data = res.json()
+    assert "total" in data
+    assert "counts" in data
+    assert "recent" in data
+    assert isinstance(data["counts"], dict)
+    assert "ucs" in data["counts"]
+    assert "elasticas" in data["counts"]
+
