@@ -197,7 +197,7 @@ const GridHeader = React.memo<GridHeaderProps>(({
                     {flexRender(header.column.columnDef.header, header.getContext())}
                   </span>
                   {colDef?.unit && (
-                    <span className="text-[10px] text-sky-400 font-normal ml-1">({colDef.unit})</span>
+                    <span className="text-[10px] text-sky-400 font-bold ml-1">({colDef.unit})</span>
                   )}
                 </div>
 
@@ -338,7 +338,7 @@ const GridRow = React.memo<GridRowProps>(({
             <td
               key={colKey}
               data-testid={`cell-${virtualRow.index}-${colKey}`}
-              className="px-2 py-1 text-center border-r border-navy-850/60 select-none"
+              className="px-2 py-1 text-center border-r border-b border-navy-800 select-none"
             >
               {badge}
             </td>
@@ -356,10 +356,20 @@ const GridRow = React.memo<GridRowProps>(({
 
         if (isStickyLeft) {
           const isIdd = colKey === 'idd';
-          stickyClasses = `sticky z-10 font-bold border-r-2 border-navy-800 bg-navy-950 group-hover:bg-navy-900 ${isIdd ? 'font-mono text-slate-400' : 'text-slate-200'}`;
+          const stickyBg = isActive
+            ? isLocked
+              ? 'bg-amber-100 dark:bg-amber-950 text-amber-950 dark:text-amber-100 z-20'
+              : 'bg-sky-100 dark:bg-sky-950 text-sky-950 dark:text-sky-100 z-20'
+            : 'bg-navy-950 group-hover:bg-navy-900';
+          stickyClasses = `sticky z-10 font-bold border-r-2 border-navy-800 ${stickyBg} ${isIdd ? 'font-mono text-slate-400' : 'text-slate-200'}`;
           stickyStyle = { left: `${leftOffset}px` };
         } else if (isStickyRight) {
-          stickyClasses = 'sticky z-10 border-l-2 border-navy-800 text-slate-200 bg-navy-950 group-hover:bg-navy-900';
+          const stickyBg = isActive
+            ? isLocked
+              ? 'bg-amber-100 dark:bg-amber-950 text-amber-950 dark:text-amber-100 z-20'
+              : 'bg-sky-100 dark:bg-sky-950 text-sky-950 dark:text-sky-100 z-20'
+            : 'bg-navy-950 group-hover:bg-navy-900';
+          stickyClasses = `sticky z-10 border-l-2 border-navy-800 text-slate-200 ${stickyBg}`;
           stickyStyle = { right: `${rightOffset}px` };
         }
 
@@ -384,13 +394,13 @@ const GridRow = React.memo<GridRowProps>(({
             onDoubleClick={(e) => onCellDoubleClick(virtualRow.index, colKey, e)}
             style={stickyStyle}
             title={isLocked ? lockInfo.message : undefined}
-            className={`px-2 py-1.5 text-center truncate border-r border-navy-850/60 select-none relative ${stickyClasses} ${lockedClasses} ${activeRing}`}
+            className={`px-2 py-1.5 text-center truncate border-r border-b border-navy-800 select-none relative ${stickyClasses} ${lockedClasses} ${activeRing}`}
           >
             {displayVal}
             {isActive && isLocked && (
               <div
                 data-testid="convertible-locked-banner"
-                className="absolute -top-7 left-1/2 -translate-x-1/2 z-40 px-2.5 py-0.5 rounded bg-navy-950 border border-amber-500/60 text-amber-300 text-[10px] font-bold whitespace-nowrap shadow-xl flex items-center gap-1.5 pointer-events-none animate-fade-in"
+                className="absolute -top-7 left-1/2 -translate-x-1/2 z-40 px-2.5 py-0.5 rounded bg-white dark:bg-navy-950 border border-amber-500/60 text-amber-700 dark:text-amber-300 text-[10px] font-bold whitespace-nowrap shadow-xl flex items-center gap-1.5 pointer-events-none animate-fade-in"
               >
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
                 <span>{lockInfo.message}</span>
@@ -947,7 +957,7 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
         style={{ height, overflow: 'auto', position: 'relative' }}
         className="w-full focus:outline-none scrollbar-thin scrollbar-thumb-navy-700 scrollbar-track-navy-950"
       >
-        <table className="border-collapse text-xs select-none" style={{ tableLayout: 'fixed', width: 'max-content' }}>
+        <table className="border-separate border-spacing-0 text-xs select-none" style={{ tableLayout: 'fixed', width: 'max-content' }}>
           {/* Colgroup para ancho fijo O(1) gobernado por el navegador */}
           <colgroup>
             {leafColumns.map(col => (
