@@ -353,12 +353,20 @@ export default function GeotechPage({
                     {/* Grilla Principal - v1 clásica o v2 virtualizada de alto rendimiento */}
                     {getGridVersion() === 'v2' ? (
                         <VirtualizedGrid
+                            key={moduleName}
                             moduleName={moduleName}
                             initialRecords={filteredRecords}
                             proyectosList={proyectosList}
                             qaqcAlerts={qaqcAlerts}
                             onDeleteRow={onDeleteRow ? onDeleteRow : (id) => setRecords(prev => prev.filter(r => r.idd !== id))}
-                            height="calc(100vh - 280px)"
+                            height="calc(100vh - 385px)"
+                            page={page}
+                            pageSize={pageSize}
+                            totalPages={totalPages}
+                            totalRecords={totalRecords}
+                            onPageChange={onPageChange}
+                            onPageSizeChange={onPageSizeChange}
+                            isLoading={isLoading}
                         />
                     ) : (
                         <DataGrid

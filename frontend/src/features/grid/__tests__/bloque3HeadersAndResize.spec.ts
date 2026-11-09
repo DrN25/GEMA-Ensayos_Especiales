@@ -44,7 +44,7 @@ describe('Bloque 3: Cabecera de 2 niveles, Sticky y Resize', () => {
       totalColSpan += groupCols.length;
     }
 
-    expect(totalColSpan).toBe(26);
+    expect(totalColSpan).toBe(10);
     expect(groupsMap.get('Identificación de Muestra')?.length).toBe(3);
     expect(groupsMap.get('Ensayo UCS')?.length).toBe(5);
   });

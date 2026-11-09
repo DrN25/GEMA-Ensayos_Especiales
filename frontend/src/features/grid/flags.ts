@@ -7,7 +7,7 @@ const STORAGE_KEY = 'sigeg_grid_version';
  * Determina qué versión del componente de tabla está activa.
  * 1. Prioridad máxima: Parámetro URL `?grid=v1` o `?grid=v2`.
  * 2. Segunda prioridad: Preferencia guardada en localStorage.
- * 3. Valor predeterminado de seguridad: 'v1' (cero regresión en producción).
+ * 3. Valor predeterminado oficial: 'v2' (VirtualizedGrid con esquema declarativo).
  */
 export function getGridVersion(): GridVersion {
   if (typeof window !== 'undefined') {
@@ -27,7 +27,7 @@ export function getGridVersion(): GridVersion {
     }
   }
 
-  return 'v1';
+  return 'v2';
 }
 
 /**

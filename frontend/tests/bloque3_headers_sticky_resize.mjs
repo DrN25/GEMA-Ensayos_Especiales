@@ -255,3 +255,4 @@ async function runBloque3Tests(browserType, browserName) {
     process.exit(1);
   }
 })();
+

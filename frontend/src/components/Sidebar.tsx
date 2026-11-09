@@ -67,7 +67,7 @@ export default function Sidebar({
     {
       category: 'BASE GEOTÉCNICA',
       items: [
-        { id: 'registro_maestro', label: 'Registro Maestro (47 Cols)', icon: Database }
+        { id: 'registro_maestro', label: 'Registro Maestro  ', icon: Database }
       ]
     },
     {

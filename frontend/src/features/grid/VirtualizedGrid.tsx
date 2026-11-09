@@ -7,7 +7,7 @@ import {
 } from '@tanstack/react-table';
 import type { ColumnDef, Table, HeaderGroup, Header } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { GridColumnDef, FloatingEditorPosition, ColumnPinned } from './types';
 import { getGridColumnsForModule } from './columnsDefinition';
 import { useGridStore } from './gridStore';
@@ -22,6 +22,13 @@ export interface VirtualizedGridProps {
   height?: string | number;
   pinnedConfig?: Record<string, ColumnPinned>;
   onColumnResize?: (colId: string, newWidth: number) => void;
+  page?: number;
+  pageSize?: number;
+  totalPages?: number;
+  totalRecords?: number;
+  onPageChange?: (page: number) => void;
+  onPageSizeChange?: (pageSize: number) => void;
+  isLoading?: boolean;
 }
 
 // Array estático vacío para que TanStack Table NO procese las 10,000 filas
@@ -36,6 +43,12 @@ const EMPTY_STYLE: React.CSSProperties = {};
  */
 export function formatDisplayValue(val: any, colDef?: GridColumnDef): string {
   if (val === null || val === undefined || val === '') return '—';
+
+  // Delegar al formateador del esquema SSOT si existe
+  if (colDef?.format) {
+    const formatted = colDef.format(val);
+    return formatted === '' ? '—' : formatted;
+  }
 
   if (colDef?.type === 'number') {
     const num = typeof val === 'number' ? val : parseFloat(String(val));
@@ -226,7 +239,7 @@ const GridRow = React.memo<GridRowProps>(({
     <tr
       key={rowId}
       style={{ height: `${virtualRow.size}px` }}
-      className={`border-b border-navy-900/30 hover:bg-navy-900/50 ${rowBg}`}
+      className={`border-b border-navy-900/30 hover:bg-navy-900/50 group ${rowBg}`}
     >
       {leafColumns.map(col => {
         const colKey = col.id;
@@ -244,7 +257,7 @@ const GridRow = React.memo<GridRowProps>(({
             <td
               key={colKey}
               style={{ right: `${rightOffset}px` }}
-              className="sticky z-10 bg-navy-950 text-center py-1 px-1 border-l-2 border-b border-navy-800"
+              className="sticky z-10 bg-navy-950 group-hover:bg-navy-900 text-center py-1 px-1 border-l-2 border-b border-navy-800"
             >
               <div className="flex items-center justify-center gap-1.5">
                 <button
@@ -322,22 +335,22 @@ const GridRow = React.memo<GridRowProps>(({
         let stickyStyle: React.CSSProperties = EMPTY_STYLE;
 
         if (isStickyLeft) {
-          stickyClasses = 'sticky z-10 font-mono font-bold border-r-2 border-navy-800 text-slate-200';
-          stickyStyle = { left: `${leftOffset}px`, backgroundColor: '#02040a' };
+          const isIdd = colKey === 'idd';
+          stickyClasses = `sticky z-10 font-bold border-r-2 border-navy-800 bg-navy-950 group-hover:bg-navy-900 ${isIdd ? 'font-mono text-slate-400' : 'text-slate-200'}`;
+          stickyStyle = { left: `${leftOffset}px` };
         } else if (isStickyRight) {
-          stickyClasses = 'sticky z-10 border-l-2 border-navy-800 text-slate-200';
-          stickyStyle = { right: `${rightOffset}px`, backgroundColor: '#02040a' };
+          stickyClasses = 'sticky z-10 border-l-2 border-navy-800 text-slate-200 bg-navy-950 group-hover:bg-navy-900';
+          stickyStyle = { right: `${rightOffset}px` };
         }
 
-        const activeRing = isActive ? 'ring-2 ring-inset ring-sky-400 z-20 font-semibold' : '';
-        if (isActive) {
-          stickyStyle = { ...stickyStyle, backgroundColor: '#0c2240' };
-        }
+        const activeRing = isActive ? 'ring-2 ring-inset ring-sky-400 z-20 font-semibold bg-sky-500/15' : '';
 
         return (
           <td
             key={colKey}
             data-testid={`cell-${virtualRow.index}-${colKey}`}
+            data-col-key={colKey}
+            data-row-idx={virtualRow.index}
             onClick={(e) => onCellClick(virtualRow.index, colKey, e)}
             onDoubleClick={(e) => onCellDoubleClick(virtualRow.index, colKey, e)}
             style={stickyStyle}
@@ -374,7 +387,14 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
   onDeleteRow,
   height = '600px',
   pinnedConfig,
-  onColumnResize
+  onColumnResize,
+  page,
+  pageSize,
+  totalPages,
+  totalRecords,
+  onPageChange,
+  onPageSizeChange,
+  isLoading
 }) => {
   // 1. Store global zustand normalizado
   const rowIds = useGridStore(s => s.rowIds);
@@ -410,12 +430,18 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
     return map;
   }, [qaqcAlerts]);
 
-  // Carga inicial al montar o cuando cambian los registros (solo si el store está vacío)
+  // Carga y sincronización determinística (evita ciclos de renderizado infinito)
+  const prevRecordsKeyRef = useRef<string>('');
   useEffect(() => {
-    if (initialRecords && initialRecords.length > 0 && rowIds.length === 0) {
+    if (!initialRecords) return;
+    const firstId = initialRecords[0]?.idd ?? '';
+    const lastId = initialRecords[initialRecords.length - 1]?.idd ?? '';
+    const key = `${moduleName}:${initialRecords.length}:${firstId}:${lastId}`;
+    if (prevRecordsKeyRef.current !== key) {
+      prevRecordsKeyRef.current = key;
       setInitialRecords(initialRecords);
     }
-  }, [initialRecords, rowIds.length, setInitialRecords]);
+  }, [initialRecords, moduleName, setInitialRecords]);
 
   // Obtener definiciones de columnas declarativas para este módulo
   const gridColumns = useMemo(() => {
@@ -646,6 +672,40 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
     else deleteRow(rowId);
   }, [onDeleteRow, deleteRow]);
 
+  // Tooltip único por delegación de eventos (elimina 1.750 atributos title del DOM)
+  const [delegatedTooltip, setDelegatedTooltip] = useState<{ x: number; y: number; text: string } | null>(null);
+
+  const handleContainerPointerOver = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const target = (e.target as HTMLElement).closest('td[data-col-key]');
+    if (!target) return;
+    const colKey = target.getAttribute('data-col-key');
+    const rowIdxStr = target.getAttribute('data-row-idx');
+    if (!colKey || rowIdxStr === null) return;
+
+    const rowIdx = parseInt(rowIdxStr, 10);
+    const rowId = rowIds[rowIdx];
+    const rec = rowId !== undefined ? getRowById(rowId) : undefined;
+    if (!rec) return;
+
+    const colDef = gridColumns.find(c => c.id === colKey);
+    const cellVal = rec[colKey];
+    const unitHint = colDef?.hint || (colDef?.unit ? `Registrar en ${colDef.unit}` : '');
+    const tooltipText = [
+      `Valor almacenado: ${cellVal !== null && cellVal !== undefined && cellVal !== '' ? cellVal : '—'}${colDef?.unit ? ` ${colDef.unit}` : ''}`,
+      unitHint ? `• ${unitHint}` : null,
+      colDef?.displayHint ? `• ${colDef.displayHint}` : null
+    ].filter(Boolean).join('\n');
+
+    setDelegatedTooltip({ x: e.clientX, y: e.clientY, text: tooltipText });
+  }, [rowIds, getRowById, gridColumns]);
+
+  const handleContainerPointerOut = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const related = e.relatedTarget as HTMLElement | null;
+    if (!related || !related.closest('td[data-col-key]')) {
+      setDelegatedTooltip(null);
+    }
+  }, []);
+
   const activeColumnDef = editingCell ? gridColumns.find(c => c.id === editingCell.colKey) : undefined;
   const headerGroups = useMemo(() => table.getHeaderGroups(), [table]);
 
@@ -655,6 +715,8 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
         ref={containerRef}
         tabIndex={0}
         onKeyDown={handleKeyDown}
+        onPointerOver={handleContainerPointerOver}
+        onPointerOut={handleContainerPointerOut}
         style={{ height, overflow: 'auto', position: 'relative' }}
         className="w-full focus:outline-none scrollbar-thin scrollbar-thumb-navy-700 scrollbar-track-navy-950"
       >
@@ -741,6 +803,67 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
             }}
           />
         )}
+
+        {/* Tooltip flotante único por delegación de eventos */}
+        {delegatedTooltip && (
+          <div
+            data-testid="grid-delegated-tooltip"
+            style={{ left: `${delegatedTooltip.x + 12}px`, top: `${delegatedTooltip.y + 16}px` }}
+            className="fixed pointer-events-none z-50 px-2.5 py-1.5 rounded-lg bg-navy-950/95 border border-sky-500/40 text-slate-200 text-xs shadow-2xl whitespace-pre-line backdrop-blur-sm"
+          >
+            {delegatedTooltip.text}
+          </div>
+        )}
+      </div>
+
+      {/* Barra de Paginación Rápida Restaurada */}
+      <div
+        data-testid="grid-pagination-bar"
+        className="flex flex-wrap items-center justify-between px-4 py-2.5 bg-navy-950/90 border-t border-navy-800 text-xs text-slate-400 gap-3 select-none"
+      >
+        <div className="flex items-center gap-3">
+          <span>
+            Página <span className="font-bold text-slate-200">{page ?? 1}</span> de{' '}
+            <span className="font-bold text-slate-200">{totalPages ?? 1}</span>
+            <span className="text-slate-500 ml-1.5 font-mono">
+              ({(totalRecords !== undefined ? totalRecords : rowIds.length).toLocaleString()} registros totales)
+            </span>
+          </span>
+
+          {onPageSizeChange && (
+            <div className="flex items-center gap-1.5 pl-3 border-l border-navy-800">
+              <span className="text-slate-500 text-[11px]">Mostrar:</span>
+              <select
+                value={pageSize ?? 50}
+                onChange={(e) => onPageSizeChange(Number(e.target.value))}
+                className="bg-navy-900 border border-navy-800 rounded px-2 py-0.5 text-xs text-slate-300 outline-none cursor-pointer"
+              >
+                <option value={25}>25 filas</option>
+                <option value={50}>50 filas</option>
+                <option value={100}>100 filas</option>
+              </select>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onPageChange && onPageChange(Math.max(1, (page ?? 1) - 1))}
+            disabled={(page ?? 1) <= 1 || !onPageChange || isLoading}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-navy-800 bg-navy-900 text-slate-300 hover:bg-navy-800 hover:text-white transition-all disabled:opacity-30 disabled:pointer-events-none font-bold"
+          >
+            <ChevronLeft size={14} />
+            <span>Anterior</span>
+          </button>
+          <button
+            onClick={() => onPageChange && onPageChange(Math.min((totalPages ?? 1), (page ?? 1) + 1))}
+            disabled={(page ?? 1) >= (totalPages ?? 1) || !onPageChange || isLoading}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-navy-800 bg-navy-900 text-slate-300 hover:bg-navy-800 hover:text-white transition-all disabled:opacity-30 disabled:pointer-events-none font-bold"
+          >
+            <span>Siguiente</span>
+            <ChevronRight size={14} />
+          </button>
+        </div>
       </div>
     </div>
   );

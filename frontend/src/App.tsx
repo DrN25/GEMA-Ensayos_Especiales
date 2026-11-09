@@ -259,11 +259,7 @@ export default function App() {
     const testModules = ['registro_maestro', 'ucs', 'elasticas', 'traccion', 'corte', 'triaxial', 'propiedades'];
     if (testModules.includes(tabName)) {
       setPage(1);
-      // En v2 el store normalizado contiene la planilla completa en memoria.
-      // Cambiar de módulo solo reconfigura las columnas visibles del grid sin destruir cambios pendientes.
-      if (!isV2 || useGridStore.getState().rowIds.length === 0) {
-        loadEnsayos(1, pageSize, searchQuery, tabName);
-      }
+      loadEnsayos(1, pageSize, searchQuery, tabName);
     }
   };
 
@@ -276,6 +272,26 @@ export default function App() {
       setCurrentTab(prev);
     }
   };
+
+  // Ganchos de prueba E2E para invocación determinística de modales
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).__testTriggerSaveBlocking = (alerts: any[]) => {
+        setSaveBlockingModalData({
+          isOpen: true,
+          alerts,
+          summaryMessage: `Guardado Bloqueado: ${alerts.length} error(es) crítico(s) detectado(s).`
+        });
+      };
+      (window as any).__testTriggerCollisionModal = (collisions: any[], pendingRecords: any[]) => {
+        setIdCollisionModalData({
+          isOpen: true,
+          collisions,
+          pendingRecords
+        });
+      };
+    }
+  }, []);
 
   const handleFocusField = (idd: number, field: string, tab: string) => {
     navigateToTab(tab);

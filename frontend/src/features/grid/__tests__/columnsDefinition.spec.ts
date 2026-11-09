@@ -66,11 +66,11 @@ describe('Bloque 1: Declaración de Columnas y Tipos (GridColumnDef)', () => {
   it('debe filtrar correctamente las columnas por módulo geomecánico', () => {
     const maestroCols = getGridColumnsForModule('registro_maestro');
     expect(maestroCols.length).toBe(50);
-
     const ucsCols = getGridColumnsForModule('ucs');
+    expect(ucsCols.length).toBe(10);
     const ucsGroups = new Set(ucsCols.map(c => c.group));
     expect(ucsGroups.has('Identificación de Muestra')).toBe(true);
-    expect(ucsGroups.has('Datos Comunes de Campo')).toBe(true);
+    expect(ucsGroups.has('Datos Comunes de Campo')).toBe(false);
     expect(ucsGroups.has('Ensayo UCS')).toBe(true);
     expect(ucsGroups.has('Validación y Cierre')).toBe(true);
     expect(ucsGroups.has('Constantes Elásticas')).toBe(false);
@@ -112,20 +112,20 @@ describe('Bloque 1: Feature Flag de Convivencia (v1 / v2)', () => {
     delete (globalThis as any).localStorage;
   });
 
-  it('debe retornar v1 por defecto para garantizar cero regresión en producción', () => {
+  it('debe retornar v2 por defecto para cargar la grilla moderna directamente', () => {
+    expect(getGridVersion()).toBe('v2');
+  });
+
+  it('debe respetar el parámetro de consulta URL ?grid=v1 para fallback', () => {
+    (globalThis as any).window.location.search = '?grid=v1';
     expect(getGridVersion()).toBe('v1');
   });
 
-  it('debe respetar el parámetro de consulta URL ?grid=v2 prioritariamente', () => {
-    (globalThis as any).window.location.search = '?grid=v2';
-    expect(getGridVersion()).toBe('v2');
-  });
-
-  it('debe respetar el almacenamiento en localStorage si se activa v2 sin parámetro URL', () => {
-    setGridVersion('v2');
-    expect(getGridVersion()).toBe('v2');
-
+  it('debe respetar el almacenamiento en localStorage si se activa v1 o v2 sin parámetro URL', () => {
     setGridVersion('v1');
     expect(getGridVersion()).toBe('v1');
+
+    setGridVersion('v2');
+    expect(getGridVersion()).toBe('v2');
   });
 });

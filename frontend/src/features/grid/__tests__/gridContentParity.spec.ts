@@ -103,14 +103,14 @@ describe('Test de Contenido y Paridad de Datos (20 filas x Todas las columnas)',
     it('debe filtrar exclusivamente columnas comunes + ensayo UCS + validación + observación', () => {
       const ucsColIds = ucsColumns.map(c => c.id);
 
-      // Debe incluir datos comunes
+      // Identificación básica de muestra (paridad exacta con v1)
       expect(ucsColIds).toContain('idd');
       expect(ucsColIds).toContain('sondaje');
       expect(ucsColIds).toContain('codigo_muestra');
-      expect(ucsColIds).toContain('proyecto');
-      expect(ucsColIds).toContain('desde');
-      expect(ucsColIds).toContain('hasta');
-      expect(ucsColIds).toContain('tipo_ensayo');
+      expect(ucsColIds).not.toContain('proyecto');
+      expect(ucsColIds).not.toContain('desde');
+      expect(ucsColIds).not.toContain('hasta');
+      expect(ucsColIds).not.toContain('tipo_ensayo');
 
       // Debe incluir columnas propias de UCS
       expect(ucsColIds).toContain('ucs_diametro');
