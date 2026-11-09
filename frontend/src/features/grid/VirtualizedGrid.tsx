@@ -12,6 +12,7 @@ import type { GridColumnDef, FloatingEditorPosition, ColumnPinned } from './type
 import { getGridColumnsForModule } from './columnsDefinition';
 import { useGridStore } from './gridStore';
 import { FloatingEditor } from './FloatingEditor';
+import { getConvertibleLockInfo } from './schema';
 
 export interface VirtualizedGridProps {
   moduleName?: string;
@@ -330,6 +331,8 @@ const GridRow = React.memo<GridRowProps>(({
         // 3. Renderizado de celdas estándar con formateo de paridad
         const cellVal = record[colKey];
         const displayVal = formatDisplayValue(cellVal, colDef);
+        const lockInfo = getConvertibleLockInfo(colKey, record);
+        const isLocked = lockInfo.isReadOnly;
 
         let stickyClasses = '';
         let stickyStyle: React.CSSProperties = EMPTY_STYLE;
@@ -343,7 +346,15 @@ const GridRow = React.memo<GridRowProps>(({
           stickyStyle = { right: `${rightOffset}px` };
         }
 
-        const activeRing = isActive ? 'ring-2 ring-inset ring-sky-400 z-20 font-semibold bg-sky-500/15' : '';
+        const activeRing = isActive
+          ? isLocked
+            ? 'ring-2 ring-inset ring-amber-400/80 z-20 font-semibold bg-amber-500/10'
+            : 'ring-2 ring-inset ring-sky-400 z-20 font-semibold bg-sky-500/15'
+          : '';
+
+        const lockedClasses = isLocked
+          ? 'bg-slate-900/60 dark:bg-slate-950/70 text-slate-500 cursor-not-allowed select-none opacity-80'
+          : 'cursor-cell';
 
         return (
           <td
@@ -351,12 +362,23 @@ const GridRow = React.memo<GridRowProps>(({
             data-testid={`cell-${virtualRow.index}-${colKey}`}
             data-col-key={colKey}
             data-row-idx={virtualRow.index}
+            data-locked={isLocked ? 'true' : undefined}
             onClick={(e) => onCellClick(virtualRow.index, colKey, e)}
             onDoubleClick={(e) => onCellDoubleClick(virtualRow.index, colKey, e)}
             style={stickyStyle}
-            className={`px-2 py-1.5 text-center truncate cursor-cell border-r border-navy-850/60 select-none ${stickyClasses} ${activeRing}`}
+            title={isLocked ? lockInfo.message : undefined}
+            className={`px-2 py-1.5 text-center truncate border-r border-navy-850/60 select-none relative ${stickyClasses} ${lockedClasses} ${activeRing}`}
           >
             {displayVal}
+            {isActive && isLocked && (
+              <div
+                data-testid="convertible-locked-banner"
+                className="absolute -top-7 left-1/2 -translate-x-1/2 z-40 px-2.5 py-0.5 rounded bg-navy-950 border border-amber-500/60 text-amber-300 text-[10px] font-bold whitespace-nowrap shadow-xl flex items-center gap-1.5 pointer-events-none animate-fade-in"
+              >
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                <span>{lockInfo.message}</span>
+              </div>
+            )}
           </td>
         );
       })}
@@ -577,6 +599,12 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
 
     const rowId = rowIds[rowIdx];
     if (rowId === undefined) return;
+    const rec = getRowById(rowId);
+    if (!rec) return;
+
+    // Bloqueo configurable de pares convertibles
+    const lockInfo = getConvertibleLockInfo(colKey, rec);
+    if (lockInfo.isReadOnly) return;
 
     if (containerRef.current) {
       const cellEl = containerRef.current.querySelector(
@@ -653,6 +681,18 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
     } else if (e.key === 'Enter') {
       e.preventDefault();
       openEditorForCell(rowIdx, colKey);
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      const rowId = rowIds[rowIdx];
+      if (rowId !== undefined) {
+        const rec = getRowById(rowId);
+        if (rec) {
+          const lockInfo = getConvertibleLockInfo(colKey, rec);
+          if (lockInfo.isReadOnly) {
+            e.preventDefault();
+            return;
+          }
+        }
+      }
     } else if (e.key === 'Tab') {
       e.preventDefault();
       const dir = e.shiftKey ? -1 : 1;
@@ -689,12 +729,22 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
 
     const colDef = gridColumns.find(c => c.id === colKey);
     const cellVal = rec[colKey];
-    const unitHint = colDef?.hint || (colDef?.unit ? `Registrar en ${colDef.unit}` : '');
-    const tooltipText = [
-      `Valor almacenado: ${cellVal !== null && cellVal !== undefined && cellVal !== '' ? cellVal : '—'}${colDef?.unit ? ` ${colDef.unit}` : ''}`,
-      unitHint ? `• ${unitHint}` : null,
-      colDef?.displayHint ? `• ${colDef.displayHint}` : null
-    ].filter(Boolean).join('\n');
+    const lockInfo = getConvertibleLockInfo(colKey, rec);
+
+    let tooltipText: string;
+    if (lockInfo.isReadOnly) {
+      tooltipText = [
+        `Valor almacenado: ${cellVal !== null && cellVal !== undefined && cellVal !== '' ? cellVal : '—'}${colDef?.unit ? ` ${colDef.unit}` : ''}`,
+        `🔒 ${lockInfo.message}`
+      ].join('\n');
+    } else {
+      const unitHint = colDef?.hint || (colDef?.unit ? `Registrar en ${colDef.unit}` : '');
+      tooltipText = [
+        `Valor almacenado: ${cellVal !== null && cellVal !== undefined && cellVal !== '' ? cellVal : '—'}${colDef?.unit ? ` ${colDef.unit}` : ''}`,
+        unitHint ? `• ${unitHint}` : null,
+        colDef?.displayHint ? `• ${colDef.displayHint}` : null
+      ].filter(Boolean).join('\n');
+    }
 
     setDelegatedTooltip({ x: e.clientX, y: e.clientY, text: tooltipText });
   }, [rowIds, getRowById, gridColumns]);
