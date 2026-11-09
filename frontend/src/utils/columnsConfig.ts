@@ -50,6 +50,7 @@ export const COLUMNS_CONFIG: ColumnDef[] = [
   { index: 28, dbName: 'traccion_resistencia_kgcm2', excelName: 'Resistencia promedio (kg/cm2)', colLetter: 'AB', type: 'float', module: 'traccion', validation: { min: 0.1 } },
   { index: 29, dbName: 'traccion_vacia_28', excelName: 'Columna Vacía 28', colLetter: 'AC', type: 'string', module: 'traccion' },
   { index: 30, dbName: 'traccion_resistencia_mpa', excelName: 'Resistencia promedio (MPa)', colLetter: 'AD', type: 'float', module: 'traccion', validation: { min: 0.01 } },
+  { index: 30.5, dbName: 'traccion_observaciones', excelName: 'Observaciones TI', colLetter: 'AD2', type: 'string', module: 'traccion' },
 
   // Corte Directo
   { index: 31, dbName: 'corte_tipo_fractura', excelName: 'Tipo de fractura', colLetter: 'AE', type: 'string', module: 'corte' },
