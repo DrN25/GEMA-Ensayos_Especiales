@@ -28,7 +28,7 @@ export const IdCollisionModal: React.FC<IdCollisionModalProps> = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   return (
@@ -121,3 +121,4 @@ export const IdCollisionModal: React.FC<IdCollisionModalProps> = ({
     </div>
   );
 };
+

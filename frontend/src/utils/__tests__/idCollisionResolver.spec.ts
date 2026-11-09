@@ -116,3 +116,4 @@ describe('Detector y Resolutor de Colisiones de IDD (resolveIdCollisions)', () =
     expect(csv).toContain('8194,8191,9818,"CHGT25-002","CHGT25-002-UCS-M01","DUPLICADO_EN_ARCHIVO","IDD duplicado"');
   });
 });
+

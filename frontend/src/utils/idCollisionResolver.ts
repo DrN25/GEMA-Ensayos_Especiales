@@ -163,11 +163,12 @@ export function generateCollisionsCsv(collisions: IdCollision[]): string {
     c.excelRow,
     c.originalIdd,
     c.assignedIdd,
-    `"${c.sondaje.replace(/"/g, '""')}"`,
-    `"${c.codigo_muestra.replace(/"/g, '""')}"`,
-    `"${c.reason}"`,
-    `"${c.description.replace(/"/g, '""')}"`
+    `"${String(c.sondaje || '').replace(/"/g, '""')}"`,
+    `"${String(c.codigo_muestra || '').replace(/"/g, '""')}"`,
+    `"${String(c.reason || '')}"`,
+    `"${String(c.description || '').replace(/"/g, '""')}"`
   ]);
 
   return [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
 }
+

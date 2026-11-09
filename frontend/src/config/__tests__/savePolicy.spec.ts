@@ -82,3 +82,4 @@ describe('Política de Bloqueo Configurable (SAVE_BLOCKING_POLICY)', () => {
     expect(result.blockingAlerts.length).toBe(0);
   });
 });
+

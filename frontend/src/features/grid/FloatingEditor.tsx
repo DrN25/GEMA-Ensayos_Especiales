@@ -1,7 +1,8 @@
 // frontend/src/features/grid/FloatingEditor.tsx
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import type { GridColumnDef, FloatingEditorPosition } from './types';
 import { useGridStore } from './gridStore';
+import { COLUMNS_SCHEMA_MAP, validateCell } from './schema';
 
 interface FloatingEditorProps {
   position: FloatingEditorPosition;
@@ -33,6 +34,21 @@ export const FloatingEditor: React.FC<FloatingEditorProps> = ({
     }
   }, [column.editor]);
 
+  // Validación reactiva en caliente usando el esquema SSOT
+  const validationAlert = useMemo(() => {
+    const schemaCol = COLUMNS_SCHEMA_MAP.get(column.id);
+    if (!schemaCol) return null;
+    const editingCell = useGridStore.getState().editingCell;
+    const rowId =
+      editingCell?.rowId !== undefined
+        ? editingCell.rowId
+        : editingCell
+        ? useGridStore.getState().rowIds[editingCell.rowIdx]
+        : undefined;
+    const row = rowId !== undefined ? useGridStore.getState().recordsById.get(rowId) || {} : {};
+    return validateCell(editorValue, row, schemaCol);
+  }, [editorValue, column.id]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -49,6 +65,14 @@ export const FloatingEditor: React.FC<FloatingEditorProps> = ({
   };
 
   const isSelect = column.editor === 'select' && column.options && column.options.length > 0;
+
+  // Estilos de borde y tooltip según severidad de alerta
+  let borderColor = 'border-emerald-400';
+  if (validationAlert?.type === 'CRÍTICO') {
+    borderColor = 'border-rose-500 shadow-rose-950/50';
+  } else if (validationAlert?.type === 'AVISO') {
+    borderColor = 'border-amber-400 shadow-amber-950/50';
+  }
 
   return (
     <div
@@ -70,7 +94,7 @@ export const FloatingEditor: React.FC<FloatingEditorProps> = ({
           onChange={(e) => setEditorValue(e.target.value)}
           onBlur={onCommit}
           onKeyDown={handleKeyDown}
-          className="w-full h-full bg-navy-900 border-2 border-emerald-400 text-slate-100 px-1 text-center text-xs font-mono rounded shadow-lg outline-none cursor-pointer"
+          className={`w-full h-full bg-navy-900 border-2 ${borderColor} text-slate-100 px-1 text-center text-xs font-mono rounded shadow-lg outline-none cursor-pointer`}
         >
           <option value="" className="bg-navy-950 text-slate-500">—</option>
           {column.options!.map((opt) => (
@@ -83,15 +107,28 @@ export const FloatingEditor: React.FC<FloatingEditorProps> = ({
         <input
           ref={inputRef}
           data-testid="floating-input"
-          type={column.type === 'number' ? 'text' : 'text'}
+          type="text"
           value={editorValue ?? ''}
           onChange={(e) => setEditorValue(e.target.value)}
           onBlur={onCommit}
           onKeyDown={handleKeyDown}
-          className="w-full h-full bg-navy-900 border-2 border-emerald-400 text-slate-100 px-2 text-center text-xs font-mono rounded shadow-lg outline-none"
+          className={`w-full h-full bg-navy-900 border-2 ${borderColor} text-slate-100 px-2 text-center text-xs font-mono rounded shadow-lg outline-none`}
         />
+      )}
+
+      {/* Tooltip de feedback inmediato si hay alerta */}
+      {validationAlert && (
+        <div
+          data-testid="floating-editor-tooltip"
+          className={`absolute top-full left-0 mt-1 px-2 py-0.5 text-[11px] font-mono rounded shadow-xl whitespace-nowrap z-50 pointer-events-none ${
+            validationAlert.type === 'CRÍTICO'
+              ? 'bg-rose-950/95 border border-rose-500 text-rose-200'
+              : 'bg-amber-950/95 border border-amber-500 text-amber-200'
+          }`}
+        >
+          {validationAlert.type === 'CRÍTICO' ? '⚠️' : 'ℹ️'} {validationAlert.message}
+        </div>
       )}
     </div>
   );
 };
-

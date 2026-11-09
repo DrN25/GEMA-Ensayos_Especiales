@@ -1,7 +1,82 @@
 // frontend/src/features/grid/gridStore.ts
 import { create } from 'zustand';
 import type { CellCoordinate } from './types';
-import { validateSingleRecord, type QAQCAlert } from '../../utils/qaqcValidator';
+import type { QAQCAlert } from './schema';
+import {
+  COLUMNS_SCHEMA,
+  COLUMNS_SCHEMA_MAP,
+  validateRow,
+  validateDesdeVsHasta,
+  computeConvertiblePairUpdate
+} from './schema';
+
+/**
+ * Validador unificado a nivel de fila que combina reglas de celda del esquema
+ * y reglas relacionales de profundidades (Desde vs Hasta).
+ */
+function validateRowCombined(row: Record<string, any>): QAQCAlert[] {
+  const cellAlerts = validateRow(row, COLUMNS_SCHEMA);
+  const depthAlerts = validateDesdeVsHasta(row);
+  return [...cellAlerts, ...depthAlerts];
+}
+
+/**
+ * Recalcula campos dependientes y autogenerados de forma pura según el esquema SSOT.
+ */
+function recalculateDerivedFields(row: Record<string, any>, colKey?: string) {
+  // Capacidad de pares convertibles bidireccionales (Etapa C)
+  if (colKey && (colKey === 'traccion_resistencia_kgcm2' || colKey === 'traccion_resistencia_mpa')) {
+    const pairUpdates = computeConvertiblePairUpdate(colKey, row[colKey], row);
+    Object.assign(row, pairUpdates);
+  }
+
+  if (!colKey || colKey === 'sondaje') {
+    const codeCol = COLUMNS_SCHEMA_MAP.get('codigo_muestra');
+    if (codeCol?.autoGenerate && (!row.codigo_muestra || String(row.codigo_muestra).trim() === '')) {
+      row.codigo_muestra = codeCol.autoGenerate(row);
+    }
+  }
+
+  if (!colKey || colKey === 'desde' || colKey === 'hasta') {
+    const longCol = COLUMNS_SCHEMA_MAP.get('longitud_muestra');
+    if (longCol?.calculate) {
+      const calc = longCol.calculate(row);
+      if (calc !== null && calc !== undefined) {
+        row.longitud_muestra = calc;
+      }
+    }
+  }
+
+  if (!colKey || colKey === 'ucs_carga_rotura' || colKey === 'ucs_diametro') {
+    const ucsCalcCol = COLUMNS_SCHEMA_MAP.get('ucs_resistencia_calculada');
+    if (ucsCalcCol?.calculate) {
+      const calc = ucsCalcCol.calculate(row);
+      if (calc !== null && calc !== undefined) {
+        row.ucs_resistencia_calculada = calc;
+      }
+    }
+  }
+
+  if (!colKey || colKey === 'corte_esf_normal_kpa') {
+    const normCol = COLUMNS_SCHEMA_MAP.get('corte_esf_normal_mpa');
+    if (normCol?.calculate) {
+      const calc = normCol.calculate(row);
+      if (calc !== null && calc !== undefined) {
+        row.corte_esf_normal_mpa = calc;
+      }
+    }
+  }
+
+  if (!colKey || colKey === 'corte_esf_corte_kpa') {
+    const corteCol = COLUMNS_SCHEMA_MAP.get('corte_esf_corte_mpa');
+    if (corteCol?.calculate) {
+      const calc = corteCol.calculate(row);
+      if (calc !== null && calc !== undefined) {
+        row.corte_esf_corte_mpa = calc;
+      }
+    }
+  }
+}
 
 export interface GridStoreState {
   // Datos normalizados
@@ -99,13 +174,14 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
 
       // Clon superficial de cada registro para tracking de dirty/revert
       const rowClone = { ...r, idd: id };
+      recalculateDerivedFields(rowClone);
       map.set(id, rowClone);
       originals.set(id, { ...rowClone });
       ids.push(id);
       versions.set(id, 1);
 
       // Validación QA/QC incremental inicial (solo almacena si hay alertas)
-      const rowAlerts = validateSingleRecord(rowClone);
+      const rowAlerts = validateRowCombined(rowClone);
       if (rowAlerts.length > 0) {
         alertsMap.set(id, rowAlerts);
       }
@@ -179,8 +255,11 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
         dirtyRowIds.delete(rowId); // Revertido al valor original
       }
 
+      // Recalcular campos derivados tras la edición
+      recalculateDerivedFields(row, editingCell.colKey);
+
       // Revalidación QA/QC incremental SOLO para la fila modificada O(1)
-      const rowAlerts = validateSingleRecord(row);
+      const rowAlerts = validateRowCombined(row);
       if (rowAlerts.length > 0) {
         qaqcAlertsByRowId.set(rowId, rowAlerts);
       } else {
@@ -217,7 +296,8 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
       }
 
       // Revalidación QA/QC incremental O(1)
-      const rowAlerts = validateSingleRecord(row);
+      recalculateDerivedFields(row, colKey);
+        const rowAlerts = validateRowCombined(row);
       if (rowAlerts.length > 0) {
         qaqcAlertsByRowId.set(rowId, rowAlerts);
       } else {
@@ -258,7 +338,8 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
     dirtyRowIds.add(newId);
 
     // QA/QC incremental para la nueva fila
-    const newAlerts = validateSingleRecord(newRow);
+    recalculateDerivedFields(newRow);
+    const newAlerts = validateRowCombined(newRow);
     if (newAlerts.length > 0) {
       qaqcAlertsByRowId.set(newId, newAlerts);
     }
@@ -375,7 +456,8 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
       rowVersions.set(id, (rowVersions.get(id) || 0) + 1);
       dirtyRowIds.add(id);
 
-      const rowAlerts = validateSingleRecord(rowClone);
+      recalculateDerivedFields(rowClone);
+      const rowAlerts = validateRowCombined(rowClone);
       if (rowAlerts.length > 0) {
         qaqcAlertsByRowId.set(id, rowAlerts);
       } else {

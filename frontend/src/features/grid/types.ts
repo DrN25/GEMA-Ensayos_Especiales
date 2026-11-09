@@ -28,6 +28,8 @@ export interface GridColumnDef<T = Record<string, any>> {
   hint?: string;
   unit?: string;
   formula?: string;
+  decimals?: number;
+  displayHint?: string;
   format?: (value: any) => string;
 }
 

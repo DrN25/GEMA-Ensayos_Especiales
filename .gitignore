@@ -44,3 +44,8 @@ cloudflared.exe
 # Testing & Uploads
 .pytest_cache/
 backend/uploads/
+
+# Scratch and Local Real Data (confidencialidad de datos)
+scratch/
+**/realData.json
+
