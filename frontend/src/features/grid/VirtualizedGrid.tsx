@@ -11,8 +11,8 @@ import { Plus, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { GridColumnDef, FloatingEditorPosition, ColumnPinned } from './types';
 import { getGridColumnsForModule } from './columnsDefinition';
 import { useGridStore } from './gridStore';
-import { FloatingEditor } from './FloatingEditor';
-import { getConvertibleLockInfo } from './schema';
+import { FloatingEditor, type EditorMode } from './FloatingEditor';
+import { getConvertibleLockInfo, COLUMNS_SCHEMA_MAP, sanitizeInputForColumn } from './schema';
 
 export interface VirtualizedGridProps {
   moduleName?: string;
@@ -35,6 +35,23 @@ export interface VirtualizedGridProps {
 // Array estático vacío para que TanStack Table NO procese las 10,000 filas
 const EMPTY_DATA: any[] = [];
 const EMPTY_STYLE: React.CSSProperties = {};
+/**
+ * Auto-scroll horizontal suave respetando el espacio de columnas fijas (sticky)
+ */
+function scrollCellIntoViewIfNeeded(container: HTMLElement, cell: HTMLElement, stickyLeft = 0, stickyRight = 0) {
+  const containerRect = container.getBoundingClientRect();
+  const cellRect = cell.getBoundingClientRect();
+
+  const minVisibleLeft = containerRect.left + stickyLeft;
+  const maxVisibleRight = containerRect.right - stickyRight;
+
+  if (cellRect.left < minVisibleLeft) {
+    container.scrollLeft -= (minVisibleLeft - cellRect.left);
+  } else if (cellRect.right > maxVisibleRight) {
+    container.scrollLeft += (cellRect.right - maxVisibleRight);
+  }
+}
+
 
 /**
  * Formateador de paridad numérica con v1:
@@ -432,12 +449,15 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
   const commitEditing = useGridStore(s => s.commitEditing);
   const insertRowBelow = useGridStore(s => s.insertRowBelow);
   const deleteRow = useGridStore(s => s.deleteRow);
+  const updateCellValue = useGridStore(s => s.updateCellValue);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Estados locales de ancho de columnas
   const [colWidths, setColWidths] = useState<Record<string, number>>({});
   const [editorPos, setEditorPos] = useState<FloatingEditorPosition | null>(null);
+  const [editorMode, setEditorMode] = useState<EditorMode>('full');
+  const [editorSelection, setEditorSelection] = useState<'all' | 'end'>('end');
 
   // Mapa de alertas QA/QC por rowId para renderizado O(1)
   const qaqcStatusMap = useMemo(() => {
@@ -582,6 +602,19 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
     : 0;
 
   const leafColumns = useMemo(() => table.getAllLeafColumns(), [table]);
+  // Anchos acumulados de columnas fijas (sticky) para auto-scroll inteligente
+  const stickyLeftWidth = useMemo(() => {
+    return gridColumns
+      .filter(c => (pinnedConfig?.[c.id] ?? c.pinned) === 'left')
+      .reduce((acc, c) => acc + (colWidths[c.id] || c.defaultWidth), 0);
+  }, [gridColumns, pinnedConfig, colWidths]);
+
+  const stickyRightWidth = useMemo(() => {
+    return gridColumns
+      .filter(c => (pinnedConfig?.[c.id] ?? c.pinned) === 'right')
+      .reduce((acc, c) => acc + (colWidths[c.id] || c.defaultWidth), 0);
+  }, [gridColumns, pinnedConfig, colWidths]);
+
 
   // Commit de Resize persistente en estado
   const handleResizeCommit = useCallback((colId: string, newWidth: number) => {
@@ -593,7 +626,13 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
   }, [onColumnResize]);
 
   // Manejo de Clic y Doble Clic para Edición Flotante
-  const openEditorForCell = useCallback((rowIdx: number, colKey: string) => {
+  const openEditorForCell = useCallback((
+    rowIdx: number,
+    colKey: string,
+    mode: EditorMode = 'full',
+    initialValue?: any,
+    selection: 'all' | 'end' = 'end'
+  ) => {
     const colDef = gridColumns.find(c => c.id === colKey);
     if (!colDef || colDef.editor === 'none' || colDef.type === 'readonly') return;
 
@@ -624,8 +663,10 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
       }
     }
 
-    startEditing({ rowIdx, colKey, rowId });
-  }, [rowIds, gridColumns, startEditing]);
+    setEditorMode(mode);
+    setEditorSelection(selection);
+    startEditing({ rowIdx, colKey, rowId }, initialValue);
+  }, [rowIds, gridColumns, getRowById, startEditing]);
 
   const handleCellClick = useCallback((rowIdx: number, colKey: string) => {
     const rowId = rowIds[rowIdx];
@@ -637,18 +678,124 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
     setActiveCell({ rowIdx, colKey, rowId });
   }, [rowIds, isEditing, commitEditing, setActiveCell]);
 
-  // Auto-scroll al cambiar activeCell (p. ej. desde modal de bloqueo o navegacion)
+  const handleCellDoubleClick = useCallback((rowIdx: number, colKey: string) => {
+    openEditorForCell(rowIdx, colKey, 'full', undefined, 'end');
+  }, [openEditorForCell]);
+
+  const isCellEditable = useCallback((rowIdx: number, colKey: string): boolean => {
+    if (colKey === 'acciones_col' || colKey === 'qaqc_validacion') return false;
+    const colDef = gridColumns.find(c => c.id === colKey);
+    if (!colDef || colDef.editor === 'none' || colDef.type === 'readonly') return false;
+
+    const rowId = rowIds[rowIdx];
+    if (rowId === undefined) return false;
+    const rec = getRowById(rowId);
+    if (!rec) return false;
+
+    const lockInfo = getConvertibleLockInfo(colKey, rec);
+    if (lockInfo.isReadOnly) return false;
+
+    return true;
+  }, [gridColumns, rowIds, getRowById]);
+
+  // Búsqueda determinística O(1) de la siguiente celda editable con wrap de filas
+  const findNextEditableCell = useCallback((
+    startRowIdx: number,
+    startColKey: string,
+    direction: 'forward' | 'backward'
+  ): { rowIdx: number; colKey: string; rowId: number } | null => {
+    const leafCols = leafColumns.filter(c => c.id !== 'acciones_col' && c.id !== 'qaqc_validacion');
+    if (leafCols.length === 0 || rowIds.length === 0) return null;
+
+    let currentColIdx = leafCols.findIndex(c => c.id === startColKey);
+    if (currentColIdx === -1) currentColIdx = 0;
+
+    let r = startRowIdx;
+    let c = currentColIdx;
+    const delta = direction === 'forward' ? 1 : -1;
+
+    const maxSteps = rowIds.length * leafCols.length;
+    let steps = 0;
+
+    while (steps < maxSteps) {
+      c += delta;
+      if (c >= leafCols.length) {
+        c = 0;
+        r += 1;
+        if (r >= rowIds.length) return null; // Fin de la tabla
+      } else if (c < 0) {
+        c = leafCols.length - 1;
+        r -= 1;
+        if (r < 0) return null; // Inicio de la tabla
+      }
+
+      const colCandidate = leafCols[c].id;
+      if (isCellEditable(r, colCandidate)) {
+        return { rowIdx: r, colKey: colCandidate, rowId: rowIds[r] };
+      }
+
+      steps++;
+    }
+
+    return null;
+  }, [leafColumns, rowIds, isCellEditable]);
+
+  // Navegación fluida entre celdas al presionar Tab / Enter / Flechas desde el editor
+  const handleNavigateNext = useCallback((direction: 'down' | 'right' | 'up' | 'left') => {
+    setEditorPos(null);
+    containerRef.current?.focus();
+
+    if (!activeCell) return;
+    const { rowIdx, colKey } = activeCell;
+    const colIdx = leafColumns.findIndex(c => c.id === colKey);
+
+    if (direction === 'down') {
+      if (rowIdx < rowIds.length - 1) {
+        const nextId = rowIds[rowIdx + 1];
+        setActiveCell({ rowIdx: rowIdx + 1, colKey, rowId: nextId });
+      }
+    } else if (direction === 'up') {
+      if (rowIdx > 0) {
+        const nextId = rowIds[rowIdx - 1];
+        setActiveCell({ rowIdx: rowIdx - 1, colKey, rowId: nextId });
+      }
+    } else if (direction === 'right') {
+      const next = findNextEditableCell(rowIdx, colKey, 'forward');
+      if (next) {
+        setActiveCell(next);
+      } else if (colIdx < leafColumns.length - 1) {
+        const nextCol = leafColumns[colIdx + 1].id;
+        if (nextCol !== 'acciones_col') {
+          setActiveCell({ rowIdx, colKey: nextCol, rowId: activeCell.rowId });
+        }
+      }
+    } else if (direction === 'left') {
+      const prev = findNextEditableCell(rowIdx, colKey, 'backward');
+      if (prev) {
+        setActiveCell(prev);
+      } else if (colIdx > 0) {
+        setActiveCell({ rowIdx, colKey: leafColumns[colIdx - 1].id, rowId: activeCell.rowId });
+      }
+    }
+  }, [activeCell, rowIds, leafColumns, findNextEditableCell, setActiveCell]);
+
+  // Auto-scroll al cambiar activeCell (vertical con virtualizer y horizontal con offset de sticky columns)
   useEffect(() => {
     if (activeCell && activeCell.rowIdx !== undefined) {
       rowVirtualizer.scrollToIndex(activeCell.rowIdx, { align: 'auto' });
+      requestAnimationFrame(() => {
+        if (!containerRef.current) return;
+        const cellEl = containerRef.current.querySelector(
+          `[data-testid="cell-${activeCell.rowIdx}-${activeCell.colKey}"]`
+        ) as HTMLElement | null;
+        if (cellEl) {
+          scrollCellIntoViewIfNeeded(containerRef.current, cellEl, stickyLeftWidth, stickyRightWidth);
+        }
+      });
     }
-  }, [activeCell?.rowIdx, rowVirtualizer]);
+  }, [activeCell?.rowIdx, activeCell?.colKey, rowVirtualizer, stickyLeftWidth, stickyRightWidth]);
 
-  const handleCellDoubleClick = useCallback((rowIdx: number, colKey: string) => {
-    openEditorForCell(rowIdx, colKey);
-  }, [openEditorForCell]);
-
-  // Teclado: Navegación Excel
+  // Teclado: Navegación estilo Excel
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!activeCell) return;
     const { rowIdx, colKey } = activeCell;
@@ -671,34 +818,64 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
     } else if (e.key === 'ArrowRight') {
       e.preventDefault();
       if (colIdx < leafColumns.length - 1) {
-        setActiveCell({ rowIdx, colKey: leafColumns[colIdx + 1].id, rowId: activeCell.rowId });
+        const nextCol = leafColumns[colIdx + 1].id;
+        if (nextCol !== 'acciones_col') {
+          setActiveCell({ rowIdx, colKey: nextCol, rowId: activeCell.rowId });
+        }
       }
     } else if (e.key === 'ArrowLeft') {
       e.preventDefault();
       if (colIdx > 0) {
         setActiveCell({ rowIdx, colKey: leafColumns[colIdx - 1].id, rowId: activeCell.rowId });
       }
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      const next = findNextEditableCell(rowIdx, colKey, e.shiftKey ? 'backward' : 'forward');
+      if (next) {
+        setActiveCell(next);
+      }
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      openEditorForCell(rowIdx, colKey);
+      openEditorForCell(rowIdx, colKey, 'quick', undefined, 'all');
+    } else if (e.key === 'F2') {
+      e.preventDefault();
+      openEditorForCell(rowIdx, colKey, 'full', undefined, 'end');
     } else if (e.key === 'Delete' || e.key === 'Backspace') {
       const rowId = rowIds[rowIdx];
       if (rowId !== undefined) {
         const rec = getRowById(rowId);
         if (rec) {
           const lockInfo = getConvertibleLockInfo(colKey, rec);
-          if (lockInfo.isReadOnly) {
-            e.preventDefault();
-            return;
+          if (!lockInfo.isReadOnly) {
+            const colDef = gridColumns.find(c => c.id === colKey);
+            if (colDef && colDef.editor !== 'none' && colDef.type !== 'readonly') {
+              e.preventDefault();
+              updateCellValue(rowIdx, colKey, null);
+            }
           }
         }
       }
-    } else if (e.key === 'Tab') {
-      e.preventDefault();
-      const dir = e.shiftKey ? -1 : 1;
-      const nextIdx = colIdx + dir;
-      if (nextIdx >= 0 && nextIdx < leafColumns.length) {
-        setActiveCell({ rowIdx, colKey: leafColumns[nextIdx].id, rowId: activeCell.rowId });
+    } else if (
+      e.key.length === 1 &&
+      !e.ctrlKey &&
+      !e.altKey &&
+      !e.metaKey &&
+      e.key !== ' '
+    ) {
+      // Type-to-edit directo estilo Excel: si la celda es editable y el caracter inicial es válido para el tipo de columna
+      const colDef = gridColumns.find(c => c.id === colKey);
+      if (colDef && colDef.editor !== 'none' && colDef.type !== 'readonly') {
+        const rowId = rowIds[rowIdx];
+        const rec = rowId !== undefined ? getRowById(rowId) : undefined;
+        const isLocked = rec ? getConvertibleLockInfo(colKey, rec).isReadOnly : false;
+        if (!isLocked) {
+          const schemaCol = COLUMNS_SCHEMA_MAP.get(colKey);
+          const check = sanitizeInputForColumn(e.key, schemaCol);
+          if (check.valid) {
+            e.preventDefault();
+            openEditorForCell(rowIdx, colKey, 'quick', check.value, 'end');
+          }
+        }
       }
     }
   };

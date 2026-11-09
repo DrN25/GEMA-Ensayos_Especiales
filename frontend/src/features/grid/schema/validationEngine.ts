@@ -310,3 +310,113 @@ export function validateDataset(
   return allAlerts;
 }
 
+
+
+/**
+ * Validador y sanitizador en tiempo real de pulsaciones/entradas por celda.
+ * Aplica restricciones de tipo (text, integer, decimal), positiveOnly,
+ * precisión decimal máxima, longitud máxima y límites físicos infranqueables (maxHard).
+ */
+export interface InputValidationResult {
+  valid: boolean;
+  value: string;
+}
+
+export function sanitizeInputForColumn(
+  incomingVal: string,
+  schemaCol?: ColumnSchema
+): InputValidationResult {
+  if (!schemaCol) {
+    return { valid: true, value: incomingVal };
+  }
+
+  // Si está vacío, siempre es válido durante la edición (permite borrar contenido)
+  if (incomingVal === '' || incomingVal === null || incomingVal === undefined) {
+    return { valid: true, value: '' };
+  }
+
+  // 1. Textos
+  if (schemaCol.type === 'text') {
+    let val = incomingVal;
+    if (schemaCol.style?.uppercase) {
+      val = val.toUpperCase();
+    }
+    if (schemaCol.constraints?.maxLength && val.length > schemaCol.constraints.maxLength) {
+      return { valid: false, value: val.slice(0, schemaCol.constraints.maxLength) };
+    }
+    return { valid: true, value: val };
+  }
+
+  // 2. Números Enteros (IDD, Día, Año, etc.)
+  if (schemaCol.type === 'integer') {
+    const isPositiveOnly = schemaCol.constraints?.positiveOnly !== false;
+
+    // Solo positivos: no admite '-', ni '.', ni letras
+    if (isPositiveOnly) {
+      if (!/^\d+$/.test(incomingVal)) {
+        return { valid: false, value: incomingVal };
+      }
+    } else {
+      if (incomingVal === '-') {
+        return { valid: true, value: '-' };
+      }
+      if (!/^-?\d+$/.test(incomingVal)) {
+        return { valid: false, value: incomingVal };
+      }
+    }
+
+    if (schemaCol.constraints?.maxLength && incomingVal.length > schemaCol.constraints.maxLength) {
+      return { valid: false, value: incomingVal };
+    }
+
+    const num = Number(incomingVal);
+    if (!isNaN(num) && schemaCol.constraints?.maxHard !== undefined && num > schemaCol.constraints.maxHard) {
+      return { valid: false, value: incomingVal };
+    }
+
+    return { valid: true, value: incomingVal };
+  }
+
+  // 3. Números Decimales (UCS, densidades, cotas, coordenadas, longitudes, etc.)
+  if (schemaCol.type === 'decimal') {
+    const isPositiveOnly = schemaCol.constraints?.positiveOnly !== false;
+
+    // Normalizar coma ',' a punto '.' para teclados en español/latino
+    let val = incomingVal.replace(',', '.');
+
+    // Estados intermedios válidos durante la escritura
+    if (val === '.') {
+      return { valid: true, value: '0.' };
+    }
+    if (!isPositiveOnly && val === '-') {
+      return { valid: true, value: '-' };
+    }
+
+    const decimalRegex = isPositiveOnly
+      ? /^\d+(\.\d*)?$/
+      : /^-?\d*(\.\d*)?$/;
+
+    if (!decimalRegex.test(val)) {
+      return { valid: false, value: val };
+    }
+
+    // Restricción de precisión de decimales (según schemaCol.decimals, por defecto 2)
+    const maxDecimals = schemaCol.decimals ?? 2;
+    if (val.includes('.')) {
+      const parts = val.split('.');
+      if (parts[1] && parts[1].length > maxDecimals) {
+        return { valid: false, value: val };
+      }
+    }
+
+    // Límite físico infranqueable superior (maxHard)
+    const num = Number(val);
+    if (!isNaN(num) && schemaCol.constraints?.maxHard !== undefined && num > schemaCol.constraints.maxHard) {
+      return { valid: false, value: val };
+    }
+
+    return { valid: true, value: val };
+  }
+
+  return { valid: true, value: incomingVal };
+}
