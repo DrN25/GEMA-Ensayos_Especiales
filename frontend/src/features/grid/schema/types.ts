@@ -57,6 +57,26 @@ export interface ColumnConstraints {
 }
 
 /**
+ * Configuración visual y tipográfica opcional para una columna (cabecera y celdas).
+ */
+export interface ColumnStyleConfig {
+  /** Color/clase de fondo para la cabecera <th> (ej: 'bg-orange-950/80', '#1c1917') */
+  headerBg?: string;
+  /** Color/clase de texto para la cabecera (ej: 'text-orange-200', '#fdba74') */
+  headerText?: string;
+  /** Color/clase de fondo para las celdas <td> (ej: 'bg-navy-950/40', '#0f172a') */
+  cellBg?: string;
+  /** Color/clase de texto para las celdas (ej: 'text-slate-200', '#e2e8f0') */
+  cellText?: string;
+  /** Si el texto de las celdas debe renderizarse en negrita */
+  bold?: boolean;
+  /** Si el texto de las celdas debe renderizarse en cursiva */
+  italic?: boolean;
+  /** Si el texto de las celdas debe forzarse a mayúsculas ('uppercase') */
+  uppercase?: boolean;
+}
+
+/**
  * Contrato Single Source of Truth (SSOT) para una columna.
  */
 export interface ColumnSchema<TRow = Record<string, any>> {
@@ -77,6 +97,9 @@ export interface ColumnSchema<TRow = Record<string, any>> {
   minWidth?: number;
   maxWidth?: number;
   editor: 'text' | 'select' | 'number' | 'none';
+
+  // Configuración de estilo visual y tipográfico
+  style?: ColumnStyleConfig;
 
   // Reglas de validación y vacíos
   constraints?: ColumnConstraints;

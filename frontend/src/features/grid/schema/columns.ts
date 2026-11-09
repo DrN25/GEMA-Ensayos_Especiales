@@ -1,5 +1,162 @@
 // frontend/src/features/grid/schema/columns.ts
-import type { ColumnSchema } from './types';
+import type { ColumnSchema, ColumnStyleConfig } from './types';
+
+/*
+================================================================================
+GUÍA RÁPIDA: ESQUELETOS (BODY) PARA CREAR NUEVAS COLUMNAS EN EL ESQUEMA (SSOT)
+================================================================================
+
+Para agregar una nueva columna, copia uno de los siguientes esqueletos y agrégalo
+al arreglo COLUMNS_SCHEMA.
+
+1. DECIMAL (Para valores numéricos con coma flotante, límites físicos y geomecánicos):
+--------------------------------------------------------------------------------
+decimalColumn({
+  id: 'mi_columna_decimal',          // Clave en BD / JSON
+  header: 'Mi Decimal',              // Cabecera compacta en grid
+  excelName: 'Mi Columna Decimal',   // Nombre formal en Excel
+  group: 'Ensayo UCS',               // Grupo en cabecera nivel 0
+  module: 'ucs',                     // Módulo geomecánico de pertenencia
+  unit: 'MPa',                       // Unidad que se muestra entre paréntesis en cabecera
+  decimals: 2,                       // Precisión decimal visual (el dato crudo no se trunca)
+  displayHint: 'Vista a 2 decimales',// Tooltip explicativo de redondeo
+  defaultWidth: 130,                 // Ancho inicial en píxeles (default: 120)
+  minWidth: 80,                      // Ancho mínimo permitido al redimensionar
+  maxWidth: 300,                     // Ancho máximo permitido (opcional)
+  constraints: {
+    positiveOnly: true,              // Si es <= 0 emite alerta CRÍTICA
+    minHard: 0.01,                   // Límite físico infranqueable mínimo (CRÍTICO)
+    maxHard: 500.0,                  // Límite físico infranqueable máximo (CRÍTICO)
+    minSoft: 5.0,                    // Límite geomecánico recomendado inferior (AVISO)
+    maxSoft: 250.0                   // Límite geomecánico recomendado superior (AVISO)
+  },
+  emptyPolicy: 'warn',               // 'allowed' (permite vacío) | 'warn' (AVISO) | 'block' (CRÍTICO)
+  style: COLUMN_GROUP_STYLES.ucs,    // Estilo temático de cabecera y celdas
+  visibleIn: ['ucs', 'registro_maestro'], // Módulos donde se muestra (opcional)
+  hint: 'Descripción del parámetro'  // Mensaje en tooltip delegado,
+    style: COLUMN_GROUP_STYLES.ucs,
+}),
+
+2. ENTERO (Para conteos, identificadores, días, años sin decimales):
+--------------------------------------------------------------------------------
+integerColumn({
+  id: 'mi_columna_entera',
+  header: 'Mi Entero',
+  excelName: 'Mi Columna Entera',
+  group: 'Datos Comunes de Campo',
+  module: 'common',
+  defaultWidth: 90,
+  constraints: { positiveOnly: true, minHard: 1, maxHard: 100 },
+  emptyPolicy: 'allowed',
+  style: COLUMN_GROUP_STYLES.general,
+    style: COLUMN_GROUP_STYLES.general,
+}),
+
+3. TEXTO (Para sondajes, códigos, observaciones, nombres de personas o zonas):
+--------------------------------------------------------------------------------
+textColumn({
+  id: 'mi_columna_texto',
+  header: 'Mi Texto',
+  excelName: 'Mi Columna de Texto',
+  group: 'Identificación de Muestra',
+  module: 'common',
+  defaultWidth: 140,
+  constraints: { maxLength: 50 },
+  emptyPolicy: 'block',              // Obligatorio para guardado
+  style: { ...COLUMN_GROUP_STYLES.general, uppercase: true, bold: true }, // Mayúsculas y negrita
+  // autoGenerate: (row) => row.sondaje ? `${row.sondaje}-AUTO` : '' // Generación automática opcional,
+    style: COLUMN_GROUP_STYLES.general,
+}),
+
+4. SELECT (Para listas de opciones cerradas o catálogos dinámicos):
+--------------------------------------------------------------------------------
+selectColumn({
+  id: 'mi_columna_select',
+  header: 'Mi Selector',
+  excelName: 'Mi Selector Desplegable',
+  group: 'Datos Comunes de Campo',
+  module: 'common',
+  defaultWidth: 130,
+  options: ['Opción A', 'Opción B', 'Opción C'], // Opciones estáticas
+  // dynamicOptionsKey: 'proyectos',             // O 'laboratorios' para opciones desde BD
+  emptyPolicy: 'allowed',
+  style: COLUMN_GROUP_STYLES.general,
+    style: COLUMN_GROUP_STYLES.general,
+}),
+
+5. CALCULADA / SOLO LECTURA (Derivada puramente en memoria, sin editor):
+--------------------------------------------------------------------------------
+calculatedColumn({
+  id: 'mi_columna_calculada',
+  header: 'Mi Calculada',
+  excelName: 'Mi Columna Calculada (m)',
+  group: 'Datos Comunes de Campo',
+  module: 'common',
+  unit: 'm',
+  decimals: 2,
+  calculate: (row) => (row.hasta != null && row.desde != null) ? Number(row.hasta) - Number(row.desde) : null,
+  emptyPolicy: 'allowed',
+  style: COLUMN_GROUP_STYLES.general,
+    style: COLUMN_GROUP_STYLES.general,
+}),
+
+6. ACCIÓN / CONTROL UI (Botones de fila fijados a la derecha):
+--------------------------------------------------------------------------------
+actionColumn({
+  id: 'acciones_col',
+  header: 'Acciones',
+  excelName: 'Acciones',
+  group: 'Acciones',
+  module: 'common',
+  pinned: 'right',
+  defaultWidth: 90,
+  style: COLUMN_GROUP_STYLES.general,
+    style: COLUMN_GROUP_STYLES.general,
+})
+================================================================================
+*/
+
+/**
+ * Paleta temática de colores por familia geomecánica para cabeceras y celdas.
+ */
+export const COLUMN_GROUP_STYLES: Record<string, ColumnStyleConfig> = {
+  // Grupo inicial (Identificación y Datos Comunes) y Finales (Validación y Acciones): Slate sobrio
+  general: {
+    headerBg: 'bg-navy-900',
+    headerText: 'text-slate-100'
+  },
+  // Ensayo UCS: Naranja
+  ucs: {
+    headerBg: 'bg-orange-100 dark:bg-orange-950/80',
+    headerText: 'text-orange-950 dark:text-orange-200'
+  },
+  // Constantes Elásticas: Rojo
+  elasticas: {
+    headerBg: 'bg-rose-100 dark:bg-rose-950/80',
+    headerText: 'text-rose-950 dark:text-rose-200'
+  },
+  // Tracción Indirecta: Amarillo / Ámbar
+  traccion: {
+    headerBg: 'bg-amber-100 dark:bg-amber-950/80',
+    headerText: 'text-amber-950 dark:text-amber-200'
+  },
+  // Corte Directo: Verde Esmeralda
+  corte: {
+    headerBg: 'bg-emerald-100 dark:bg-emerald-950/80',
+    headerText: 'text-emerald-950 dark:text-emerald-200'
+  },
+  // Compresión Triaxial: Guinda (Borgoña / Vino)
+  triaxial: {
+    headerBg: 'bg-pink-100 dark:bg-[#3b0d21]/90',
+    headerText: 'text-pink-950 dark:text-[#fbcfe8]'
+  },
+  // Propiedades Físicas: Celeste / Cyan
+  propiedades: {
+    headerBg: 'bg-cyan-100 dark:bg-cyan-950/80',
+    headerText: 'text-cyan-950 dark:text-cyan-200'
+  }
+};
+
 import {
   textColumn,
   integerColumn,
@@ -49,7 +206,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     editor: 'none',
     emptyPolicy: 'allowed',
     constraints: { positiveOnly: true, minHard: 1 },
-    hint: 'Identificador único del registro'
+    hint: 'Identificador único del registro',
+    style: { ...COLUMN_GROUP_STYLES.general, bold: true },
   }),
   textColumn({
     id: 'sondaje',
@@ -63,7 +221,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     pinned: 'left',
     emptyPolicy: 'block',
     constraints: { maxLength: 50 },
-    hint: 'Identificador del sondaje diamantino'
+    hint: 'Identificador del sondaje diamantino',
+    style: { ...COLUMN_GROUP_STYLES.general, bold: true, uppercase: true },
   }),
   textColumn({
     id: 'codigo_muestra',
@@ -79,7 +238,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     constraints: { maxLength: 50 },
     hint: 'Código único de la probeta para geotecnia',
     autoGenerate: (row: Record<string, any>) =>
-      row.sondaje ? `${row.sondaje}-UCS-M${String(row.idd || 0).padStart(2, '0')}` : ''
+      row.sondaje ? `${row.sondaje}-UCS-M${String(row.idd || 0).padStart(2, '0')}` : '',
+    style: { ...COLUMN_GROUP_STYLES.general, bold: true, uppercase: true },
   }),
 
   // =========================================================================
@@ -94,7 +254,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     defaultWidth: 110,
     minWidth: 80,
     dynamicOptionsKey: 'laboratorios',
-    hint: 'Entidad ejecutora del ensayo'
+    hint: 'Entidad ejecutora del ensayo',
+    style: COLUMN_GROUP_STYLES.general,
   }),
   integerColumn({
     id: 'dia',
@@ -105,7 +266,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     defaultWidth: 70,
     minWidth: 50,
     constraints: { positiveOnly: true, minHard: 1, maxHard: 31 },
-    hint: 'Día de ejecución (1 - 31)'
+    hint: 'Día de ejecución (1 - 31)',
+    style: COLUMN_GROUP_STYLES.general,
   }),
   selectColumn({
     id: 'mes',
@@ -116,7 +278,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     defaultWidth: 90,
     minWidth: 80,
     options: MESES_OPTIONS,
-    hint: 'Mes de ejecución del ensayo'
+    hint: 'Mes de ejecución del ensayo',
+    style: COLUMN_GROUP_STYLES.general,
   }),
   integerColumn({
     id: 'anio',
@@ -127,7 +290,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     defaultWidth: 80,
     minWidth: 60,
     constraints: { positiveOnly: true, minHard: 1980, maxHard: 2050 },
-    hint: 'Año de ejecución (1980 - 2050)'
+    hint: 'Año de ejecución (1980 - 2050)',
+    style: COLUMN_GROUP_STYLES.general,
   }),
   selectColumn({
     id: 'proyecto',
@@ -138,7 +302,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     defaultWidth: 130,
     minWidth: 90,
     dynamicOptionsKey: 'proyectos',
-    hint: 'Proyecto minero o geológico asociado'
+    hint: 'Proyecto minero o geológico asociado',
+    style: COLUMN_GROUP_STYLES.general,
   }),
   decimalColumn({
     id: 'desde',
@@ -151,7 +316,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     unit: 'm',
     decimals: 2,
     constraints: { positiveOnly: true, minHard: 0.0 },
-    hint: 'Registrar en metros (m)'
+    hint: 'Registrar en metros (m)',
+    style: COLUMN_GROUP_STYLES.general,
   }),
   decimalColumn({
     id: 'hasta',
@@ -164,7 +330,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     unit: 'm',
     decimals: 2,
     constraints: { positiveOnly: true, minHard: 0.0 },
-    hint: 'Registrar en metros (m)'
+    hint: 'Registrar en metros (m)',
+    style: COLUMN_GROUP_STYLES.general,
   }),
   calculatedColumn({
     id: 'longitud_muestra',
@@ -193,7 +360,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
         return Number((h - d).toFixed(2));
       }
       return null;
-    }
+    },
+    style: COLUMN_GROUP_STYLES.general,
   }),
   decimalColumn({
     id: 'este',
@@ -206,7 +374,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     unit: 'm',
     decimals: 2,
     constraints: { positiveOnly: true, minHard: 0.0 },
-    hint: 'Registrar en metros (m) UTM Este'
+    hint: 'Registrar en metros (m) UTM Este',
+    style: COLUMN_GROUP_STYLES.general,
   }),
   decimalColumn({
     id: 'norte',
@@ -219,7 +388,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     unit: 'm',
     decimals: 2,
     constraints: { positiveOnly: true, minHard: 0.0 },
-    hint: 'Registrar en metros (m) UTM Norte'
+    hint: 'Registrar en metros (m) UTM Norte',
+    style: COLUMN_GROUP_STYLES.general,
   }),
   decimalColumn({
     id: 'elevacion',
@@ -232,7 +402,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     unit: 'msnm',
     decimals: 2,
     constraints: { positiveOnly: true },
-    hint: 'Registrar en msnm'
+    hint: 'Registrar en msnm',
+    style: COLUMN_GROUP_STYLES.general,
   }),
   textColumn({
     id: 'sectores',
@@ -242,7 +413,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     module: 'common',
     defaultWidth: 110,
     minWidth: 80,
-    hint: 'Sector o zona geomecánica'
+    hint: 'Sector o zona geomecánica',
+    style: COLUMN_GROUP_STYLES.general,
   }),
   textColumn({
     id: 'lito1',
@@ -252,7 +424,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     module: 'common',
     defaultWidth: 90,
     minWidth: 70,
-    hint: 'Litología principal del testigo'
+    hint: 'Litología principal del testigo',
+    style: COLUMN_GROUP_STYLES.general,
   }),
   textColumn({
     id: 'lito2',
@@ -262,7 +435,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     module: 'common',
     defaultWidth: 90,
     minWidth: 70,
-    hint: 'Litología secundaria'
+    hint: 'Litología secundaria',
+    style: COLUMN_GROUP_STYLES.general,
   }),
   textColumn({
     id: 'lito3',
@@ -272,7 +446,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     module: 'common',
     defaultWidth: 90,
     minWidth: 70,
-    hint: 'Litología terciaria o alteración'
+    hint: 'Litología terciaria o alteración',
+    style: COLUMN_GROUP_STYLES.general,
   }),
   selectColumn({
     id: 'tipo_ensayo',
@@ -283,7 +458,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     defaultWidth: 150,
     minWidth: 100,
     options: TIPO_ENSAYO_OPTIONS,
-    hint: 'Tipo de ensayo geomecánico de laboratorio'
+    hint: 'Tipo de ensayo geomecánico de laboratorio',
+    style: COLUMN_GROUP_STYLES.general,
   }),
 
   // =========================================================================
@@ -300,7 +476,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     unit: 'cm',
     decimals: 2,
     constraints: { positiveOnly: true, minSoft: 1.0, maxSoft: 20.0 },
-    hint: 'Registrar en cm'
+    hint: 'Registrar en cm',
+    style: COLUMN_GROUP_STYLES.ucs,
   }),
   decimalColumn({
     id: 'ucs_carga_rotura',
@@ -313,7 +490,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     unit: 'kN',
     decimals: 2,
     constraints: { positiveOnly: true, minSoft: 0.1 },
-    hint: 'Registre la unidad en kN'
+    hint: 'Registre la unidad en kN',
+    style: COLUMN_GROUP_STYLES.ucs,
   }),
   decimalColumn({
     id: 'ucs_resistencia',
@@ -326,7 +504,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     unit: 'MPa',
     decimals: 2,
     constraints: { positiveOnly: true, minSoft: 0.1 },
-    hint: 'Registrar en MPa'
+    hint: 'Registrar en MPa',
+    style: COLUMN_GROUP_STYLES.ucs,
   }),
   calculatedColumn({
     id: 'ucs_resistencia_calculada',
@@ -358,7 +537,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
         return Number(((p * 1000.0) / areaMm2).toFixed(2));
       }
       return null;
-    }
+    },
+    style: COLUMN_GROUP_STYLES.ucs,
   }),
   textColumn({
     id: 'ucs_rotura',
@@ -368,7 +548,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     module: 'ucs',
     defaultWidth: 100,
     minWidth: 70,
-    hint: 'Patrón o tipo de fracturamiento'
+    hint: 'Patrón o tipo de fracturamiento',
+    style: COLUMN_GROUP_STYLES.ucs,
   }),
 
   // =========================================================================
@@ -385,7 +566,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     unit: 'GPa',
     decimals: 2,
     constraints: { positiveOnly: true, minSoft: 1.0, maxSoft: 150.0 },
-    hint: 'Registrar en GPa'
+    hint: 'Registrar en GPa',
+    style: COLUMN_GROUP_STYLES.elasticas,
   }),
   decimalColumn({
     id: 'elasticas_poisson',
@@ -397,7 +579,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     minWidth: 70,
     decimals: 3,
     constraints: { positiveOnly: true, minSoft: 0.05, maxHard: 0.50 },
-    hint: 'Relación de Poisson estática (0.05 - 0.45)'
+    hint: 'Relación de Poisson estática (0.05 - 0.45)',
+    style: COLUMN_GROUP_STYLES.elasticas,
   }),
 
   // =========================================================================
@@ -414,7 +597,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     unit: 'kN',
     decimals: 2,
     constraints: { positiveOnly: true, minSoft: 0.1 },
-    hint: 'Registre la unidad en kN'
+    hint: 'Registre la unidad en kN',
+    style: COLUMN_GROUP_STYLES.traccion,
   }),
   decimalColumn({
     id: 'traccion_resistencia_kgcm2',
@@ -427,7 +611,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     unit: 'kg/cm²',
     decimals: 2,
     constraints: { positiveOnly: true, minSoft: 0.1 },
-    hint: 'Registre en kg/cm²'
+    hint: 'Registre en kg/cm²',
+    style: COLUMN_GROUP_STYLES.traccion,
   }),
   textColumn({
     id: 'traccion_vacia_28',
@@ -437,7 +622,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     module: 'traccion',
     defaultWidth: 120,
     minWidth: 70,
-    hint: 'Campo auxiliar de ensayo brasileño'
+    hint: 'Campo auxiliar de ensayo brasileño',
+    style: COLUMN_GROUP_STYLES.traccion,
   }),
   decimalColumn({
     id: 'traccion_resistencia_mpa',
@@ -450,7 +636,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     unit: 'MPa',
     decimals: 2,
     constraints: { positiveOnly: true, minSoft: 0.01 },
-    hint: 'Registre en MPa'
+    hint: 'Registre en MPa',
+    style: COLUMN_GROUP_STYLES.traccion,
   }),
   textColumn({
     id: 'traccion_observaciones',
@@ -461,7 +648,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     visibleIn: ['traccion'],
     defaultWidth: 180,
     minWidth: 100,
-    hint: 'Observaciones específicas de los ensayos de tracción indirecta'
+    hint: 'Observaciones específicas de los ensayos de tracción indirecta',
+    style: COLUMN_GROUP_STYLES.traccion,
   }),
 
   // =========================================================================
@@ -475,7 +663,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     module: 'corte',
     defaultWidth: 130,
     minWidth: 80,
-    hint: 'Descripción del plano de discontinuidad'
+    hint: 'Descripción del plano de discontinuidad',
+    style: COLUMN_GROUP_STYLES.corte,
   }),
   decimalColumn({
     id: 'corte_area',
@@ -488,7 +677,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     unit: 'cm²',
     decimals: 2,
     constraints: { positiveOnly: true, minSoft: 1.0 },
-    hint: 'Registrar en cm²'
+    hint: 'Registrar en cm²',
+    style: COLUMN_GROUP_STYLES.corte,
   }),
   decimalColumn({
     id: 'corte_esf_normal_kpa',
@@ -501,7 +691,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     unit: 'kPa',
     decimals: 2,
     constraints: { positiveOnly: true, minHard: 0.0 },
-    hint: 'Registrar en kPa'
+    hint: 'Registrar en kPa',
+    style: COLUMN_GROUP_STYLES.corte,
   }),
   decimalColumn({
     id: 'corte_esf_corte_kpa',
@@ -514,7 +705,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     unit: 'kPa',
     decimals: 2,
     constraints: { positiveOnly: true, minHard: 0.0 },
-    hint: 'Registrar en kPa'
+    hint: 'Registrar en kPa',
+    style: COLUMN_GROUP_STYLES.corte,
   }),
   calculatedColumn({
     id: 'corte_esf_normal_mpa',
@@ -538,7 +730,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
         return Number((kpa / 1000.0).toFixed(4));
       }
       return null;
-    }
+    },
+    style: COLUMN_GROUP_STYLES.corte,
   }),
   calculatedColumn({
     id: 'corte_esf_corte_mpa',
@@ -562,7 +755,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
         return Number((kpa / 1000.0).toFixed(4));
       }
       return null;
-    }
+    },
+    style: COLUMN_GROUP_STYLES.corte,
   }),
   decimalColumn({
     id: 'corte_cohesion_mpa',
@@ -575,7 +769,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     unit: 'MPa',
     decimals: 2,
     constraints: { positiveOnly: true, minHard: 0.0 },
-    hint: 'Registrar en MPa'
+    hint: 'Registrar en MPa',
+    style: COLUMN_GROUP_STYLES.corte,
   }),
   decimalColumn({
     id: 'corte_angulo_friccion',
@@ -588,7 +783,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     unit: '°',
     decimals: 2,
     constraints: { positiveOnly: true, minHard: 0.0, maxHard: 90.0 },
-    hint: 'Registrar en °'
+    hint: 'Registrar en °',
+    style: COLUMN_GROUP_STYLES.corte,
   }),
 
   // =========================================================================
@@ -605,7 +801,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     unit: 'MPa',
     decimals: 2,
     constraints: { positiveOnly: true, minHard: 0.0 },
-    hint: 'Registrar en MPa'
+    hint: 'Registrar en MPa',
+    style: COLUMN_GROUP_STYLES.triaxial,
   }),
   decimalColumn({
     id: 'triaxial_esfuerzo_maximo',
@@ -618,7 +815,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     unit: 'MPa',
     decimals: 2,
     constraints: { positiveOnly: true, minSoft: 0.1 },
-    hint: 'Registrar en MPa'
+    hint: 'Registrar en MPa',
+    style: COLUMN_GROUP_STYLES.triaxial,
   }),
   decimalColumn({
     id: 'triaxial_resistencia_mpa',
@@ -631,7 +829,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     unit: 'MPa',
     decimals: 2,
     constraints: { positiveOnly: true, minSoft: 0.1 },
-    hint: 'Registrar en MPa'
+    hint: 'Registrar en MPa',
+    style: COLUMN_GROUP_STYLES.triaxial,
   }),
   decimalColumn({
     id: 'triaxial_mi',
@@ -643,7 +842,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     minWidth: 70,
     decimals: 2,
     constraints: { positiveOnly: true, minSoft: 0.1 },
-    hint: 'Parámetro de Hoek-Brown para roca intacta'
+    hint: 'Parámetro de Hoek-Brown para roca intacta',
+    style: COLUMN_GROUP_STYLES.triaxial,
   }),
   decimalColumn({
     id: 'triaxial_cohesion_mpa',
@@ -656,7 +856,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     unit: 'MPa',
     decimals: 2,
     constraints: { positiveOnly: true, minHard: 0.0 },
-    hint: 'Registrar en MPa'
+    hint: 'Registrar en MPa',
+    style: COLUMN_GROUP_STYLES.triaxial,
   }),
   decimalColumn({
     id: 'triaxial_angulo_friccion',
@@ -669,7 +870,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     unit: '°',
     decimals: 2,
     constraints: { positiveOnly: true, minHard: 0.0, maxHard: 90.0 },
-    hint: 'Registrar en °'
+    hint: 'Registrar en °',
+    style: COLUMN_GROUP_STYLES.triaxial,
   }),
   textColumn({
     id: 'triaxial_rotura',
@@ -679,7 +881,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     module: 'triaxial',
     defaultWidth: 100,
     minWidth: 70,
-    hint: 'Descripción de la superficie de falla triaxial'
+    hint: 'Descripción de la superficie de falla triaxial',
+    style: COLUMN_GROUP_STYLES.triaxial,
   }),
 
   // =========================================================================
@@ -694,7 +897,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     defaultWidth: 125,
     minWidth: 100,
     maxWidth: 160,
-    hint: 'Estado de validación geomecánica QA/QC'
+    hint: 'Estado de validación geomecánica QA/QC',
+    style: COLUMN_GROUP_STYLES.general,
   }),
   textColumn({
     id: 'observacion',
@@ -704,7 +908,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     module: 'common',
     defaultWidth: 160,
     minWidth: 100,
-    hint: 'Observaciones o notas de campo'
+    hint: 'Observaciones o notas de campo',
+    style: COLUMN_GROUP_STYLES.general,
   }),
   textColumn({
     id: 'campana',
@@ -714,7 +919,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     module: 'common',
     defaultWidth: 130,
     minWidth: 80,
-    hint: 'Campaña de perforación'
+    hint: 'Campaña de perforación',
+    style: COLUMN_GROUP_STYLES.general,
   }),
 
   // =========================================================================
@@ -731,7 +937,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     unit: 'g/cm³',
     decimals: 2,
     constraints: { positiveOnly: true, minSoft: 1.0, maxSoft: 4.0 },
-    hint: 'Registrar en g/cm³'
+    hint: 'Registrar en g/cm³',
+    style: COLUMN_GROUP_STYLES.propiedades,
   }),
 
   // =========================================================================
@@ -747,7 +954,8 @@ export const COLUMNS_SCHEMA: ColumnSchema[] = [
     minWidth: 80,
     maxWidth: 120,
     pinned: 'right',
-    hint: 'Operaciones rápidas sobre la fila'
+    hint: 'Operaciones rápidas sobre la fila',
+    style: COLUMN_GROUP_STYLES.general,
   })
 ];
 

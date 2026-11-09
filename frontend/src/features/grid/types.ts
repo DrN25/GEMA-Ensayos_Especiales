@@ -1,4 +1,5 @@
 // frontend/src/features/grid/types.ts
+import type { ColumnStyleConfig } from './schema/types';
 
 export type ColumnType = 'string' | 'number' | 'select' | 'date' | 'readonly';
 export type ColumnEditor = 'text' | 'select' | 'number' | 'none';
@@ -31,6 +32,7 @@ export interface GridColumnDef<T = Record<string, any>> {
   decimals?: number;
   displayHint?: string;
   format?: (value: any) => string;
+  style?: ColumnStyleConfig;
 }
 
 export interface CellCoordinate {

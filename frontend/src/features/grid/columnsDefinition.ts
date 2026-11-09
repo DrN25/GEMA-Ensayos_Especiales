@@ -46,7 +46,8 @@ export function schemaToGridColumnDef(col: ColumnSchema): GridColumnDef {
     unit: col.unit,
     decimals: col.decimals,
     displayHint: col.displayHint,
-    format: col.format
+    format: col.format,
+    style: col.style
   };
 }
 
