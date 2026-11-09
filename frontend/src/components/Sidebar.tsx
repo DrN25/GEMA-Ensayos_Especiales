@@ -80,6 +80,7 @@ export default function Sidebar({
         { id: 'propiedades', label: 'Propiedades Físicas', icon: Layers }
       ]
     },
+    /*
     {
       category: 'CONTROL DE CALIDAD',
       items: [
@@ -98,6 +99,7 @@ export default function Sidebar({
         { id: 'proyectos', label: 'Proyectos y Canteras', icon: FolderLock }
       ]
     }
+    */
   ];
 
   return (
