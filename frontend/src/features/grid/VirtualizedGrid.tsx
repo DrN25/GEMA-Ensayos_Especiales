@@ -7,7 +7,7 @@ import {
 } from '@tanstack/react-table';
 import type { ColumnDef, Table, HeaderGroup, Header } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Plus, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import type { GridColumnDef, FloatingEditorPosition, ColumnPinned } from './types';
 import { getGridColumnsForModule } from './columnsDefinition';
 import { useGridStore } from './gridStore';
@@ -604,6 +604,35 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
     : (pageSize === -1 ? 1 : (totalPages ?? 1));
   const effectivePage = Math.min(Math.max(1, page ?? 1), effectiveTotalPages);
 
+  // Estado local para input de salto rápido de página
+  const [pageInputValue, setPageInputValue] = useState<string>(String(effectivePage));
+
+  useEffect(() => {
+    setPageInputValue(String(effectivePage));
+  }, [effectivePage]);
+
+  const handlePageInputCommit = useCallback(() => {
+    const parsed = parseInt(pageInputValue.trim(), 10);
+    if (isNaN(parsed)) {
+      setPageInputValue(String(effectivePage));
+      return;
+    }
+    const clamped = Math.max(1, Math.min(effectiveTotalPages, parsed));
+    setPageInputValue(String(clamped));
+    if (clamped !== effectivePage && onPageChange) {
+      onPageChange(clamped);
+    }
+  }, [pageInputValue, effectivePage, effectiveTotalPages, onPageChange]);
+
+  const handlePageInputKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.currentTarget.blur();
+    } else if (e.key === 'Escape') {
+      setPageInputValue(String(effectivePage));
+      e.currentTarget.blur();
+    }
+  }, [effectivePage]);
+
   // Filas visibles en la grilla según el modo de paginación
   const visibleRowIds = useMemo(() => {
     if (!isClientPaginated) return rowIds;
@@ -1081,16 +1110,29 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
       {/* Barra de Paginación Rápida Restaurada */}
       <div
         data-testid="grid-pagination-bar"
-        className="flex flex-wrap items-center justify-between px-4 py-2.5 bg-navy-950/90 border-t border-navy-800 text-xs text-slate-400 gap-3 select-none"
+        className="flex flex-wrap items-center justify-between px-4 py-2 bg-navy-950/90 border-t border-navy-800 text-xs text-slate-400 gap-3 select-none"
       >
         <div className="flex items-center gap-3">
-          <span>
-            Página <span className="font-bold text-slate-200">{effectivePage}</span> de{' '}
-            <span className="font-bold text-slate-200">{effectiveTotalPages}</span>
+          <div className="flex items-center gap-1.5">
+            <span>Página</span>
+            <input
+              data-testid="grid-page-input"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={pageInputValue}
+              onChange={(e) => setPageInputValue(e.target.value.replace(/[^0-9]/g, ''))}
+              onBlur={handlePageInputCommit}
+              onKeyDown={handlePageInputKeyDown}
+              disabled={pageSize === -1 || effectiveTotalPages <= 1 || !onPageChange || isLoading}
+              title="Escribe un número de página y presiona Enter"
+              className="w-12 text-center bg-navy-900 border border-navy-700 hover:border-navy-600 focus:border-sky-500 rounded px-1.5 py-0.5 text-xs text-slate-200 font-bold focus:outline-none transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            />
+            <span>de <span className="font-bold text-slate-200">{effectiveTotalPages}</span></span>
             <span className="text-slate-500 ml-1.5 font-mono">
               ({(totalRecords !== undefined ? Math.max(totalRecords, rowIds.length) : rowIds.length).toLocaleString()} registros totales)
             </span>
-          </span>
+          </div>
 
           {onPageSizeChange && (
             <div className="flex items-center gap-1.5 pl-3 border-l border-navy-800">
@@ -1110,22 +1152,48 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <button
+            data-testid="grid-btn-first"
+            type="button"
+            title="Primera página"
+            onClick={() => onPageChange && onPageChange(1)}
+            disabled={effectivePage <= 1 || !onPageChange || isLoading || pageSize === -1}
+            className="p-1.5 rounded-lg border border-navy-800 bg-navy-900 text-slate-300 hover:bg-navy-800 hover:text-white transition-all disabled:opacity-30 disabled:pointer-events-none"
+          >
+            <ChevronsLeft size={14} />
+          </button>
+          <button
+            data-testid="grid-btn-prev"
+            type="button"
+            title="Página anterior"
             onClick={() => onPageChange && onPageChange(Math.max(1, effectivePage - 1))}
             disabled={effectivePage <= 1 || !onPageChange || isLoading || pageSize === -1}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-navy-800 bg-navy-900 text-slate-300 hover:bg-navy-800 hover:text-white transition-all disabled:opacity-30 disabled:pointer-events-none font-bold"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-navy-800 bg-navy-900 text-slate-300 hover:bg-navy-800 hover:text-white transition-all disabled:opacity-30 disabled:pointer-events-none font-bold text-xs"
           >
             <ChevronLeft size={14} />
             <span>Anterior</span>
           </button>
           <button
+            data-testid="grid-btn-next"
+            type="button"
+            title="Página siguiente"
             onClick={() => onPageChange && onPageChange(Math.min(effectiveTotalPages, effectivePage + 1))}
             disabled={effectivePage >= effectiveTotalPages || !onPageChange || isLoading || pageSize === -1}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-navy-800 bg-navy-900 text-slate-300 hover:bg-navy-800 hover:text-white transition-all disabled:opacity-30 disabled:pointer-events-none font-bold"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-navy-800 bg-navy-900 text-slate-300 hover:bg-navy-800 hover:text-white transition-all disabled:opacity-30 disabled:pointer-events-none font-bold text-xs"
           >
             <span>Siguiente</span>
             <ChevronRight size={14} />
+          </button>
+          <button
+            data-testid="grid-btn-last"
+            type="button"
+            title="Última página"
+            onClick={() => onPageChange && onPageChange(effectiveTotalPages)}
+            disabled={effectivePage >= effectiveTotalPages || !onPageChange || isLoading || pageSize === -1}
+            className="p-1.5 rounded-lg border border-navy-800 bg-navy-900 text-slate-300 hover:bg-navy-800 hover:text-white transition-all disabled:opacity-30 disabled:pointer-events-none"
+          >
+            <ChevronsRight size={14} />
           </button>
         </div>
       </div>

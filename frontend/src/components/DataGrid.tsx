@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { ColumnDef } from '../utils/columnsConfig';
 import { getColumnsForModule, COLUMNS_CONFIG, clampValue } from '../utils/columnsConfig';
-import { Plus, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import type { QAQCAlert } from '../utils/qaqcValidator';
 
 interface DataGridProps {
@@ -253,8 +253,40 @@ export default function DataGrid({
 
   // ponytail: client-side slicing ensures DOM only ever renders pageSize (<=50) rows,
   // preventing browser freeze when user loads or imports hundreds or thousands of rows.
-  const isClientPaginated = records.length > pageSize;
-  const computedTotalPages = isClientPaginated ? Math.ceil(records.length / pageSize) : (totalPages || 1);
+  const isClientPaginated = pageSize !== undefined && pageSize !== -1 && records.length > pageSize;
+  const computedTotalPages = isClientPaginated
+    ? Math.max(1, Math.ceil(records.length / pageSize))
+    : (pageSize === -1 ? 1 : (totalPages || 1));
+
+  // Estado local para input de salto rápido de página
+  const [pageInputValue, setPageInputValue] = useState<string>(String(page));
+
+  useEffect(() => {
+    setPageInputValue(String(page));
+  }, [page]);
+
+  const handlePageInputCommit = () => {
+    const parsed = parseInt(pageInputValue.trim(), 10);
+    if (isNaN(parsed)) {
+      setPageInputValue(String(page));
+      return;
+    }
+    const clamped = Math.max(1, Math.min(computedTotalPages, parsed));
+    setPageInputValue(String(clamped));
+    if (clamped !== page && onPageChange) {
+      onPageChange(clamped);
+    }
+  };
+
+  const handlePageInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.currentTarget.blur();
+    } else if (e.key === 'Escape') {
+      setPageInputValue(String(page));
+      e.currentTarget.blur();
+    }
+  };
+
   const displayedRecords = useMemo(() => {
     if (!isClientPaginated) return records;
     const start = (page - 1) * pageSize;
@@ -955,15 +987,28 @@ export default function DataGrid({
         </div>
 
         {/* Barra de Paginación Rápida */}
-        <div className="flex flex-wrap items-center justify-between px-4 py-3 bg-navy-950/80 border-t border-navy-800 text-xs text-slate-400 gap-3">
+        <div className="flex flex-wrap items-center justify-between px-4 py-2 bg-navy-950/80 border-t border-navy-800 text-xs text-slate-400 gap-3">
           <div className="flex items-center gap-3">
-            <span>
-              Página <span className="font-bold text-slate-200">{page}</span> de{' '}
-              <span className="font-bold text-slate-200">{computedTotalPages}</span>
+            <div className="flex items-center gap-1.5">
+              <span>Página</span>
+              <input
+                data-testid="datagrid-page-input"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={pageInputValue}
+                onChange={(e) => setPageInputValue(e.target.value.replace(/[^0-9]/g, ''))}
+                onBlur={handlePageInputCommit}
+                onKeyDown={handlePageInputKeyDown}
+                disabled={pageSize === -1 || computedTotalPages <= 1 || !onPageChange || isLoading}
+                title="Escribe un número de página y presiona Enter"
+                className="w-12 text-center bg-navy-900 border border-navy-700 hover:border-navy-600 focus:border-sky-500 rounded px-1.5 py-0.5 text-xs text-slate-200 font-bold focus:outline-none transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              />
+              <span>de <span className="font-bold text-slate-200">{computedTotalPages}</span></span>
               <span className="text-slate-500 ml-1.5 font-mono">
                 ({(isClientPaginated ? records.length : (totalRecords !== undefined ? totalRecords : records.length)).toLocaleString()} registros totales)
               </span>
-            </span>
+            </div>
 
             {onPageSizeChange && (
               <div className="flex items-center gap-1.5 pl-3 border-l border-navy-800">
@@ -971,7 +1016,7 @@ export default function DataGrid({
                 <select
                   value={pageSize}
                   onChange={(e) => onPageSizeChange(Number(e.target.value))}
-                  className="bg-navy-900 border border-navy-800 rounded px-2 py-0.5 text-xs text-slate-300 outline-none"
+                  className="bg-navy-900 border border-navy-800 rounded px-2 py-0.5 text-xs text-slate-300 outline-none cursor-pointer"
                 >
                   <option value={50}>50 filas</option>
                   <option value={100}>100 filas</option>
@@ -983,22 +1028,48 @@ export default function DataGrid({
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
+              data-testid="datagrid-btn-first"
+              type="button"
+              title="Primera página"
+              onClick={() => onPageChange && onPageChange(1)}
+              disabled={page <= 1 || !onPageChange || isLoading || pageSize === -1}
+              className="p-1.5 rounded-lg border border-navy-800 bg-navy-900 text-slate-300 hover:bg-navy-800 hover:text-white transition-all disabled:opacity-30 disabled:pointer-events-none"
+            >
+              <ChevronsLeft size={14} />
+            </button>
+            <button
+              data-testid="datagrid-btn-prev"
+              type="button"
+              title="Página anterior"
               onClick={() => onPageChange && onPageChange(Math.max(1, page - 1))}
-              disabled={page <= 1 || !onPageChange}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-navy-800 bg-navy-900 text-slate-300 hover:bg-navy-800 hover:text-white transition-all disabled:opacity-30 disabled:pointer-events-none font-bold"
+              disabled={page <= 1 || !onPageChange || isLoading || pageSize === -1}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-navy-800 bg-navy-900 text-slate-300 hover:bg-navy-800 hover:text-white transition-all disabled:opacity-30 disabled:pointer-events-none font-bold text-xs"
             >
               <ChevronLeft size={14} />
               <span>Anterior</span>
             </button>
             <button
+              data-testid="datagrid-btn-next"
+              type="button"
+              title="Página siguiente"
               onClick={() => onPageChange && onPageChange(Math.min(computedTotalPages, page + 1))}
-              disabled={page >= computedTotalPages || !onPageChange}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-navy-800 bg-navy-900 text-slate-300 hover:bg-navy-800 hover:text-white transition-all disabled:opacity-30 disabled:pointer-events-none font-bold"
+              disabled={page >= computedTotalPages || !onPageChange || isLoading || pageSize === -1}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-navy-800 bg-navy-900 text-slate-300 hover:bg-navy-800 hover:text-white transition-all disabled:opacity-30 disabled:pointer-events-none font-bold text-xs"
             >
               <span>Siguiente</span>
               <ChevronRight size={14} />
+            </button>
+            <button
+              data-testid="datagrid-btn-last"
+              type="button"
+              title="Última página"
+              onClick={() => onPageChange && onPageChange(computedTotalPages)}
+              disabled={page >= computedTotalPages || !onPageChange || isLoading || pageSize === -1}
+              className="p-1.5 rounded-lg border border-navy-800 bg-navy-900 text-slate-300 hover:bg-navy-800 hover:text-white transition-all disabled:opacity-30 disabled:pointer-events-none"
+            >
+              <ChevronsRight size={14} />
             </button>
           </div>
         </div>

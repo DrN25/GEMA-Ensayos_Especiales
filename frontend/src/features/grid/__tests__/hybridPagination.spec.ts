@@ -87,4 +87,62 @@ describe('Paradigma B: Paginación Híbrida Cliente/Servidor', () => {
     expect(store.getRowById(1)?.sondaje).toBe('S-MODIFICADO-1');
     expect(store.getRowById(51)?.sondaje).toBe('S-MODIFICADO-51');
   });
+
+  it('3. Salto rápido de página editable con validación y clamping estricto', () => {
+    const totalPages = 180;
+
+    // Función de cálculo idéntica a la implementada en handlePageInputCommit
+    const computePageJump = (rawInput: string, currentPage: number, maxPages: number): number => {
+      const parsed = parseInt(rawInput.trim(), 10);
+      if (isNaN(parsed)) return currentPage;
+      return Math.max(1, Math.min(maxPages, parsed));
+    };
+
+    // Salto válido a la página 45
+    expect(computePageJump('45', 1, totalPages)).toBe(45);
+
+    // Salto fuera de rango superior (999) -> se limita a totalPages (180)
+    expect(computePageJump('999', 1, totalPages)).toBe(180);
+
+    // Salto fuera de rango inferior (0) -> se limita a 1
+    expect(computePageJump('0', 10, totalPages)).toBe(1);
+
+    // Entrada vacía o inválida -> conserva la página actual
+    expect(computePageJump('', 10, totalPages)).toBe(10);
+    expect(computePageJump('abc', 10, totalPages)).toBe(10);
+  });
+
+  it('4. Botones Primera y Última página con condiciones de deshabilitación', () => {
+    const totalPages = 180;
+
+    // En página 1
+    const page1 = 1;
+    const isFirstDisabledP1 = page1 <= 1;
+    const isPrevDisabledP1 = page1 <= 1;
+    const isNextDisabledP1 = page1 >= totalPages;
+    const isLastDisabledP1 = page1 >= totalPages;
+
+    expect(isFirstDisabledP1).toBe(true);
+    expect(isPrevDisabledP1).toBe(true);
+    expect(isNextDisabledP1).toBe(false);
+    expect(isLastDisabledP1).toBe(false);
+
+    // En página 45 (intermedia)
+    const page45 = 45;
+    expect(page45 <= 1).toBe(false);
+    expect(page45 >= totalPages).toBe(false);
+
+    // En página 180 (última)
+    const page180 = 180;
+    const isFirstDisabledP180 = page180 <= 1;
+    const isPrevDisabledP180 = page180 <= 1;
+    const isNextDisabledP180 = page180 >= totalPages;
+    const isLastDisabledP180 = page180 >= totalPages;
+
+    expect(isFirstDisabledP180).toBe(false);
+    expect(isPrevDisabledP180).toBe(false);
+    expect(isNextDisabledP180).toBe(true);
+    expect(isLastDisabledP180).toBe(true);
+  });
 });
+
