@@ -12,6 +12,10 @@ import ExcelImportModal from './components/ExcelImportModal';
 import ExcelExportModal from './components/ExcelExportModal';
 import CatalogsModal from './components/CatalogsModal';
 import BulkAuditor from './features/auditor/BulkAuditor';
+import { SaveBlockingModal } from './components/SaveBlockingModal';
+import { IdCollisionModal } from './components/IdCollisionModal';
+import { SAVE_BLOCKING_POLICY, evaluateSaveBlocking } from './config/savePolicy';
+import { resolveIdCollisions, type IdCollision } from './utils/idCollisionResolver';
 
 import { validateAllRecords, type QAQCAlert } from './utils/qaqcValidator';
 import { getColumnsForModule } from './utils/columnsConfig';
@@ -73,6 +77,19 @@ export default function App() {
 
   // Modal interactivo de proyectos no registrados al importar
   const [unrecognizedProjectModal, setUnrecognizedProjectModal] = useState<{ isOpen: boolean, tempRecords: any[], value: string } | null>(null);
+
+  // Modales de colisiones de IDD y bloqueo de guardado configurable
+  const [saveBlockingModalData, setSaveBlockingModalData] = useState<{
+    isOpen: boolean;
+    alerts: QAQCAlert[];
+    summaryMessage: string;
+  } | null>(null);
+
+  const [idCollisionModalData, setIdCollisionModalData] = useState<{
+    isOpen: boolean;
+    collisions: IdCollision[];
+    pendingRecords: Record<string, any>[];
+  } | null>(null);
 
   const [highlightedCell, setHighlightedCell] = useState<{ idd: number; field: string } | null>(null);
   const [notifications, setNotifications] = useState<NotificationMsg[]>([]);
@@ -264,6 +281,13 @@ export default function App() {
     navigateToTab(tab);
     setTimeout(() => {
       setHighlightedCell({ idd, field });
+      if (isV2) {
+        const rowIds = useGridStore.getState().rowIds;
+        const rowIdx = rowIds.indexOf(idd);
+        if (rowIdx >= 0) {
+          useGridStore.getState().setActiveCell({ rowIdx, colKey: field, rowId: idd });
+        }
+      }
     }, 150);
   };
 
@@ -352,7 +376,7 @@ export default function App() {
     }
   };
 
-  const handleImportExcel = (importedData: Record<string, any>[]) => {
+  const proceedWithImportedRecords = (importedData: Record<string, any>[]) => {
     let unmappedValue = '';
     const mapped = importedData.map(row => {
       const excelProj = String(row.proyecto || "").trim().toUpperCase();
@@ -388,6 +412,25 @@ export default function App() {
       setHasUnsavedImport(true);
       setSaveStatus('unsaved');
       triggerNotification("Importación en Grilla", `Se han cargado ${importedData.length} registros en la grilla para revisión.`, "success");
+    }
+  };
+
+  const handleImportExcel = (importedData: Record<string, any>[]) => {
+    // Detección y resolución de colisiones en memoria ANTES de inyectar o enviar a la base
+    const existingRecordsMap = isV2
+      ? useGridStore.getState().recordsById
+      : new Map(records.map(r => [Number(r.idd), r]));
+
+    const collisionResult = resolveIdCollisions(importedData, existingRecordsMap);
+
+    if (collisionResult.hasCollisions) {
+      setIdCollisionModalData({
+        isOpen: true,
+        collisions: collisionResult.collisions,
+        pendingRecords: collisionResult.resolvedRecords
+      });
+    } else {
+      proceedWithImportedRecords(collisionResult.resolvedRecords);
     }
   };
 
@@ -441,19 +484,16 @@ export default function App() {
   };
 
   const handleSaveAll = async () => {
-    if (isV2) {
-      const dirtyIds = useGridStore.getState().dirtyRowIds;
-      const criticalDirty = qaqcAlerts.filter(a => dirtyIds.has(a.idd) && a.type === 'CRÍTICO');
-      if (criticalDirty.length > 0) {
-        triggerNotification("Bloqueado", `No se puede guardar porque hay ${criticalDirty.length} fila(s) modificada(s) con alertas críticas de QA/QC.`, "error");
-        return;
-      }
-    } else {
-      const criticalAlerts = qaqcAlerts.filter(a => a.type === 'CRÍTICO');
-      if (criticalAlerts.length > 0) {
-        triggerNotification("Bloqueado", "No se puede guardar porque existen alertas de validación críticas.", "error");
-        return;
-      }
+    const dirtyIds = isV2 ? useGridStore.getState().dirtyRowIds : new Set(records.map(r => Number(r.idd)));
+    const blockEval = evaluateSaveBlocking(SAVE_BLOCKING_POLICY, qaqcAlerts, dirtyIds);
+    if (blockEval.isBlocked) {
+      setSaveBlockingModalData({
+        isOpen: true,
+        alerts: blockEval.blockingAlerts,
+        summaryMessage: blockEval.summaryMessage
+      });
+      triggerNotification("Guardado Bloqueado", blockEval.summaryMessage, "error");
+      return;
     }
     setSaveStatus('saving');
     setIsFetchingEnsayos(true);
@@ -912,6 +952,25 @@ export default function App() {
       <CatalogsModal
         isOpen={isCatalogModalOpen}
         onClose={() => setIsCatalogModalOpen(false)}
+      />
+
+      <SaveBlockingModal
+        isOpen={!!saveBlockingModalData?.isOpen}
+        onClose={() => setSaveBlockingModalData(null)}
+        blockingAlerts={saveBlockingModalData?.alerts || []}
+        summaryMessage={saveBlockingModalData?.summaryMessage || ''}
+        onNavigateToCell={handleFocusField}
+      />
+
+      <IdCollisionModal
+        isOpen={!!idCollisionModalData?.isOpen}
+        onClose={() => setIdCollisionModalData(null)}
+        collisions={idCollisionModalData?.collisions || []}
+        onConfirm={() => {
+          if (idCollisionModalData?.pendingRecords) {
+            proceedWithImportedRecords(idCollisionModalData.pendingRecords);
+          }
+        }}
       />
     </div>
   );

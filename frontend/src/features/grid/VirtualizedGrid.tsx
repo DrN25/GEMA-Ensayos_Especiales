@@ -583,6 +583,13 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
     setActiveCell({ rowIdx, colKey, rowId });
   }, [rowIds, isEditing, commitEditing, setActiveCell]);
 
+  // Auto-scroll al cambiar activeCell (p. ej. desde modal de bloqueo o navegacion)
+  useEffect(() => {
+    if (activeCell && activeCell.rowIdx !== undefined) {
+      rowVirtualizer.scrollToIndex(activeCell.rowIdx, { align: 'auto' });
+    }
+  }, [activeCell?.rowIdx, rowVirtualizer]);
+
   const handleCellDoubleClick = useCallback((rowIdx: number, colKey: string) => {
     openEditorForCell(rowIdx, colKey);
   }, [openEditorForCell]);
