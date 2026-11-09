@@ -1,0 +1,881 @@
+{
+  "timestamp": "2026-11-08T18:26:37.622Z",
+  "variants": [
+    {
+      "variant": "Línea Base (Bloque 2)",
+      "etDuration": {
+        "p50": 72,
+        "p95": 168,
+        "mean": 80,
+        "std": 47.58,
+        "min": 16,
+        "max": 168,
+        "n": 30
+      },
+      "etProcessing": {
+        "p50": 3.2,
+        "p95": 5.8,
+        "mean": 4.61,
+        "std": 8.34,
+        "min": 1.5,
+        "max": 48.5,
+        "n": 30
+      },
+      "doubleRaf": {
+        "p50": 156.39,
+        "p95": 329.23,
+        "mean": 165.87,
+        "std": 70.07,
+        "min": 76.9,
+        "max": 331.71,
+        "n": 30
+      },
+      "traceBreakdown": {
+        "windowDurationMs": 61.71,
+        "scriptingJsMs": 4.44,
+        "recalculateStyleMs": 48.76,
+        "layoutMs": 0.92,
+        "paintCompositeMs": 2.76
+      },
+      "raw30": [
+        {
+          "iteration": 6,
+          "eventTimingDuration": 128,
+          "eventTimingProcessing": 48.5,
+          "doubleRafLatency": 189.57
+        },
+        {
+          "iteration": 7,
+          "eventTimingDuration": 80,
+          "eventTimingProcessing": 3.4,
+          "doubleRafLatency": 137.46
+        },
+        {
+          "iteration": 8,
+          "eventTimingDuration": 96,
+          "eventTimingProcessing": 3.4,
+          "doubleRafLatency": 156.75
+        },
+        {
+          "iteration": 9,
+          "eventTimingDuration": 96,
+          "eventTimingProcessing": 3.8,
+          "doubleRafLatency": 159.52
+        },
+        {
+          "iteration": 10,
+          "eventTimingDuration": 96,
+          "eventTimingProcessing": 3.4,
+          "doubleRafLatency": 171.21
+        },
+        {
+          "iteration": 11,
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.5,
+          "doubleRafLatency": 161.38
+        },
+        {
+          "iteration": 12,
+          "eventTimingDuration": 112,
+          "eventTimingProcessing": 3.4,
+          "doubleRafLatency": 187.59
+        },
+        {
+          "iteration": 13,
+          "eventTimingDuration": 136,
+          "eventTimingProcessing": 3.4,
+          "doubleRafLatency": 222.21
+        },
+        {
+          "iteration": 14,
+          "eventTimingDuration": 112,
+          "eventTimingProcessing": 3.1,
+          "doubleRafLatency": 202.3
+        },
+        {
+          "iteration": 15,
+          "eventTimingDuration": 112,
+          "eventTimingProcessing": 3.5,
+          "doubleRafLatency": 203.35
+        },
+        {
+          "iteration": 16,
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.5,
+          "doubleRafLatency": 152.81
+        },
+        {
+          "iteration": 17,
+          "eventTimingDuration": 152,
+          "eventTimingProcessing": 5.8,
+          "doubleRafLatency": 329.23
+        },
+        {
+          "iteration": 18,
+          "eventTimingDuration": 168,
+          "eventTimingProcessing": 3.6,
+          "doubleRafLatency": 294.89
+        },
+        {
+          "iteration": 19,
+          "eventTimingDuration": 168,
+          "eventTimingProcessing": 3.2,
+          "doubleRafLatency": 304.66
+        },
+        {
+          "iteration": 20,
+          "eventTimingDuration": 168,
+          "eventTimingProcessing": 3.5,
+          "doubleRafLatency": 331.71
+        },
+        {
+          "iteration": 21,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3.2,
+          "doubleRafLatency": 85.97
+        },
+        {
+          "iteration": 22,
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.5,
+          "doubleRafLatency": 116.01
+        },
+        {
+          "iteration": 23,
+          "eventTimingDuration": 56,
+          "eventTimingProcessing": 3.1,
+          "doubleRafLatency": 116.63
+        },
+        {
+          "iteration": 24,
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.5,
+          "doubleRafLatency": 96.76
+        },
+        {
+          "iteration": 25,
+          "eventTimingDuration": 72,
+          "eventTimingProcessing": 4.9,
+          "doubleRafLatency": 147.96
+        },
+        {
+          "iteration": 26,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3.3,
+          "doubleRafLatency": 92.29
+        },
+        {
+          "iteration": 27,
+          "eventTimingDuration": 48,
+          "eventTimingProcessing": 2.9,
+          "doubleRafLatency": 106.78
+        },
+        {
+          "iteration": 28,
+          "eventTimingDuration": 56,
+          "eventTimingProcessing": 2.9,
+          "doubleRafLatency": 137.22
+        },
+        {
+          "iteration": 29,
+          "eventTimingDuration": 72,
+          "eventTimingProcessing": 3.2,
+          "doubleRafLatency": 156.39
+        },
+        {
+          "iteration": 30,
+          "eventTimingDuration": 72,
+          "eventTimingProcessing": 3,
+          "doubleRafLatency": 159.59
+        },
+        {
+          "iteration": 31,
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.5,
+          "doubleRafLatency": 76.9
+        },
+        {
+          "iteration": 32,
+          "eventTimingDuration": 48,
+          "eventTimingProcessing": 3.1,
+          "doubleRafLatency": 92.26
+        },
+        {
+          "iteration": 33,
+          "eventTimingDuration": 56,
+          "eventTimingProcessing": 3,
+          "doubleRafLatency": 116.19
+        },
+        {
+          "iteration": 34,
+          "eventTimingDuration": 64,
+          "eventTimingProcessing": 3,
+          "doubleRafLatency": 123.78
+        },
+        {
+          "iteration": 35,
+          "eventTimingDuration": 72,
+          "eventTimingProcessing": 3.3,
+          "doubleRafLatency": 146.86
+        }
+      ]
+    },
+    {
+      "variant": "Exp A: contain: layout style paint",
+      "etDuration": {
+        "p50": 80,
+        "p95": 144,
+        "mean": 74.4,
+        "std": 44.57,
+        "min": 16,
+        "max": 184,
+        "n": 30
+      },
+      "etProcessing": {
+        "p50": 3.2,
+        "p95": 4.4,
+        "mean": 2.91,
+        "std": 0.96,
+        "min": 1.5,
+        "max": 4.9,
+        "n": 30
+      },
+      "doubleRaf": {
+        "p50": 127.12,
+        "p95": 249.24,
+        "mean": 144.13,
+        "std": 52.29,
+        "min": 71.39,
+        "max": 297.41,
+        "n": 30
+      },
+      "traceBreakdown": {
+        "windowDurationMs": 36.1,
+        "scriptingJsMs": 3.68,
+        "recalculateStyleMs": 22.38,
+        "layoutMs": 0.54,
+        "paintCompositeMs": 3.07
+      },
+      "raw30": [
+        {
+          "iteration": 6,
+          "eventTimingDuration": 96,
+          "eventTimingProcessing": 4.4,
+          "doubleRafLatency": 145.76
+        },
+        {
+          "iteration": 7,
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.5,
+          "doubleRafLatency": 103.7
+        },
+        {
+          "iteration": 8,
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.5,
+          "doubleRafLatency": 102.57
+        },
+        {
+          "iteration": 9,
+          "eventTimingDuration": 80,
+          "eventTimingProcessing": 4.9,
+          "doubleRafLatency": 127.48
+        },
+        {
+          "iteration": 10,
+          "eventTimingDuration": 80,
+          "eventTimingProcessing": 3.9,
+          "doubleRafLatency": 126.92
+        },
+        {
+          "iteration": 11,
+          "eventTimingDuration": 96,
+          "eventTimingProcessing": 3.3,
+          "doubleRafLatency": 156.69
+        },
+        {
+          "iteration": 12,
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.5,
+          "doubleRafLatency": 116.02
+        },
+        {
+          "iteration": 13,
+          "eventTimingDuration": 96,
+          "eventTimingProcessing": 3.4,
+          "doubleRafLatency": 166.65
+        },
+        {
+          "iteration": 14,
+          "eventTimingDuration": 96,
+          "eventTimingProcessing": 3.4,
+          "doubleRafLatency": 171.87
+        },
+        {
+          "iteration": 15,
+          "eventTimingDuration": 144,
+          "eventTimingProcessing": 3.1,
+          "doubleRafLatency": 207.28
+        },
+        {
+          "iteration": 16,
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.5,
+          "doubleRafLatency": 132.44
+        },
+        {
+          "iteration": 17,
+          "eventTimingDuration": 112,
+          "eventTimingProcessing": 3,
+          "doubleRafLatency": 197.24
+        },
+        {
+          "iteration": 18,
+          "eventTimingDuration": 128,
+          "eventTimingProcessing": 3.1,
+          "doubleRafLatency": 214.42
+        },
+        {
+          "iteration": 19,
+          "eventTimingDuration": 128,
+          "eventTimingProcessing": 3.2,
+          "doubleRafLatency": 230.44
+        },
+        {
+          "iteration": 20,
+          "eventTimingDuration": 136,
+          "eventTimingProcessing": 3.2,
+          "doubleRafLatency": 249.24
+        },
+        {
+          "iteration": 21,
+          "eventTimingDuration": 184,
+          "eventTimingProcessing": 3.3,
+          "doubleRafLatency": 297.41
+        },
+        {
+          "iteration": 22,
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.5,
+          "doubleRafLatency": 71.39
+        },
+        {
+          "iteration": 23,
+          "eventTimingDuration": 64,
+          "eventTimingProcessing": 3.6,
+          "doubleRafLatency": 114.15
+        },
+        {
+          "iteration": 24,
+          "eventTimingDuration": 80,
+          "eventTimingProcessing": 3.6,
+          "doubleRafLatency": 127.12
+        },
+        {
+          "iteration": 25,
+          "eventTimingDuration": 80,
+          "eventTimingProcessing": 3.1,
+          "doubleRafLatency": 129.34
+        },
+        {
+          "iteration": 26,
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.5,
+          "doubleRafLatency": 82.95
+        },
+        {
+          "iteration": 27,
+          "eventTimingDuration": 72,
+          "eventTimingProcessing": 3.2,
+          "doubleRafLatency": 113.46
+        },
+        {
+          "iteration": 28,
+          "eventTimingDuration": 64,
+          "eventTimingProcessing": 2.9,
+          "doubleRafLatency": 107.31
+        },
+        {
+          "iteration": 29,
+          "eventTimingDuration": 80,
+          "eventTimingProcessing": 3.9,
+          "doubleRafLatency": 125.38
+        },
+        {
+          "iteration": 30,
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.5,
+          "doubleRafLatency": 104.48
+        },
+        {
+          "iteration": 31,
+          "eventTimingDuration": 64,
+          "eventTimingProcessing": 3.1,
+          "doubleRafLatency": 109.31
+        },
+        {
+          "iteration": 32,
+          "eventTimingDuration": 64,
+          "eventTimingProcessing": 3.1,
+          "doubleRafLatency": 115.03
+        },
+        {
+          "iteration": 33,
+          "eventTimingDuration": 80,
+          "eventTimingProcessing": 3.2,
+          "doubleRafLatency": 120.98
+        },
+        {
+          "iteration": 34,
+          "eventTimingDuration": 80,
+          "eventTimingProcessing": 3.3,
+          "doubleRafLatency": 155.77
+        },
+        {
+          "iteration": 35,
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.5,
+          "doubleRafLatency": 101.06
+        }
+      ]
+    },
+    {
+      "variant": "Exp C: Sin sombras / sin transition-colors",
+      "etDuration": {
+        "p50": 40,
+        "p95": 56,
+        "mean": 44,
+        "std": 8.6,
+        "min": 32,
+        "max": 72,
+        "n": 30
+      },
+      "etProcessing": {
+        "p50": 3.6,
+        "p95": 8.6,
+        "mean": 4.14,
+        "std": 1.45,
+        "min": 2.9,
+        "max": 9,
+        "n": 30
+      },
+      "doubleRaf": {
+        "p50": 83.68,
+        "p95": 101.66,
+        "mean": 83.35,
+        "std": 9.38,
+        "min": 70.32,
+        "max": 103.77,
+        "n": 30
+      },
+      "traceBreakdown": {
+        "windowDurationMs": 19.89,
+        "scriptingJsMs": 4.98,
+        "recalculateStyleMs": 8.67,
+        "layoutMs": 0.55,
+        "paintCompositeMs": 2.64
+      },
+      "raw30": [
+        {
+          "iteration": 6,
+          "eventTimingDuration": 48,
+          "eventTimingProcessing": 5.4,
+          "doubleRafLatency": 103.77
+        },
+        {
+          "iteration": 7,
+          "eventTimingDuration": 56,
+          "eventTimingProcessing": 8.6,
+          "doubleRafLatency": 93.92
+        },
+        {
+          "iteration": 8,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3.2,
+          "doubleRafLatency": 72.46
+        },
+        {
+          "iteration": 9,
+          "eventTimingDuration": 72,
+          "eventTimingProcessing": 9,
+          "doubleRafLatency": 99.47
+        },
+        {
+          "iteration": 10,
+          "eventTimingDuration": 48,
+          "eventTimingProcessing": 5.4,
+          "doubleRafLatency": 79.17
+        },
+        {
+          "iteration": 11,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3.6,
+          "doubleRafLatency": 70.32
+        },
+        {
+          "iteration": 12,
+          "eventTimingDuration": 56,
+          "eventTimingProcessing": 5.2,
+          "doubleRafLatency": 91.11
+        },
+        {
+          "iteration": 13,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3.6,
+          "doubleRafLatency": 73.69
+        },
+        {
+          "iteration": 14,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3.5,
+          "doubleRafLatency": 76.47
+        },
+        {
+          "iteration": 15,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3.5,
+          "doubleRafLatency": 85.16
+        },
+        {
+          "iteration": 16,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3.5,
+          "doubleRafLatency": 81.49
+        },
+        {
+          "iteration": 17,
+          "eventTimingDuration": 48,
+          "eventTimingProcessing": 4.3,
+          "doubleRafLatency": 92.53
+        },
+        {
+          "iteration": 18,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 4.1,
+          "doubleRafLatency": 85.48
+        },
+        {
+          "iteration": 19,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 4.2,
+          "doubleRafLatency": 87.85
+        },
+        {
+          "iteration": 20,
+          "eventTimingDuration": 48,
+          "eventTimingProcessing": 3.5,
+          "doubleRafLatency": 101.66
+        },
+        {
+          "iteration": 21,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3.4,
+          "doubleRafLatency": 71.23
+        },
+        {
+          "iteration": 22,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3.4,
+          "doubleRafLatency": 83.68
+        },
+        {
+          "iteration": 23,
+          "eventTimingDuration": 48,
+          "eventTimingProcessing": 3.6,
+          "doubleRafLatency": 82.75
+        },
+        {
+          "iteration": 24,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3.2,
+          "doubleRafLatency": 73.7
+        },
+        {
+          "iteration": 25,
+          "eventTimingDuration": 56,
+          "eventTimingProcessing": 4,
+          "doubleRafLatency": 87.27
+        },
+        {
+          "iteration": 26,
+          "eventTimingDuration": 56,
+          "eventTimingProcessing": 4.9,
+          "doubleRafLatency": 95.42
+        },
+        {
+          "iteration": 27,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 2.9,
+          "doubleRafLatency": 85.25
+        },
+        {
+          "iteration": 28,
+          "eventTimingDuration": 48,
+          "eventTimingProcessing": 4.9,
+          "doubleRafLatency": 85.35
+        },
+        {
+          "iteration": 29,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3.1,
+          "doubleRafLatency": 71.65
+        },
+        {
+          "iteration": 30,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3.4,
+          "doubleRafLatency": 78.85
+        },
+        {
+          "iteration": 31,
+          "eventTimingDuration": 32,
+          "eventTimingProcessing": 3.9,
+          "doubleRafLatency": 75.45
+        },
+        {
+          "iteration": 32,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3.3,
+          "doubleRafLatency": 77.34
+        },
+        {
+          "iteration": 33,
+          "eventTimingDuration": 32,
+          "eventTimingProcessing": 3.2,
+          "doubleRafLatency": 86.98
+        },
+        {
+          "iteration": 34,
+          "eventTimingDuration": 32,
+          "eventTimingProcessing": 3.1,
+          "doubleRafLatency": 77.65
+        },
+        {
+          "iteration": 35,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3.4,
+          "doubleRafLatency": 73.52
+        }
+      ]
+    },
+    {
+      "variant": "Exp A+C: contain + sin sombras/transiciones",
+      "etDuration": {
+        "p50": 40,
+        "p95": 88,
+        "mean": 46.93,
+        "std": 15.26,
+        "min": 16,
+        "max": 96,
+        "n": 30
+      },
+      "etProcessing": {
+        "p50": 3.4,
+        "p95": 7.3,
+        "mean": 3.85,
+        "std": 1.4,
+        "min": 1.5,
+        "max": 7.4,
+        "n": 30
+      },
+      "doubleRaf": {
+        "p50": 86.38,
+        "p95": 134.17,
+        "mean": 104.2,
+        "std": 93.62,
+        "min": 71.4,
+        "max": 592.61,
+        "n": 30
+      },
+      "traceBreakdown": {
+        "windowDurationMs": 31.31,
+        "scriptingJsMs": 5.55,
+        "recalculateStyleMs": 13.37,
+        "layoutMs": 1.05,
+        "paintCompositeMs": 3.14
+      },
+      "raw30": [
+        {
+          "iteration": 6,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3.7,
+          "doubleRafLatency": 86.64
+        },
+        {
+          "iteration": 7,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3.4,
+          "doubleRafLatency": 87.38
+        },
+        {
+          "iteration": 8,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3.1,
+          "doubleRafLatency": 86.41
+        },
+        {
+          "iteration": 9,
+          "eventTimingDuration": 48,
+          "eventTimingProcessing": 3.9,
+          "doubleRafLatency": 86.38
+        },
+        {
+          "iteration": 10,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3.3,
+          "doubleRafLatency": 75.93
+        },
+        {
+          "iteration": 11,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3.5,
+          "doubleRafLatency": 81.39
+        },
+        {
+          "iteration": 12,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3.2,
+          "doubleRafLatency": 71.76
+        },
+        {
+          "iteration": 13,
+          "eventTimingDuration": 48,
+          "eventTimingProcessing": 3.4,
+          "doubleRafLatency": 88.94
+        },
+        {
+          "iteration": 14,
+          "eventTimingDuration": 48,
+          "eventTimingProcessing": 3.6,
+          "doubleRafLatency": 76.88
+        },
+        {
+          "iteration": 15,
+          "eventTimingDuration": 48,
+          "eventTimingProcessing": 3.8,
+          "doubleRafLatency": 101.77
+        },
+        {
+          "iteration": 16,
+          "eventTimingDuration": 48,
+          "eventTimingProcessing": 5.6,
+          "doubleRafLatency": 75.97
+        },
+        {
+          "iteration": 17,
+          "eventTimingDuration": 48,
+          "eventTimingProcessing": 4.1,
+          "doubleRafLatency": 91.6
+        },
+        {
+          "iteration": 18,
+          "eventTimingDuration": 48,
+          "eventTimingProcessing": 3.6,
+          "doubleRafLatency": 79.09
+        },
+        {
+          "iteration": 19,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3.4,
+          "doubleRafLatency": 83.32
+        },
+        {
+          "iteration": 20,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3.3,
+          "doubleRafLatency": 88.36
+        },
+        {
+          "iteration": 21,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3.8,
+          "doubleRafLatency": 82.57
+        },
+        {
+          "iteration": 22,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3.1,
+          "doubleRafLatency": 86.19
+        },
+        {
+          "iteration": 23,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3,
+          "doubleRafLatency": 72.2
+        },
+        {
+          "iteration": 24,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3,
+          "doubleRafLatency": 78.39
+        },
+        {
+          "iteration": 25,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3,
+          "doubleRafLatency": 87.52
+        },
+        {
+          "iteration": 26,
+          "eventTimingDuration": 48,
+          "eventTimingProcessing": 3.1,
+          "doubleRafLatency": 72.22
+        },
+        {
+          "iteration": 27,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3,
+          "doubleRafLatency": 72.27
+        },
+        {
+          "iteration": 28,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 3.1,
+          "doubleRafLatency": 73.56
+        },
+        {
+          "iteration": 29,
+          "eventTimingDuration": 40,
+          "eventTimingProcessing": 2.9,
+          "doubleRafLatency": 71.4
+        },
+        {
+          "iteration": 30,
+          "eventTimingDuration": 48,
+          "eventTimingProcessing": 3.2,
+          "doubleRafLatency": 88.96
+        },
+        {
+          "iteration": 31,
+          "eventTimingDuration": 64,
+          "eventTimingProcessing": 6.6,
+          "doubleRafLatency": 106.35
+        },
+        {
+          "iteration": 32,
+          "eventTimingDuration": 72,
+          "eventTimingProcessing": 6.6,
+          "doubleRafLatency": 114.1
+        },
+        {
+          "iteration": 33,
+          "eventTimingDuration": 88,
+          "eventTimingProcessing": 7.4,
+          "doubleRafLatency": 134.17
+        },
+        {
+          "iteration": 34,
+          "eventTimingDuration": 96,
+          "eventTimingProcessing": 7.3,
+          "doubleRafLatency": 131.58
+        },
+        {
+          "iteration": 35,
+          "eventTimingDuration": 16,
+          "eventTimingProcessing": 1.5,
+          "doubleRafLatency": 592.61
+        }
+      ]
+    }
+  ]
+}

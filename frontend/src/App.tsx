@@ -12,10 +12,16 @@ import ExcelImportModal from './components/ExcelImportModal';
 import ExcelExportModal from './components/ExcelExportModal';
 import CatalogsModal from './components/CatalogsModal';
 import BulkAuditor from './features/auditor/BulkAuditor';
+import { SaveBlockingModal } from './components/SaveBlockingModal';
+import { IdCollisionModal } from './components/IdCollisionModal';
+import { SAVE_BLOCKING_POLICY, evaluateSaveBlocking } from './config/savePolicy';
+import { resolveIdCollisions, type IdCollision } from './utils/idCollisionResolver';
 
 import { validateAllRecords, type QAQCAlert } from './utils/qaqcValidator';
 import { getColumnsForModule } from './utils/columnsConfig';
 import { getStoredDarkMode, persistTheme } from './utils/theme';
+import { getGridVersion } from './features/grid/flags';
+import { useGridStore } from './features/grid/gridStore';
 
 
 const API_BASE = import.meta.env.VITE_API_BASE || (
@@ -41,6 +47,10 @@ export default function App() {
   // --- 1. ESTADOS DE CONTROL PRINCIPALES ---
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
   const [history, setHistory] = useState<string[]>(['dashboard']);
+  const isV2 = getGridVersion() === 'v2';
+  const gridDirtyCount = useGridStore(s => s.dirtyRowIds.size);
+  const gridDeletedCount = useGridStore(s => s.deletedRowIds.size);
+  const gridDataVersion = useGridStore(s => s.dataVersion);
   const [records, setRecords] = useState<Record<string, any>[]>([]);
   const [lastSavedRecords, setLastSavedRecords] = useState<Record<string, any>[]>([]);
 
@@ -68,6 +78,19 @@ export default function App() {
   // Modal interactivo de proyectos no registrados al importar
   const [unrecognizedProjectModal, setUnrecognizedProjectModal] = useState<{ isOpen: boolean, tempRecords: any[], value: string } | null>(null);
 
+  // Modales de colisiones de IDD y bloqueo de guardado configurable
+  const [saveBlockingModalData, setSaveBlockingModalData] = useState<{
+    isOpen: boolean;
+    alerts: QAQCAlert[];
+    summaryMessage: string;
+  } | null>(null);
+
+  const [idCollisionModalData, setIdCollisionModalData] = useState<{
+    isOpen: boolean;
+    collisions: IdCollision[];
+    pendingRecords: Record<string, any>[];
+  } | null>(null);
+
   const [highlightedCell, setHighlightedCell] = useState<{ idd: number; field: string } | null>(null);
   const [notifications, setNotifications] = useState<NotificationMsg[]>([]);
 
@@ -78,8 +101,11 @@ export default function App() {
   const [dbInfo, setDbInfo] = useState<{ db_type: string; is_local_fallback: boolean; server?: string } | null>(null);
 
   const qaqcAlerts = useMemo(() => {
+    if (isV2) {
+      return useGridStore.getState().getQaqcAlerts();
+    }
     return validateAllRecords(records);
-  }, [records]);
+  }, [records, isV2, gridDataVersion]);
 
   // --- 2. EFECTOS GLOBALES Y CONFIGURACIONES ---
   useEffect(() => {
@@ -127,8 +153,12 @@ export default function App() {
       const res = await fetch(`${API_BASE}/api/ensayos?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
-        setRecords(data.items || []);
-        setLastSavedRecords(JSON.parse(JSON.stringify(data.items || [])));
+        const loadedItems = data.items || [];
+        setRecords(loadedItems);
+        setLastSavedRecords(JSON.parse(JSON.stringify(loadedItems)));
+        if (isV2) {
+          useGridStore.getState().setInitialRecords(loadedItems);
+        }
         setTotalPages(data.total_pages || 1);
         setTotalRecords(data.total_filtered || 0);
         setPage(data.page || 1);
@@ -174,17 +204,25 @@ export default function App() {
           const parsed = JSON.parse(cached);
           setRecords(parsed);
           setLastSavedRecords(JSON.parse(JSON.stringify(parsed)));
+          if (isV2) {
+            useGridStore.getState().setInitialRecords(parsed);
+          }
         }
         triggerNotification("Modo Offline", "Sin conexión con la API backend. Se trabajará de manera local.", "warning");
       });
   }, []);
 
-  // Detectar cambios en registros y eliminaciones pendientes
+  // Detectar cambios en registros y eliminaciones pendientes (O(1) en v2 sin JSON.stringify)
   useEffect(() => {
     if (saveStatus === 'saving') return;
-    const hasChanges = JSON.stringify(records) !== JSON.stringify(lastSavedRecords) || pendingDeleteIdds.length > 0;
-    setSaveStatus(hasChanges ? 'unsaved' : 'synced');
-  }, [records, lastSavedRecords, pendingDeleteIdds]);
+    if (isV2) {
+      const hasChanges = gridDirtyCount > 0 || gridDeletedCount > 0 || pendingDeleteIdds.length > 0;
+      setSaveStatus(hasChanges ? 'unsaved' : 'synced');
+    } else {
+      const hasChanges = JSON.stringify(records) !== JSON.stringify(lastSavedRecords) || pendingDeleteIdds.length > 0;
+      setSaveStatus(hasChanges ? 'unsaved' : 'synced');
+    }
+  }, [isV2, gridDirtyCount, gridDeletedCount, records, lastSavedRecords, pendingDeleteIdds]);
 
   // Detectar cambios en proyectos
   useEffect(() => {
@@ -235,10 +273,37 @@ export default function App() {
     }
   };
 
+  // Ganchos de prueba E2E para invocación determinística de modales
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).__testTriggerSaveBlocking = (alerts: any[]) => {
+        setSaveBlockingModalData({
+          isOpen: true,
+          alerts,
+          summaryMessage: `Guardado Bloqueado: ${alerts.length} error(es) crítico(s) detectado(s).`
+        });
+      };
+      (window as any).__testTriggerCollisionModal = (collisions: any[], pendingRecords: any[]) => {
+        setIdCollisionModalData({
+          isOpen: true,
+          collisions,
+          pendingRecords
+        });
+      };
+    }
+  }, []);
+
   const handleFocusField = (idd: number, field: string, tab: string) => {
     navigateToTab(tab);
     setTimeout(() => {
       setHighlightedCell({ idd, field });
+      if (isV2) {
+        const rowIds = useGridStore.getState().rowIds;
+        const rowIdx = rowIds.indexOf(idd);
+        if (rowIdx >= 0) {
+          useGridStore.getState().setActiveCell({ rowIdx, colKey: field, rowId: idd });
+        }
+      }
     }, 150);
   };
 
@@ -280,6 +345,9 @@ export default function App() {
   };
 
   const handleDeleteRow = (id: number) => {
+    if (isV2) {
+      useGridStore.getState().deleteRow(id);
+    }
     setRecords(prev => prev.filter(r => r.idd !== id));
     setPendingDeleteIdds(prev => prev.includes(id) ? prev : [...prev, id]);
     setSaveStatus('unsaved');
@@ -304,6 +372,9 @@ export default function App() {
         throw new Error(err.detail || "Error al vaciar base de datos");
       }
       const data = await res.json();
+      if (isV2) {
+        useGridStore.getState().clearAll();
+      }
       setRecords([]);
       setLastSavedRecords([]);
       setPendingDeleteIdds([]);
@@ -321,7 +392,7 @@ export default function App() {
     }
   };
 
-  const handleImportExcel = (importedData: Record<string, any>[]) => {
+  const proceedWithImportedRecords = (importedData: Record<string, any>[]) => {
     let unmappedValue = '';
     const mapped = importedData.map(row => {
       const excelProj = String(row.proyecto || "").trim().toUpperCase();
@@ -347,6 +418,9 @@ export default function App() {
         value: unmappedValue
       });
     } else {
+      if (isV2) {
+        useGridStore.getState().importRecords(mapped);
+      }
       setRecords(mapped);
       setTotalRecords(mapped.length);
       setTotalPages(Math.max(1, Math.ceil(mapped.length / pageSize)));
@@ -354,6 +428,25 @@ export default function App() {
       setHasUnsavedImport(true);
       setSaveStatus('unsaved');
       triggerNotification("Importación en Grilla", `Se han cargado ${importedData.length} registros en la grilla para revisión.`, "success");
+    }
+  };
+
+  const handleImportExcel = (importedData: Record<string, any>[]) => {
+    // Detección y resolución de colisiones en memoria ANTES de inyectar o enviar a la base
+    const existingRecordsMap = isV2
+      ? useGridStore.getState().recordsById
+      : new Map(records.map(r => [Number(r.idd), r]));
+
+    const collisionResult = resolveIdCollisions(importedData, existingRecordsMap);
+
+    if (collisionResult.hasCollisions) {
+      setIdCollisionModalData({
+        isOpen: true,
+        collisions: collisionResult.collisions,
+        pendingRecords: collisionResult.resolvedRecords
+      });
+    } else {
+      proceedWithImportedRecords(collisionResult.resolvedRecords);
     }
   };
 
@@ -400,49 +493,89 @@ export default function App() {
       triggerNotification("Maestro Actualizado", `Se ha inyectado un nuevo proyecto '${newProj.nombre}' al maestro de SIGEG.`, "success");
     }
 
+    if (isV2) {
+      useGridStore.getState().importRecords(resolvedRecords);
+    }
     setUnrecognizedProjectModal(null);
   };
 
   const handleSaveAll = async () => {
-    if (qaqcAlerts.length > 0) {
-      triggerNotification("Bloqueado", "No se puede guardar porque existen alertas de validación críticas.", "error");
+    const dirtyIds = isV2 ? useGridStore.getState().dirtyRowIds : new Set(records.map(r => Number(r.idd)));
+    const blockEval = evaluateSaveBlocking(SAVE_BLOCKING_POLICY, qaqcAlerts, dirtyIds);
+    if (blockEval.isBlocked) {
+      setSaveBlockingModalData({
+        isOpen: true,
+        alerts: blockEval.blockingAlerts,
+        summaryMessage: blockEval.summaryMessage
+      });
+      triggerNotification("Guardado Bloqueado", blockEval.summaryMessage, "error");
       return;
     }
     setSaveStatus('saving');
     setIsFetchingEnsayos(true);
     try {
       // 1. Eliminar filas pendientes de borrado en base de datos
-      if (pendingDeleteIdds.length > 0) {
+      const storeDeleted = isV2 ? Array.from(useGridStore.getState().deletedRowIds) : [];
+      const allDeletes = [...new Set([...pendingDeleteIdds, ...storeDeleted])];
+
+      if (allDeletes.length > 0) {
         const delRes = await fetch(`${API_BASE}/api/ensayos/batch-delete`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(pendingDeleteIdds)
+          body: JSON.stringify(allDeletes)
         });
         if (!delRes.ok) throw new Error("Fallo al sincronizar eliminaciones en la base de datos");
         setPendingDeleteIdds([]);
       }
 
-      // 2. ponytail: chunked upsert prevents browser freezes and payload limits on mass datasets
-      const chunkSize = 500;
-      for (let i = 0; i < records.length; i += chunkSize) {
-        const chunk = records.slice(i, i + chunkSize);
-        const res = await fetch(`${API_BASE}/api/ensayos/batch-upsert`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(chunk)
-        });
-        if (!res.ok) throw new Error("Fallo en sincronización por lote");
+      // 2. Filas a sincronizar: En v2 se envían ÚNICAMENTE las modificadas/insertadas
+      if (isV2) {
+        const dirtyRecords = useGridStore.getState().getDirtyRecords();
+        if (dirtyRecords.length > 0) {
+          const chunkSize = 500;
+          for (let i = 0; i < dirtyRecords.length; i += chunkSize) {
+            const chunk = dirtyRecords.slice(i, i + chunkSize);
+            const res = await fetch(`${API_BASE}/api/ensayos/batch-upsert`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(chunk)
+            });
+            if (!res.ok) throw new Error("Fallo en sincronización por lote");
+          }
+        }
+        useGridStore.getState().clearDirty();
+        setSaveStatus('synced');
+        setHasUnsavedImport(false);
+        triggerNotification("Guardado Exitoso", `Se sincronizaron ${dirtyRecords.length} registros modificados con éxito en SQL Server.`, "success");
+      } else {
+        // En v1 se conserva el comportamiento original
+        const chunkSize = 500;
+        for (let i = 0; i < records.length; i += chunkSize) {
+          const chunk = records.slice(i, i + chunkSize);
+          const res = await fetch(`${API_BASE}/api/ensayos/batch-upsert`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(chunk)
+          });
+          if (!res.ok) throw new Error("Fallo en sincronización por lote");
+        }
+
+        safeSaveLocalStorage('sigeg_records_v2', records);
+        setLastSavedRecords(JSON.parse(JSON.stringify(records)));
+        setSaveStatus('synced');
+        setHasUnsavedImport(false);
+        triggerNotification("Guardado Exitoso", `Se sincronizaron ${records.length} registros con éxito en SQL Server.`, "success");
       }
 
-      safeSaveLocalStorage('sigeg_records_v2', records);
-      setLastSavedRecords(JSON.parse(JSON.stringify(records)));
-      setSaveStatus('synced');
-      setHasUnsavedImport(false);
-      triggerNotification("Guardado Exitoso", `Se sincronizaron ${records.length} registros con éxito en SQL Server.`, "success");
       await loadEnsayos(1, pageSize, searchQuery, currentTab);
     } catch {
-      safeSaveLocalStorage('sigeg_records_v2', records);
-      setLastSavedRecords(JSON.parse(JSON.stringify(records)));
+      if (isV2) {
+        const allRecords = useGridStore.getState().getAllRecords();
+        safeSaveLocalStorage('sigeg_records_v2', allRecords);
+      } else {
+        safeSaveLocalStorage('sigeg_records_v2', records);
+        setLastSavedRecords(JSON.parse(JSON.stringify(records)));
+      }
       setSaveStatus('error');
       triggerNotification("Guardado Fallido", "Sincronización fallida con SQL Server.", "warning");
     } finally {
@@ -484,37 +617,59 @@ export default function App() {
     const fullMergedList = [...recordsToSend, ...newRecordsCleaned];
 
     try {
-      if (pendingDeleteIdds.length > 0) {
+      const storeDeleted = isV2 ? Array.from(useGridStore.getState().deletedRowIds) : [];
+      const allDeletes = [...new Set([...pendingDeleteIdds, ...storeDeleted])];
+
+      if (allDeletes.length > 0) {
         const delRes = await fetch(`${API_BASE}/api/ensayos/batch-delete`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(pendingDeleteIdds)
+          body: JSON.stringify(allDeletes)
         });
         if (!delRes.ok) throw new Error("Fallo al sincronizar eliminaciones en la base de datos");
         setPendingDeleteIdds([]);
       }
 
-      const res = await fetch(`${API_BASE}/api/ensayos/batch-upsert`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(fullMergedList)
-      });
-      if (res.ok) {
-        setLastSavedRecords(prevLastSaved => {
-          return prevLastSaved.map(lastRec => {
-            const currentRec = records.find(r => r.idd === lastRec.idd);
-            if (!currentRec) return lastRec;
-            const updated = { ...lastRec };
-            moduleCols.forEach(col => {
-              updated[col.dbName] = currentRec[col.dbName];
+      if (isV2) {
+        const dirtyRecords = useGridStore.getState().getDirtyRecords();
+        if (dirtyRecords.length > 0) {
+          const chunkSize = 500;
+          for (let i = 0; i < dirtyRecords.length; i += chunkSize) {
+            const chunk = dirtyRecords.slice(i, i + chunkSize);
+            const res = await fetch(`${API_BASE}/api/ensayos/batch-upsert`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(chunk)
             });
-            return updated;
-          }).concat(newRecordsCleaned);
-        });
+            if (!res.ok) throw new Error("Fallo en sincronización por lote");
+          }
+        }
+        useGridStore.getState().clearDirty();
         setSaveStatus('synced');
         triggerNotification("Guardado Segmentado", `Los cambios del módulo ${tabKey.replace('_', ' ').toUpperCase()} se han sincronizado correctamente.`, "success");
       } else {
-        throw new Error();
+        const res = await fetch(`${API_BASE}/api/ensayos/batch-upsert`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(fullMergedList)
+        });
+        if (res.ok) {
+          setLastSavedRecords(prevLastSaved => {
+            return prevLastSaved.map(lastRec => {
+              const currentRec = records.find(r => r.idd === lastRec.idd);
+              if (!currentRec) return lastRec;
+              const updated = { ...lastRec };
+              moduleCols.forEach(col => {
+                updated[col.dbName] = currentRec[col.dbName];
+              });
+              return updated;
+            }).concat(newRecordsCleaned);
+          });
+          setSaveStatus('synced');
+          triggerNotification("Guardado Segmentado", `Los cambios del módulo ${tabKey.replace('_', ' ').toUpperCase()} se han sincronizado correctamente.`, "success");
+        } else {
+          throw new Error();
+        }
       }
     } catch {
       setSaveStatus('error');
@@ -559,6 +714,23 @@ export default function App() {
   const checkModuleModified = (tabKey: string): boolean => {
     if (tabKey === 'dashboard' || tabKey === 'reportes') return false;
 
+    if (isV2) {
+      const { dirtyRowIds, deletedRowIds, recordsById, originalRecordsById } = useGridStore.getState();
+      if (dirtyRowIds.size === 0 && deletedRowIds.size === 0) return false;
+      if (tabKey === 'registro_maestro') return true;
+
+      const moduleCols = getColumnsForModule(tabKey);
+      for (const id of dirtyRowIds) {
+        const cur = recordsById.get(id);
+        const orig = originalRecordsById.get(id);
+        if (!cur || !orig) return true; // Fila nueva insertada
+        for (const col of moduleCols) {
+          if (cur[col.dbName] !== orig[col.dbName]) return true;
+        }
+      }
+      return false;
+    }
+
     const moduleCols = getColumnsForModule(tabKey);
     if (records.length !== lastSavedRecords.length) return true;
 
@@ -579,6 +751,15 @@ export default function App() {
   const qaqcAlertsCount = useMemo(() => {
     return qaqcAlerts.length;
   }, [qaqcAlerts]);
+
+  const hasSavingBlockingAlerts = useMemo(() => {
+    if (isV2) {
+      const dirtyIds = useGridStore.getState().dirtyRowIds;
+      if (dirtyIds.size === 0) return false;
+      return qaqcAlerts.some(a => dirtyIds.has(a.idd) && a.type === 'CRÍTICO');
+    }
+    return qaqcAlerts.some(a => a.type === 'CRÍTICO');
+  }, [qaqcAlerts, isV2, gridDirtyCount]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-navy-950 text-slate-100 font-sans">
@@ -611,7 +792,7 @@ export default function App() {
           saveStatus={currentTab === 'proyectos' ? proyectosSaveStatus : saveStatus}
           isSidebarCollapsed={isSidebarCollapsed}
           onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          hasAlerts={qaqcAlertsCount > 0}
+          hasAlerts={hasSavingBlockingAlerts}
           checkModuleModified={checkModuleModified}
         />
 
@@ -787,6 +968,25 @@ export default function App() {
       <CatalogsModal
         isOpen={isCatalogModalOpen}
         onClose={() => setIsCatalogModalOpen(false)}
+      />
+
+      <SaveBlockingModal
+        isOpen={!!saveBlockingModalData?.isOpen}
+        onClose={() => setSaveBlockingModalData(null)}
+        blockingAlerts={saveBlockingModalData?.alerts || []}
+        summaryMessage={saveBlockingModalData?.summaryMessage || ''}
+        onNavigateToCell={handleFocusField}
+      />
+
+      <IdCollisionModal
+        isOpen={!!idCollisionModalData?.isOpen}
+        onClose={() => setIdCollisionModalData(null)}
+        collisions={idCollisionModalData?.collisions || []}
+        onConfirm={() => {
+          if (idCollisionModalData?.pendingRecords) {
+            proceedWithImportedRecords(idCollisionModalData.pendingRecords);
+          }
+        }}
       />
     </div>
   );
