@@ -24,11 +24,12 @@ import { getGridVersion } from './features/grid/flags';
 import { useGridStore } from './features/grid/gridStore';
 
 
-const API_BASE = import.meta.env.VITE_API_BASE || (
+const rawApiBase = import.meta.env.VITE_API_BASE || (
   typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? `${window.location.protocol}//${window.location.hostname}:8002`
     : ''
 );
+const API_BASE = rawApiBase ? rawApiBase.replace(/\/+$/, '') : '';
 
 interface NotificationMsg {
   id: number;
