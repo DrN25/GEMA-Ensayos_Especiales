@@ -973,9 +973,11 @@ export default function DataGrid({
                   onChange={(e) => onPageSizeChange(Number(e.target.value))}
                   className="bg-navy-900 border border-navy-800 rounded px-2 py-0.5 text-xs text-slate-300 outline-none"
                 >
-                  <option value={25}>25 filas</option>
                   <option value={50}>50 filas</option>
                   <option value={100}>100 filas</option>
+                  <option value={250}>250 filas</option>
+                  <option value={1000}>1000 filas</option>
+                  <option value={-1}>Todos los registros</option>
                 </select>
               </div>
             )}

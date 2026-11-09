@@ -596,9 +596,24 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
     getCoreRowModel: getCoreRowModel()
   });
 
-  // Virtualizador de filas sobre rowIds.length
+  // Detección de paginación híbrida (Cliente vs Servidor - Paradigma B)
+  // Si tenemos en memoria más registros que pageSize (y pageSize !== -1), paginamos localmente en cliente
+  const isClientPaginated = pageSize !== undefined && pageSize !== -1 && rowIds.length > pageSize;
+  const effectiveTotalPages = isClientPaginated
+    ? Math.max(1, Math.ceil(rowIds.length / pageSize))
+    : (pageSize === -1 ? 1 : (totalPages ?? 1));
+  const effectivePage = Math.min(Math.max(1, page ?? 1), effectiveTotalPages);
+
+  // Filas visibles en la grilla según el modo de paginación
+  const visibleRowIds = useMemo(() => {
+    if (!isClientPaginated) return rowIds;
+    const start = (effectivePage - 1) * pageSize;
+    return rowIds.slice(start, start + pageSize);
+  }, [rowIds, isClientPaginated, effectivePage, pageSize]);
+
+  // Virtualizador de filas sobre visibleRowIds.length
   const rowVirtualizer = useVirtualizer({
-    count: rowIds.length,
+    count: visibleRowIds.length,
     getScrollElement: () => containerRef.current,
     estimateSize: () => 36,
     overscan: 10
@@ -646,7 +661,7 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
     const colDef = gridColumns.find(c => c.id === colKey);
     if (!colDef || colDef.editor === 'none' || colDef.type === 'readonly') return;
 
-    const rowId = rowIds[rowIdx];
+    const rowId = visibleRowIds[rowIdx];
     if (rowId === undefined) return;
     const rec = getRowById(rowId);
     if (!rec) return;
@@ -676,17 +691,17 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
     setEditorMode(mode);
     setEditorSelection(selection);
     startEditing({ rowIdx, colKey, rowId }, initialValue);
-  }, [rowIds, gridColumns, getRowById, startEditing]);
+  }, [visibleRowIds, gridColumns, getRowById, startEditing]);
 
   const handleCellClick = useCallback((rowIdx: number, colKey: string) => {
-    const rowId = rowIds[rowIdx];
+    const rowId = visibleRowIds[rowIdx];
     if (rowId === undefined) return;
     if (isEditing) {
       commitEditing();
       setEditorPos(null);
     }
     setActiveCell({ rowIdx, colKey, rowId });
-  }, [rowIds, isEditing, commitEditing, setActiveCell]);
+  }, [visibleRowIds, isEditing, commitEditing, setActiveCell]);
 
   const handleCellDoubleClick = useCallback((rowIdx: number, colKey: string) => {
     openEditorForCell(rowIdx, colKey, 'full', undefined, 'end');
@@ -697,7 +712,7 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
     const colDef = gridColumns.find(c => c.id === colKey);
     if (!colDef || colDef.editor === 'none' || colDef.type === 'readonly') return false;
 
-    const rowId = rowIds[rowIdx];
+    const rowId = visibleRowIds[rowIdx];
     if (rowId === undefined) return false;
     const rec = getRowById(rowId);
     if (!rec) return false;
@@ -706,7 +721,7 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
     if (lockInfo.isReadOnly) return false;
 
     return true;
-  }, [gridColumns, rowIds, getRowById]);
+  }, [gridColumns, visibleRowIds, getRowById]);
 
   // Búsqueda determinística O(1) de la siguiente celda editable con wrap de filas
   const findNextEditableCell = useCallback((
@@ -715,7 +730,7 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
     direction: 'forward' | 'backward'
   ): { rowIdx: number; colKey: string; rowId: number } | null => {
     const leafCols = leafColumns.filter(c => c.id !== 'acciones_col' && c.id !== 'qaqc_validacion');
-    if (leafCols.length === 0 || rowIds.length === 0) return null;
+    if (leafCols.length === 0 || visibleRowIds.length === 0) return null;
 
     let currentColIdx = leafCols.findIndex(c => c.id === startColKey);
     if (currentColIdx === -1) currentColIdx = 0;
@@ -724,7 +739,7 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
     let c = currentColIdx;
     const delta = direction === 'forward' ? 1 : -1;
 
-    const maxSteps = rowIds.length * leafCols.length;
+    const maxSteps = visibleRowIds.length * leafCols.length;
     let steps = 0;
 
     while (steps < maxSteps) {
@@ -732,23 +747,23 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
       if (c >= leafCols.length) {
         c = 0;
         r += 1;
-        if (r >= rowIds.length) return null; // Fin de la tabla
+        if (r >= visibleRowIds.length) return null; // Fin de la vista actual
       } else if (c < 0) {
         c = leafCols.length - 1;
         r -= 1;
-        if (r < 0) return null; // Inicio de la tabla
+        if (r < 0) return null; // Inicio de la vista actual
       }
 
       const colCandidate = leafCols[c].id;
       if (isCellEditable(r, colCandidate)) {
-        return { rowIdx: r, colKey: colCandidate, rowId: rowIds[r] };
+        return { rowIdx: r, colKey: colCandidate, rowId: visibleRowIds[r] };
       }
 
       steps++;
     }
 
     return null;
-  }, [leafColumns, rowIds, isCellEditable]);
+  }, [leafColumns, visibleRowIds, isCellEditable]);
 
   // Navegación fluida entre celdas al presionar Tab / Enter / Flechas desde el editor
   const handleNavigateNext = useCallback((direction: 'down' | 'right' | 'up' | 'left') => {
@@ -760,13 +775,13 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
     const colIdx = leafColumns.findIndex(c => c.id === colKey);
 
     if (direction === 'down') {
-      if (rowIdx < rowIds.length - 1) {
-        const nextId = rowIds[rowIdx + 1];
+      if (rowIdx < visibleRowIds.length - 1) {
+        const nextId = visibleRowIds[rowIdx + 1];
         setActiveCell({ rowIdx: rowIdx + 1, colKey, rowId: nextId });
       }
     } else if (direction === 'up') {
       if (rowIdx > 0) {
-        const nextId = rowIds[rowIdx - 1];
+        const nextId = visibleRowIds[rowIdx - 1];
         setActiveCell({ rowIdx: rowIdx - 1, colKey, rowId: nextId });
       }
     } else if (direction === 'right') {
@@ -787,7 +802,7 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
         setActiveCell({ rowIdx, colKey: leafColumns[colIdx - 1].id, rowId: activeCell.rowId });
       }
     }
-  }, [activeCell, rowIds, leafColumns, findNextEditableCell, setActiveCell]);
+  }, [activeCell, visibleRowIds, leafColumns, findNextEditableCell, setActiveCell]);
 
   // Auto-scroll al cambiar activeCell (vertical con virtualizer y horizontal con offset de sticky columns)
   useEffect(() => {
@@ -805,6 +820,13 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
     }
   }, [activeCell?.rowIdx, activeCell?.colKey, rowVirtualizer, stickyLeftWidth, stickyRightWidth]);
 
+  // Limpiar celda activa si cambia la página y la fila seleccionada ya no es visible
+  useEffect(() => {
+    if (activeCell && !visibleRowIds.includes(activeCell.rowId)) {
+      setActiveCell(null);
+    }
+  }, [visibleRowIds, activeCell, setActiveCell]);
+
   // Teclado: Navegación estilo Excel
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!activeCell) return;
@@ -815,14 +837,14 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      if (rowIdx < rowIds.length - 1) {
-        const nextId = rowIds[rowIdx + 1];
+      if (rowIdx < visibleRowIds.length - 1) {
+        const nextId = visibleRowIds[rowIdx + 1];
         setActiveCell({ rowIdx: rowIdx + 1, colKey, rowId: nextId });
       }
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       if (rowIdx > 0) {
-        const nextId = rowIds[rowIdx - 1];
+        const nextId = visibleRowIds[rowIdx - 1];
         setActiveCell({ rowIdx: rowIdx - 1, colKey, rowId: nextId });
       }
     } else if (e.key === 'ArrowRight') {
@@ -851,7 +873,7 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
       e.preventDefault();
       openEditorForCell(rowIdx, colKey, 'full', undefined, 'end');
     } else if (e.key === 'Delete' || e.key === 'Backspace') {
-      const rowId = rowIds[rowIdx];
+      const rowId = visibleRowIds[rowIdx];
       if (rowId !== undefined) {
         const rec = getRowById(rowId);
         if (rec) {
@@ -860,7 +882,8 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
             const colDef = gridColumns.find(c => c.id === colKey);
             if (colDef && colDef.editor !== 'none' && colDef.type !== 'readonly') {
               e.preventDefault();
-              updateCellValue(rowIdx, colKey, null);
+              const globalIdx = rowIds.indexOf(rowId);
+              updateCellValue(globalIdx >= 0 ? globalIdx : rowIdx, colKey, null);
             }
           }
         }
@@ -875,7 +898,7 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
       // Type-to-edit directo estilo Excel: si la celda es editable y el caracter inicial es válido para el tipo de columna
       const colDef = gridColumns.find(c => c.id === colKey);
       if (colDef && colDef.editor !== 'none' && colDef.type !== 'readonly') {
-        const rowId = rowIds[rowIdx];
+        const rowId = visibleRowIds[rowIdx];
         const rec = rowId !== undefined ? getRowById(rowId) : undefined;
         const isLocked = rec ? getConvertibleLockInfo(colKey, rec).isReadOnly : false;
         if (!isLocked) {
@@ -890,9 +913,11 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
     }
   };
 
-  const handleInsertRow = useCallback((rowIdx: number) => {
-    insertRowBelow(rowIdx);
-  }, [insertRowBelow]);
+  const handleInsertRow = useCallback((visibleRowIdx: number) => {
+    const parentRowId = visibleRowIds[visibleRowIdx];
+    const globalIdx = parentRowId !== undefined ? rowIds.indexOf(parentRowId) : visibleRowIdx;
+    insertRowBelow(globalIdx >= 0 ? globalIdx : visibleRowIdx);
+  }, [visibleRowIds, rowIds, insertRowBelow]);
 
   const handleDeleteRow = useCallback((rowId: number) => {
     if (onDeleteRow) onDeleteRow(rowId);
@@ -910,7 +935,7 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
     if (!colKey || rowIdxStr === null) return;
 
     const rowIdx = parseInt(rowIdxStr, 10);
-    const rowId = rowIds[rowIdx];
+    const rowId = visibleRowIds[rowIdx];
     const rec = rowId !== undefined ? getRowById(rowId) : undefined;
     if (!rec) return;
 
@@ -988,7 +1013,7 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
             )}
 
             {virtualRows.map(virtualRow => {
-              const rowId = rowIds[virtualRow.index];
+              const rowId = visibleRowIds[virtualRow.index];
               const rec = rowId !== undefined ? getRowById(rowId) : undefined;
               if (!rec) return null;
 
@@ -1060,10 +1085,10 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
       >
         <div className="flex items-center gap-3">
           <span>
-            Página <span className="font-bold text-slate-200">{page ?? 1}</span> de{' '}
-            <span className="font-bold text-slate-200">{totalPages ?? 1}</span>
+            Página <span className="font-bold text-slate-200">{effectivePage}</span> de{' '}
+            <span className="font-bold text-slate-200">{effectiveTotalPages}</span>
             <span className="text-slate-500 ml-1.5 font-mono">
-              ({(totalRecords !== undefined ? totalRecords : rowIds.length).toLocaleString()} registros totales)
+              ({(totalRecords !== undefined ? Math.max(totalRecords, rowIds.length) : rowIds.length).toLocaleString()} registros totales)
             </span>
           </span>
 
@@ -1075,9 +1100,11 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
                 onChange={(e) => onPageSizeChange(Number(e.target.value))}
                 className="bg-navy-900 border border-navy-800 rounded px-2 py-0.5 text-xs text-slate-300 outline-none cursor-pointer"
               >
-                <option value={25}>25 filas</option>
                 <option value={50}>50 filas</option>
                 <option value={100}>100 filas</option>
+                <option value={250}>250 filas</option>
+                <option value={1000}>1000 filas</option>
+                <option value={-1}>Todos los registros</option>
               </select>
             </div>
           )}
@@ -1085,16 +1112,16 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = ({
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => onPageChange && onPageChange(Math.max(1, (page ?? 1) - 1))}
-            disabled={(page ?? 1) <= 1 || !onPageChange || isLoading}
+            onClick={() => onPageChange && onPageChange(Math.max(1, effectivePage - 1))}
+            disabled={effectivePage <= 1 || !onPageChange || isLoading || pageSize === -1}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-navy-800 bg-navy-900 text-slate-300 hover:bg-navy-800 hover:text-white transition-all disabled:opacity-30 disabled:pointer-events-none font-bold"
           >
             <ChevronLeft size={14} />
             <span>Anterior</span>
           </button>
           <button
-            onClick={() => onPageChange && onPageChange(Math.min((totalPages ?? 1), (page ?? 1) + 1))}
-            disabled={(page ?? 1) >= (totalPages ?? 1) || !onPageChange || isLoading}
+            onClick={() => onPageChange && onPageChange(Math.min(effectiveTotalPages, effectivePage + 1))}
+            disabled={effectivePage >= effectiveTotalPages || !onPageChange || isLoading || pageSize === -1}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-navy-800 bg-navy-900 text-slate-300 hover:bg-navy-800 hover:text-white transition-all disabled:opacity-30 disabled:pointer-events-none font-bold"
           >
             <span>Siguiente</span>

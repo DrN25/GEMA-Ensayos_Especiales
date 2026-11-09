@@ -19,7 +19,7 @@ router = APIRouter(prefix="/api/ensayos", tags=["Ensayos Especiales"])
 @router.get("", response_model=schemas.EnsayosPaginatedResponse)
 def get_ensayos_paginated(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=500),
+    page_size: int = Query(50, ge=1, le=50000),
     q: Optional[str] = Query(None, description="Búsqueda por sondaje o código de muestra"),
     tipo_ensayo: Optional[str] = Query(None, description="Módulo o tipo de ensayo"),
     proyecto: Optional[str] = Query(None),

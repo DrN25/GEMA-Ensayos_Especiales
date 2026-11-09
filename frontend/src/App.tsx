@@ -185,9 +185,10 @@ export default function App() {
   const loadEnsayos = async (p = 1, ps = pageSize, q = searchQuery, tab = currentTab) => {
     setIsFetchingEnsayos(true);
     try {
+      const backendPageSize = ps === -1 ? 50000 : ps;
       const params = new URLSearchParams({
         page: String(p),
-        page_size: String(ps),
+        page_size: String(backendPageSize),
       });
       if (q && q.trim()) params.append('q', q.trim());
       const testModules = ['ucs', 'elasticas', 'traccion', 'corte', 'triaxial', 'propiedades'];
@@ -227,6 +228,11 @@ export default function App() {
             }
           }
 
+          const allCurrent = store.getAllRecords();
+          if (allCurrent.length > loadedItems.length) {
+            setRecords(allCurrent);
+          }
+
           const pending = deltaManager.getPendingDelta();
           const hasGlobalPending = pending && (
             Object.keys(pending.modifiedRows).length > 0 ||
@@ -248,8 +254,16 @@ export default function App() {
           setSaveStatus('synced');
         }
 
-        setTotalPages(data.total_pages || 1);
-        setTotalRecords(data.total_filtered || 0);
+        const actualTotalRecords = isV2
+          ? Math.max(data.total_filtered || 0, useGridStore.getState().rowIds.length)
+          : (data.total_filtered || 0);
+
+        const actualTotalPages = ps === -1
+          ? 1
+          : Math.max(data.total_pages || 1, Math.ceil(actualTotalRecords / (ps || 50)));
+
+        setTotalPages(actualTotalPages);
+        setTotalRecords(actualTotalRecords);
         setPage(data.page || 1);
         setHasUnsavedImport(false);
         setPendingDeleteIdds([]);
@@ -1008,15 +1022,22 @@ export default function App() {
               onClearDatabase={handleClearDatabase}
               onPageChange={(newPage) => {
                 setPage(newPage);
-                if (!hasUnsavedImport) {
+                const store = useGridStore.getState();
+                const isClientPaginated = pageSize !== undefined && pageSize !== -1 && store.rowIds.length > pageSize;
+                if (!hasUnsavedImport && !isClientPaginated) {
                   loadEnsayos(newPage, pageSize, searchQuery, currentTab);
                 }
               }}
               onPageSizeChange={(newSize) => {
                 setPageSize(newSize);
                 setPage(1);
-                if (!hasUnsavedImport) {
-                  loadEnsayos(1, newSize, searchQuery, currentTab);
+                const store = useGridStore.getState();
+                const effectiveServerSize = newSize === -1 ? 50000 : newSize;
+                const needsServerFetch = !hasUnsavedImport && (store.rowIds.length < effectiveServerSize && store.rowIds.length < totalRecords);
+                if (needsServerFetch) {
+                  loadEnsayos(1, effectiveServerSize, searchQuery, currentTab);
+                } else if (newSize === -1 && store.rowIds.length < totalRecords) {
+                  loadEnsayos(1, 50000, searchQuery, currentTab);
                 }
               }}
               onSearchServer={(q) => {
