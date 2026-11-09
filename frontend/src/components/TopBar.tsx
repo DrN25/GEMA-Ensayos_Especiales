@@ -9,7 +9,8 @@ import {
   ShieldCheck,
   Check,
   Layers,
-  Database
+  Database,
+  RotateCcw
 } from 'lucide-react';
 
 interface TopBarProps {
@@ -20,6 +21,7 @@ interface TopBarProps {
   onOpenCatalogs: () => void;
   onSaveAll: () => void;
   onSaveSpecific: (tab: string) => void;
+  onDiscard?: () => void;
   onReconnect: () => void;
   isConnected: boolean;
   saveStatus: 'synced' | 'unsaved' | 'error' | 'saving';
@@ -51,6 +53,7 @@ export default function TopBar({
   onOpenCatalogs,
   onSaveAll,
   onSaveSpecific,
+  onDiscard,
   onReconnect,
   isConnected,
   saveStatus,
@@ -135,6 +138,20 @@ export default function TopBar({
           <BookOpen size={14} className="text-sky-400" />
           <span className="hidden sm:inline">Catálogos</span>
         </button>
+
+        {/* Botón Descartar cambios: visible solo si hay cambios pendientes */}
+        {isModified && onDiscard && (
+          <button
+            type="button"
+            onClick={onDiscard}
+            data-testid="discard-changes-btn"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 shadow-sm active:scale-95 shrink-0"
+            title="Descartar todos los cambios locales sin guardar"
+          >
+            <RotateCcw size={14} />
+            <span className="hidden sm:inline">Descartar</span>
+          </button>
+        )}
 
         {/* Save Controls */}
         {currentTab !== 'reportes' && currentTab !== 'dashboard' && (

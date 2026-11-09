@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import type { CellCoordinate } from './types';
 import type { QAQCAlert } from './schema';
+import { deltaManager } from './storage/deltaManager';
 import {
   COLUMNS_SCHEMA,
   COLUMNS_SCHEMA_MAP,
@@ -100,7 +101,7 @@ export interface GridStoreState {
   deletedRowIds: Set<number>;
 
   // Acciones
-  setInitialRecords: (records: Record<string, any>[], options?: { markAllDirty?: boolean }) => void;
+  setInitialRecords: (records: Record<string, any>[], options?: { markAllDirty?: boolean; originalRecords?: Record<string, any>[] }) => void;
   setActiveCell: (cell: CellCoordinate | null) => void;
   startEditing: (cell: CellCoordinate, initialValue?: any) => void;
   setEditorValue: (val: any) => void;
@@ -115,6 +116,8 @@ export interface GridStoreState {
   clearDirty: () => void;
   clearAll: () => void;
   importRecords: (records: Record<string, any>[]) => void;
+  discardAllChanges: () => void;
+  getPendingChangesCount: () => { modified: number; inserted: number; deleted: number; total: number };
 
   // Selectores de lectura rápida
   getRow: (idx: number) => Record<string, any> | undefined;
@@ -132,10 +135,12 @@ function isRecordDifferent(current: Record<string, any>, original?: Record<strin
 
   // Comparar claves en current
   for (const k of Object.keys(current)) {
+    if (k.startsWith('_')) continue;
     if (current[k] !== original[k]) return true;
   }
   // Comparar si en original había claves que ya no están
   for (const k of Object.keys(original)) {
+    if (k.startsWith('_')) continue;
     if (current[k] !== original[k]) return true;
   }
   return false;
@@ -188,6 +193,18 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
 
       if (options.markAllDirty) {
         dirty.add(id);
+      }
+    }
+
+    // Si se proporcionó snapshot original del servidor explícito, sobreescribir originals
+    if (options.originalRecords) {
+      for (const origR of options.originalRecords) {
+        const rawId = origR.idd !== undefined ? Number(origR.idd) : undefined;
+        if (rawId !== undefined) {
+          const clone = { ...origR, idd: rawId };
+          recalculateDerivedFields(clone);
+          originals.set(rawId, clone);
+        }
       }
     }
 
@@ -252,7 +269,7 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
       if (isRecordDifferent(row, orig)) {
         dirtyRowIds.add(rowId);
       } else {
-        dirtyRowIds.delete(rowId); // Revertido al valor original
+        dirtyRowIds.delete(rowId); // Revertido al valor original (smart revert)
       }
 
       // Recalcular campos derivados tras la edición
@@ -268,6 +285,7 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
 
       rowVersions.set(rowId, (rowVersions.get(rowId) || 1) + 1);
       set({ editingCell: null, dataVersion: get().dataVersion + 1 });
+      deltaManager.scheduleDebouncedSave(get());
     } else {
       set({ editingCell: null });
     }
@@ -297,7 +315,7 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
 
       // Revalidación QA/QC incremental O(1)
       recalculateDerivedFields(row, colKey);
-        const rowAlerts = validateRowCombined(row);
+      const rowAlerts = validateRowCombined(row);
       if (rowAlerts.length > 0) {
         qaqcAlertsByRowId.set(rowId, rowAlerts);
       } else {
@@ -306,6 +324,7 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
 
       rowVersions.set(rowId, (rowVersions.get(rowId) || 1) + 1);
       set({ dataVersion: get().dataVersion + 1 });
+      deltaManager.scheduleDebouncedSave(get());
     }
   },
 
@@ -350,6 +369,7 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
       activeCell: { rowIdx: idx + 1, colKey: 'sondaje', rowId: newId }
     });
 
+    deltaManager.scheduleDebouncedSave(get());
     return newId;
   },
 
@@ -394,6 +414,8 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
       activeCell: nextActive,
       editingCell: null
     });
+
+    deltaManager.scheduleDebouncedSave(get());
   },
 
   getDirtyRecords: () => {
@@ -470,6 +492,122 @@ export const useGridStore = create<GridStoreState>((set, get) => ({
       dataVersion: get().dataVersion + 1,
       activeCell: rowIds.length > 0 ? { rowIdx: 0, colKey: 'sondaje' } : null
     });
+
+    deltaManager.scheduleDebouncedSave(get());
+  },
+
+  discardAllChanges: () => {
+    const { originalRecordsById, recordsById, rowIds, dirtyRowIds, deletedRowIds, qaqcAlertsByRowId, rowVersions } = get();
+    if (get().editingCell) {
+      set({ editingCell: null });
+    }
+
+    // 1. Revertir filas modificadas a su snapshot original
+    for (const [id, orig] of originalRecordsById.entries()) {
+      if (recordsById.has(id)) {
+        const reverted = { ...orig };
+        recalculateDerivedFields(reverted);
+        recordsById.set(id, reverted);
+
+        // Revalidación QA/QC incremental
+        const alerts = validateRowCombined(reverted);
+        if (alerts.length > 0) {
+          qaqcAlertsByRowId.set(id, alerts);
+        } else {
+          qaqcAlertsByRowId.delete(id);
+        }
+        rowVersions.set(id, (rowVersions.get(id) || 1) + 1);
+      }
+    }
+
+    // 2. Eliminar filas insertadas (aquellas en recordsById que no estaban en originalRecordsById)
+    const insertedIds: number[] = [];
+    for (const id of rowIds) {
+      if (!originalRecordsById.has(id)) {
+        insertedIds.push(id);
+      }
+    }
+    for (const id of insertedIds) {
+      recordsById.delete(id);
+      qaqcAlertsByRowId.delete(id);
+      const idx = rowIds.indexOf(id);
+      if (idx >= 0) rowIds.splice(idx, 1);
+    }
+
+    // 3. Restaurar filas eliminadas
+    for (const id of deletedRowIds) {
+      const orig = originalRecordsById.get(id);
+      if (orig) {
+        const restored = { ...orig };
+        recalculateDerivedFields(restored);
+        recordsById.set(id, restored);
+        if (!rowIds.includes(id)) {
+          rowIds.push(id);
+        }
+        const alerts = validateRowCombined(restored);
+        if (alerts.length > 0) {
+          qaqcAlertsByRowId.set(id, alerts);
+        }
+        rowVersions.set(id, (rowVersions.get(id) || 1) + 1);
+      }
+    }
+
+    // 4. Limpiar sets
+    dirtyRowIds.clear();
+    deletedRowIds.clear();
+
+    // 5. Limpiar delta manager
+    deltaManager.clear();
+
+    set({
+      dataVersion: get().dataVersion + 1,
+      editingCell: null
+    });
+  },
+
+  getPendingChangesCount: () => {
+    const { dirtyRowIds, deletedRowIds, originalRecordsById, recordsById } = get();
+    const pendingDelta = deltaManager.getPendingDelta();
+
+    let modified = 0;
+    let inserted = 0;
+
+    for (const id of dirtyRowIds) {
+      if (originalRecordsById.has(id)) {
+        modified++;
+      } else {
+        inserted++;
+      }
+    }
+
+    let deleted = deletedRowIds.size;
+
+    // Sumar deltas de otras páginas no cargadas en memoria
+    if (pendingDelta) {
+      for (const [idStr] of Object.entries(pendingDelta.modifiedRows)) {
+        const id = Number(idStr);
+        if (!recordsById.has(id)) {
+          modified++;
+        }
+      }
+      for (const ins of pendingDelta.insertedRows) {
+        if (!recordsById.has(ins.idd)) {
+          inserted++;
+        }
+      }
+      for (const delId of pendingDelta.deletedRowIds) {
+        if (!deletedRowIds.has(delId) && !recordsById.has(delId)) {
+          deleted++;
+        }
+      }
+    }
+
+    return {
+      modified,
+      inserted,
+      deleted,
+      total: modified + inserted + deleted
+    };
   },
 
   getRow: (idx) => {

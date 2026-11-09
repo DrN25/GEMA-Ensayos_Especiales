@@ -71,7 +71,7 @@ export default function Sidebar({
       ]
     },
     {
-      category: 'FAMILIAS DE ENSAYO',
+      category: 'ENSAYOS ESPECIALES',
       isGroup: true
     },
     {
