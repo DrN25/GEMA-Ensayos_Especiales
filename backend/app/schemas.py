@@ -46,6 +46,7 @@ class RegistroMaestroBase(BaseModel):
     traccion_resistencia_kgcm2: Optional[float] = None
     traccion_vacia_28: Optional[str] = None
     traccion_resistencia_mpa: Optional[float] = None
+    traccion_observaciones: Optional[str] = None
     
     # Corte Directo
     corte_tipo_fractura: Optional[str] = None
@@ -109,6 +110,7 @@ class RegistroMaestroUpdate(BaseModel):
     traccion_resistencia_kgcm2: Optional[float] = None
     traccion_vacia_28: Optional[str] = None
     traccion_resistencia_mpa: Optional[float] = None
+    traccion_observaciones: Optional[str] = None
     
     corte_tipo_fractura: Optional[str] = None
     corte_area: Optional[float] = None

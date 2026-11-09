@@ -47,6 +47,7 @@ class RegistroMaestro(Base):
     traccion_resistencia_kgcm2 = Column(Float, nullable=True)
     traccion_vacia_28 = Column(String(100), nullable=True)
     traccion_resistencia_mpa = Column(Float, nullable=True)
+    traccion_observaciones = Column(String(500), nullable=True)
     
     # Corte Directo
     corte_tipo_fractura = Column(String(100), nullable=True)
