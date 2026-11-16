@@ -646,3 +646,84 @@ input[type=number] {
 .light .view-dashboard [class*="border-navy-800"], .light .view-mapeo [class*="border-navy-800"], .light .view-modal [class*="border-navy-800"] {
   border-color: #94a3b8;
 }
+
+/* Blue sidebar in light mode. The rest of the app keeps the light palette. */
+.light .chrome-dark.gema-sidebar {
+  background-color: #10305b !important;
+  border-color: #305379 !important;
+  color: #dbeafe;
+  --navy-800: 58, 93, 132;
+  --navy-850: 43, 78, 119;
+  --navy-900: 24, 58, 98;
+  --slate-100: 248, 250, 252;
+  --slate-200: 237, 246, 255;
+  --slate-400: 212, 228, 246;
+  --slate-500: 175, 201, 229;
+  --scrollbar-thumb: #54749a;
+  --scrollbar-thumb-hover: #7597c1;
+  --scrollbar-track: #10305b;
+}
+
+.light .gema-sidebar .sidebar-accent {
+  color: #bae6fd;
+}
+
+.light .gema-sidebar .sidebar-version {
+  background-color: #23466f;
+  border-color: #52769e;
+}
+
+.light .gema-sidebar .sidebar-control {
+  color: #f1f7ff;
+}
+
+.light .gema-sidebar .sidebar-control svg {
+  color: #d9ebff;
+}
+
+.light .gema-sidebar .sidebar-control:disabled {
+  opacity: 0.8;
+}
+
+.light .gema-sidebar .sidebar-category,
+.light .gema-sidebar .sidebar-status-label,
+.light .gema-sidebar .sidebar-footer {
+  color: #d6e7ff;
+}
+
+.light .gema-sidebar .sidebar-category > span {
+  background-color: #83bdf8;
+}
+
+.light .gema-sidebar .sidebar-control:hover:not(:disabled) {
+  background-color: #204675;
+  color: #ffffff;
+}
+
+.light .gema-sidebar .sidebar-active {
+  background-color: #254d7d;
+  border-color: #7dd3fc;
+  color: #ffffff;
+}
+
+.light .gema-sidebar .sidebar-active svg,
+.light .gema-sidebar .sidebar-control:hover:not(:disabled) svg {
+  color: #e0f2fe;
+}
+
+.light .gema-sidebar .sidebar-filter-toggle,
+.light .gema-sidebar .sidebar-filter-toggle:hover:not(:disabled) {
+  background-color: transparent;
+  color: #f1f7ff;
+}
+
+.light .gema-sidebar .sidebar-filter-toggle:hover:not(:disabled) svg {
+  color: #d9ebff;
+}
+
+.light .gema-sidebar [data-connection="online"] { color: #86efac; }
+.light .gema-sidebar [data-connection="local"] { color: #fde68a; }
+.light .gema-sidebar [data-connection="offline"] { color: #fecaca; }
+
+.light .gema-sidebar ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+.light .gema-sidebar ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); }

@@ -3,16 +3,19 @@
 app/routers/ensayos.py — Endpoints paginados de alta velocidad para Registro y Consulta de Ensayos Especiales.
 Soporta filtros multidimensionales en servidor, batch upsert seguro (cero borrado destructivo) y exportación.
 """
-from typing import Optional, List, Dict, Any
+from decimal import Decimal
+from typing import Optional, List, Dict, Any, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_
+from sqlalchemy import case, func, literal_column, or_, text
 
 from app.database import get_db
 from app import models, schemas
 from app.core.rules import calculate_derived_fields, clamp_value, validate_record_qaqc
 from app.services.excel_exporter import export_ensayos_to_excel
+from app.services.sample_validation import validate_sample_interval
+from app.services.assay_registration import AssayRegistration, register_assay
 
 router = APIRouter(prefix="/api/ensayos", tags=["Ensayos Especiales"])
 
@@ -131,6 +134,103 @@ def get_ensayos_paginated(
         }
     }
 
+def _count_rows_by(db: Session, column):
+    label = func.ltrim(func.rtrim(column))
+    counts = {}
+    for name, count in db.query(label, func.count(models.RegistroMaestro.idd)).group_by(label):
+        key = (name.strip() or None) if name else None
+        counts[key] = counts.get(key, 0) + count
+
+    return [
+        {"etiqueta": name, "filas": counts[name]}
+        for name in sorted(counts, key=lambda name: (name is None, name or ""))
+    ]
+
+
+def _recent_ensayos(db: Session):
+    rows = db.query(models.RegistroMaestro).order_by(models.RegistroMaestro.idd.desc()).limit(5).all()
+    return [{column.name: getattr(row, column.name) for column in row.__table__.columns} for row in rows]
+
+
+def _count_assays_by(query, column):
+    # Group missing values together before COUNT DISTINCT so a code can only count once in that group.
+    label = func.nullif(func.ltrim(func.rtrim(column)), literal_column("''"))
+    rows = query.add_columns(label).group_by(label).all()
+    return [
+        {"etiqueta": name, "ensayos": count}
+        for count, name in sorted(rows, key=lambda row: (row[1] is None, row[1] or ""))
+    ]
+
+
+_ASSAY_SERIES = {
+    "determinación de constantes elásticas": "UCS",
+    "constantes elásticas": "UCS",
+    "compresión uniaxial": "UCS",
+    "ucs": "UCS",
+    "compresión triaxial": "TX",
+    "tx": "TX",
+    "corte directo": "CD",
+    "cd": "CD",
+    "tracción indirecta": "TI",
+    "ti": "TI",
+    "tr": "TI",
+}
+
+
+def _stacked_assay_distribution(db: Session, identified_assays, dimension):
+    maestro = models.RegistroMaestro
+    group = func.nullif(func.ltrim(func.rtrim(dimension)), literal_column("''"))
+    assay_type = func.nullif(func.ltrim(func.rtrim(maestro.tipo_ensayo)), literal_column("''"))
+    # Each stack partitions its total. If types conflict, prefer the latest typed row.
+    ranked = identified_assays.with_entities(
+        group.label("grupo"),
+        assay_type.label("tipo"),
+        func.row_number().over(
+            partition_by=(group, maestro.codigo_muestra),
+            order_by=(case((assay_type.is_(None), 1), else_=0), maestro.idd.desc()),
+        ).label("prioridad"),
+    ).subquery()
+
+    counts = db.query(ranked.c.grupo, ranked.c.tipo, func.count()).filter(
+        ranked.c.prioridad == 1
+    ).group_by(ranked.c.grupo, ranked.c.tipo).all()
+
+    groups = {}
+    for group_label, kind, count in counts:
+        label = _ASSAY_SERIES.get(kind.casefold(), kind) if kind else "Sin tipo"
+        series = groups.setdefault(group_label, {})
+        key = label.casefold()
+        if key not in series:
+            series[key] = {"etiqueta": label, "ensayos": 0}
+        series[key]["ensayos"] += count
+
+    return [
+        {
+            "etiqueta": group_label,
+            "ensayos": sum(segment["ensayos"] for segment in series.values()),
+            "series": list(series.values()),
+        }
+        for group_label, series in sorted(groups.items(), key=lambda item: (item[0] is None, item[0] or ""))
+    ]
+
+
+@router.get("/resumen")
+def get_ensayos_summary(db: Session = Depends(get_db)):
+    maestro = models.RegistroMaestro
+    code = maestro.codigo_muestra
+    identified = db.query(code).filter(
+        code.isnot(None), func.ltrim(func.rtrim(code)) != ""
+    )
+    assays = identified.with_entities(func.count(code.distinct()))
+    return {
+        "total_ensayos": assays.scalar() or 0,
+        "por_campana": _stacked_assay_distribution(db, identified, maestro.campana),
+        "por_laboratorio": _stacked_assay_distribution(db, identified, maestro.laboratorio),
+        "por_tipo": _count_assays_by(assays, func.lower(maestro.tipo_ensayo)),
+        "recent": _recent_ensayos(db),
+    }
+
+
 @router.get("/stats")
 def get_ensayos_stats(db: Session = Depends(get_db)):
     tot = db.query(func.count(models.RegistroMaestro.idd)).scalar() or 0
@@ -153,9 +253,6 @@ def get_ensayos_stats(db: Session = Depends(get_db)):
         models.RegistroMaestro.prop_peso_unitario_geometrico.isnot(None)
     ).scalar() or 0
 
-    recent_rows = db.query(models.RegistroMaestro).order_by(models.RegistroMaestro.idd.desc()).limit(5).all()
-    recent = [{col.name: getattr(r, col.name) for col in r.__table__.columns} for r in recent_rows]
-
     return {
         "total": tot,
         "counts": {
@@ -166,8 +263,47 @@ def get_ensayos_stats(db: Session = Depends(get_db)):
             "triaxial": triax,
             "propiedades": prop
         },
-        "recent": recent
+        "recent": _recent_ensayos(db),
+        "por_campana": _count_rows_by(db, models.RegistroMaestro.campana),
+        "por_laboratorio": _count_rows_by(db, models.RegistroMaestro.laboratorio)
     }
+
+@router.get("/sondajes-registro")
+def get_registration_boreholes(db: Session = Depends(get_db)):
+    """Lista los sondajes fuente del formulario de alta."""
+    if db.get_bind().dialect.name != "mssql":
+        raise HTTPException(status_code=503, detail="La consulta de sondajes requiere SQL Server.")
+
+    rows = db.execute(text("""
+        SELECT SondajeID AS id, CodigoSondaje AS code, Proyecto AS project
+        FROM dbo.Sondajes
+        ORDER BY CodigoSondaje
+    """)).mappings()
+    return [dict(row) for row in rows]
+
+
+@router.get("/validar-muestra")
+def validate_registration_sample(
+    sondaje_id: int = Query(gt=0),
+    desde: Decimal = Query(ge=0, le=99999999.99),
+    hasta: Decimal = Query(ge=0, le=99999999.99),
+    ensayo: Literal["TX", "UCS", "CD", "TI", "CE", "PF"] = Query(),
+    db: Session = Depends(get_db),
+):
+    if desde >= hasta:
+        raise HTTPException(status_code=422, detail="Desde debe ser menor que Hasta.")
+    if db.get_bind().dialect.name != "mssql":
+        raise HTTPException(status_code=503, detail="La validación requiere SQL Server.")
+
+    hole = db.execute(
+        text("SELECT SondajeID FROM dbo.Sondajes WHERE SondajeID = :sondaje_id"),
+        {"sondaje_id": sondaje_id},
+    ).scalar_one_or_none()
+    if hole is None:
+        raise HTTPException(status_code=404, detail="El sondaje seleccionado no existe.")
+
+    return validate_sample_interval(db, sondaje_id, desde, hasta, ensayo)
+
 
 @router.get("/sondajes", response_model=List[str])
 def get_sondajes_list(db: Session = Depends(get_db)):
@@ -212,6 +348,11 @@ def get_ensayo_by_idd(idd: int, db: Session = Depends(get_db)):
     if not item:
         raise HTTPException(status_code=404, detail=f"Ensayo con IDD {idd} no encontrado.")
     return item
+
+@router.post("/registro", status_code=201)
+def create_assay_registration(payload: AssayRegistration, db: Session = Depends(get_db)):
+    return register_assay(payload, db)
+
 
 @router.post("/batch-upsert")
 def batch_upsert_ensayos(

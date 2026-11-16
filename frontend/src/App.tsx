@@ -4,6 +4,7 @@ import TopBar from './components/TopBar';
 import Dashboard from './components/Dashboard';
 import DistribucionModulos from './components/DistribucionModulos';
 import GeotechPage from './components/GeotechPage';
+import RegistroEnsayosPage from './components/RegistroEnsayosPage';
 import ProyectosPage from './components/ProyectosPage';
 import Reportes from './components/Reportes';
 import ValidationPanel from './components/ValidationPanel';
@@ -944,6 +945,7 @@ export default function App() {
         isConnected={isConnected}
         dbInfo={dbInfo}
         isCollapsed={isSidebarCollapsed}
+        onToggleSidebar={() => setIsSidebarCollapsed(value => !value)}
       />
 
       {/* 2. MAIN CONTAINER */}
@@ -971,11 +973,18 @@ export default function App() {
           {currentTab === 'dashboard' && (
             <Dashboard
               records={records}
-              alertsCount={qaqcAlertsCount}
               onNavigateTab={navigateToTab}
               apiBase={API_BASE}
             />
           )}
+
+          {currentTab === 'registro_ensayos' && (
+            <RegistroEnsayosPage mode="registro" apiBase={API_BASE} onSaved={({ codigo_muestra, cantidad }) => {
+              triggerNotification('Guardado correcto', cantidad + (cantidad === 1 ? ' fila guardada · ' : ' filas guardadas · ') + codigo_muestra);
+            }} />
+          )}
+
+          {currentTab === 'propuesta_registro' && <RegistroEnsayosPage mode="propuesta" apiBase={API_BASE} />}
 
           {currentTab === 'distribucion' && (
             <DistribucionModulos

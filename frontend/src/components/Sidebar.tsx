@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   LayoutDashboard,
   Database,
+  ClipboardPlus,
+  FileText,
+  ListFilter,
   FlaskConical,
   Activity,
   TrendingUp,
@@ -16,7 +19,8 @@ import {
   FolderLock,
   ShieldCheck,
   X,
-  Boxes
+  Boxes,
+  type LucideIcon
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -57,28 +61,23 @@ export default function Sidebar({
     }
   };
 
-  const navCategories = [
+  const navCategories: { category: string; items: { id: string; label: string; icon: LucideIcon }[] }[] = [
     {
       category: 'GENERAL',
-      items: [
-        { id: 'dashboard', label: 'Dashboard Ejecutivo', icon: LayoutDashboard }
-      ]
-    },
-    {
-      category: 'BASE GEOTÉCNICA',
-      items: [
-        { id: 'registro_maestro', label: 'Registro Maestro  ', icon: Database }
-      ]
+      items: [{ id: 'dashboard', label: 'Resumen', icon: LayoutDashboard }]
     },
     {
       category: 'ENSAYOS ESPECIALES',
-      isGroup: true
+      items: [
+        { id: 'registro_ensayos', label: 'Registro de Ensayos', icon: ClipboardPlus },
+        { id: 'propuesta_registro', label: 'Propuesta de Registro', icon: FileText },
+        { id: 'distribucion', label: 'Filtro por ensayo', icon: ListFilter },
+        { id: 'registro_maestro', label: 'Registro Maestro', icon: Database }
+      ]
     },
     {
       category: 'PROPIEDADES FÍSICAS',
-      items: [
-        { id: 'propiedades', label: 'Propiedades Físicas', icon: Layers }
-      ]
+      items: [{ id: 'propiedades', label: 'Propiedades Físicas', icon: Layers }]
     },
     /*
     {
@@ -114,7 +113,7 @@ export default function Sidebar({
       )}
 
       <aside
-        className={`glass-panel chrome-dark flex flex-col h-screen select-none shadow-2xl relative z-50 md:z-20 transition-all duration-300 ease-in-out text-left ${
+        className={`glass-panel chrome-dark gema-sidebar flex flex-col h-screen select-none shadow-2xl relative z-50 md:z-20 transition-all duration-300 ease-in-out text-left ${
           isCollapsed
             ? 'w-0 opacity-0 border-r-0 pointer-events-none overflow-hidden'
             : 'w-64 opacity-100 border-r border-navy-800/80 fixed md:static inset-y-0 left-0'
@@ -135,11 +134,11 @@ export default function Sidebar({
                   <h1 className="font-black text-xs tracking-widest text-slate-100 uppercase truncate">
                     GEMA SIGEG
                   </h1>
-                  <span className="text-[9px] px-1 py-0.2 rounded font-mono font-bold bg-sky-500/15 text-sky-400 border border-sky-500/30 shrink-0">
+                  <span className="sidebar-version sidebar-accent text-[9px] px-1 py-0.2 rounded font-mono font-bold bg-sky-500/15 text-sky-400 border border-sky-500/30 shrink-0">
                     2.0
                   </span>
                 </div>
-                <p className="text-[10px] text-sky-400 font-extrabold uppercase tracking-wider truncate mt-0.5">
+                <p className="sidebar-accent text-[10px] text-sky-400 font-extrabold uppercase tracking-wider truncate mt-0.5">
                   Ensayos Especiales
                 </p>
               </div>
@@ -149,7 +148,7 @@ export default function Sidebar({
             <div className="flex items-center gap-1 shrink-0">
               <button
                 onClick={() => setDarkMode(!darkMode)}
-                className="p-2 rounded-lg bg-navy-900 hover:bg-navy-850 border border-navy-800 text-slate-400 hover:text-slate-100 transition-all shadow-md active:scale-95"
+                className="sidebar-control p-2 rounded-lg bg-navy-900 hover:bg-navy-850 border border-navy-800 text-slate-400 hover:text-slate-100 transition-all shadow-md active:scale-95"
                 title={`Cambiar a modo ${darkMode ? 'claro' : 'oscuro'}`}
               >
                 {darkMode ? <Sun size={15} /> : <Moon size={15} />}
@@ -157,7 +156,7 @@ export default function Sidebar({
 
               <button
                 onClick={onToggleSidebar}
-                className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-navy-900 md:hidden transition-colors"
+                className="sidebar-control p-2 rounded-lg text-slate-400 hover:text-white hover:bg-navy-900 md:hidden transition-colors"
                 title="Cerrar menú"
               >
                 <X size={16} />
@@ -165,120 +164,76 @@ export default function Sidebar({
             </div>
           </div>
 
-          {/* Navigation Items */}
-          <nav className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">
-            {navCategories.map((catGroup) => {
-              if (catGroup.isGroup) {
-                const isDistActive = currentTab === 'distribucion' || distTabs.some(t => t.id === currentTab);
-                return (
-                  <div key={catGroup.category} className="space-y-1">
-                    <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-3 mb-1 flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-navy-800" />
-                      <span>{catGroup.category}</span>
-                    </h3>
+          <nav aria-label="Módulos GEMA" className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">
+            {navCategories.map(({ category, items }) => (
+              <div key={category} className="space-y-1">
+                <h3 className="sidebar-category text-[10px] font-black text-slate-500 uppercase tracking-widest px-3 mb-1 flex items-center gap-1.5">
+                  <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-navy-800" />
+                  {category}
+                </h3>
 
-                    <div className="rounded-lg transition-all">
-                      <div className="flex items-center justify-between">
-                        <button
-                          onClick={() => handleSelectTab('distribucion')}
-                          className={`flex-1 flex items-center gap-2.5 px-3 py-2 rounded-l-lg text-xs font-semibold text-left transition-all relative group ${
-                            currentTab === 'distribucion'
-                              ? 'bg-sky-500/10 text-sky-400 font-bold border-l-2 border-sky-500 shadow-[inset_0_0_10px_rgba(14,165,233,0.05)]'
-                              : 'hover:bg-navy-900/30 hover:text-slate-200 text-slate-400'
-                          }`}
-                        >
-                          <Layers
-                            size={16}
-                            className={currentTab === 'distribucion' ? 'text-sky-400' : 'text-slate-500 group-hover:text-sky-400'}
-                          />
-                          <span className="truncate font-semibold tracking-wide">Distribución General</span>
-                        </button>
+                {items.map(({ id, label, icon: Icon }) => {
+                  const active = currentTab === id;
+                  const activeTone = active
+                    ? 'sidebar-active bg-sky-500/10 text-sky-400 font-bold border-l-2 border-sky-500'
+                    : 'hover:bg-navy-900/30 hover:text-slate-200 text-slate-400';
+                  const iconTone = active ? 'text-sky-400' : 'text-slate-500 group-hover:text-sky-400';
 
-                        <button
-                          onClick={() => setIsDistExpanded(!isDistExpanded)}
-                          className="p-2 text-slate-500 hover:text-slate-200 hover:bg-navy-900/40 rounded-r-lg transition-all"
-                          title={isDistExpanded ? 'Colapsar submódulos' : 'Expandir submódulos'}
-                        >
-                          {isDistExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                        </button>
-                      </div>
+                  if (id === 'distribucion') {
+                    return (
+                      <div key={id}>
+                        <div className="flex items-stretch">
+                          <button type="button" onClick={() => handleSelectTab(id)} aria-current={active ? 'page' : undefined}
+                            className={'sidebar-control flex flex-1 min-w-0 items-center gap-2.5 rounded-l-lg px-3 py-2 text-left text-xs font-semibold transition-colors group ' + activeTone}>
+                            <Icon size={16} className={'shrink-0 ' + iconTone} aria-hidden="true" />
+                            <span className="truncate tracking-wide">{label}</span>
+                          </button>
+                          <button type="button" onClick={() => setIsDistExpanded(expanded => !expanded)}
+                            aria-expanded={isDistExpanded} aria-controls="sidebar-assay-types"
+                            aria-label={isDistExpanded ? 'Colapsar filtro por ensayo' : 'Expandir filtro por ensayo'}
+                            className="sidebar-control sidebar-filter-toggle rounded-r-lg px-2 text-slate-500 transition-colors hover:bg-navy-900/40 hover:text-slate-200">
+                            {isDistExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                          </button>
+                        </div>
 
-                      {isDistExpanded && (
-                        <div className="pl-3 space-y-0.5 border-l border-navy-800 ml-4 mt-1 animate-fade-in">
-                          {distTabs.map((sub) => {
-                            const isSubActive = currentTab === sub.id;
-                            const SubIcon = sub.icon;
+                        <div id="sidebar-assay-types" hidden={!isDistExpanded}
+                          className="ml-4 mt-1 space-y-0.5 border-l border-navy-800 pl-3">
+                          {distTabs.map(({ id: subId, label: subLabel, icon: SubIcon }) => {
+                            const subActive = currentTab === subId;
                             return (
-                              <button
-                                key={sub.id}
-                                onClick={() => handleSelectTab(sub.id)}
-                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-all relative ${
-                                  isSubActive
-                                    ? 'bg-sky-500/15 text-sky-300 font-bold border-l-2 border-sky-400 shadow-sm'
-                                    : 'text-slate-400 hover:text-slate-200 hover:bg-navy-900/30'
-                                }`}
-                              >
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <SubIcon
-                                    size={13}
-                                    className={isSubActive ? 'text-sky-400' : 'text-slate-500'}
-                                  />
-                                  <span className="truncate text-[11px]">{sub.label}</span>
-                                </div>
+                              <button key={subId} type="button" onClick={() => handleSelectTab(subId)}
+                                aria-current={subActive ? 'page' : undefined}
+                                className={'sidebar-control flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors group ' + (subActive
+                                  ? 'sidebar-active bg-sky-500/15 text-sky-300 font-bold border-l-2 border-sky-400'
+                                  : 'text-slate-400 hover:text-slate-200 hover:bg-navy-900/30')}>
+                                <SubIcon size={13} className={'shrink-0 ' + (subActive ? 'text-sky-400' : 'text-slate-500 group-hover:text-sky-400')} aria-hidden="true" />
+                                <span className="truncate text-[11px]">{subLabel}</span>
                               </button>
                             );
                           })}
                         </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              }
-
-              return (
-                <div key={catGroup.category} className="space-y-1">
-                  <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-3 mb-1 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-navy-800" />
-                    <span>{catGroup.category}</span>
-                  </h3>
-
-                  {catGroup.items?.map((item) => {
-                    const isActive = currentTab === item.id;
-                    const Icon = item.icon;
-
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => handleSelectTab(item.id)}
-                        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs text-left transition-all relative group ${
-                          isActive
-                            ? 'bg-sky-500/10 text-sky-400 font-bold border-l-2 border-sky-500 shadow-[inset_0_0_10px_rgba(14,165,233,0.05)]'
-                            : 'hover:bg-navy-900/30 hover:text-slate-200 text-slate-400'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <Icon
-                            size={16}
-                            className={`${isActive ? 'text-sky-400' : 'text-slate-500 group-hover:text-sky-400'} transition-colors shrink-0`}
-                          />
-                          <span className="leading-tight truncate font-semibold tracking-wide">{item.label}</span>
-                        </div>
-
-                        {isActive && (
-                          <span className="absolute right-0 top-1 bottom-1 w-1 bg-sky-500 rounded-l-md shadow-[0_0_8px_rgba(14,165,233,0.8)]" />
-                        )}
-                      </button>
+                      </div>
                     );
-                  })}
-                </div>
-              );
-            })}
+                  }
+
+                  return (
+                    <button key={id} type="button" onClick={() => handleSelectTab(id)}
+                      aria-current={active ? 'page' : undefined}
+                      className={'sidebar-control relative flex w-full items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition-colors group ' + activeTone}>
+                      <Icon size={16} className={'shrink-0 transition-colors ' + iconTone} aria-hidden="true" />
+                      <span className="truncate font-semibold leading-tight tracking-wide">{label}</span>
+                      {active && <span aria-hidden="true" className="absolute bottom-1 right-0 top-1 w-1 rounded-l-md bg-sky-500" />}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
           </nav>
 
           {/* Database Status Panel */}
           <div className="p-3 mx-3 mb-2 rounded-xl bg-navy-900/90 border border-navy-800 space-y-1.5 shadow-inner shrink-0">
             <div className="flex items-center justify-between">
-              <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+              <span className="sidebar-status-label text-slate-500 font-bold uppercase tracking-wider text-[10px]">
                 Base de Datos
               </span>
               <div className="flex items-center gap-1.5">
@@ -292,6 +247,7 @@ export default function Sidebar({
                   }`}
                 />
                 <span
+                  data-connection={!isConnected ? 'offline' : dbInfo?.is_local_fallback ? 'local' : 'online'}
                   className={`font-black uppercase tracking-wider text-[10px] ${
                     !isConnected
                       ? 'text-rose-400'
@@ -312,7 +268,7 @@ export default function Sidebar({
           </div>
 
           {/* Copyright Footer */}
-          <div className="p-3 border-t border-navy-800/80 text-[10px] text-slate-500 text-center font-black uppercase tracking-wider shrink-0">
+          <div className="sidebar-footer p-3 border-t border-navy-800/80 text-[10px] text-slate-500 text-center font-black uppercase tracking-wider shrink-0">
             GEMA Ensayos Especiales &copy; 2026
           </div>
         </div>
