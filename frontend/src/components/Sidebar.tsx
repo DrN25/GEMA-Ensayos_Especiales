@@ -174,6 +174,7 @@ export default function Sidebar({
 
                 {items.map(({ id, label, icon: Icon }) => {
                   const active = currentTab === id;
+                  const isProposal = id === 'propuesta_registro';
                   const activeTone = active
                     ? 'sidebar-active bg-sky-500/10 text-sky-400 font-bold border-l-2 border-sky-500'
                     : 'hover:bg-navy-900/30 hover:text-slate-200 text-slate-400';
@@ -219,9 +220,15 @@ export default function Sidebar({
                   return (
                     <button key={id} type="button" onClick={() => handleSelectTab(id)}
                       aria-current={active ? 'page' : undefined}
-                      className={'sidebar-control relative flex w-full items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-xs transition-colors group ' + activeTone}>
+                      className={'sidebar-control relative flex w-full items-center rounded-lg py-2.5 text-left text-xs transition-colors group '
+                        + (isProposal ? 'gap-1.5 px-2.5 ' : 'gap-3 px-3.5 ') + activeTone}>
                       <Icon size={16} className={'shrink-0 transition-colors ' + iconTone} aria-hidden="true" />
-                      <span className="truncate font-semibold leading-tight tracking-wide">{label}</span>
+                      <span className={isProposal ? 'flex-1 whitespace-nowrap font-extrabold leading-tight' : 'truncate font-semibold leading-tight tracking-wide'}>{label}</span>
+                      {isProposal && (
+                        <span className="shrink-0 rounded-full bg-[#d9f1ff] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#10305b] dark:bg-sky-400/20 dark:text-sky-200">
+                          Nuevo
+                        </span>
+                      )}
                       {active && <span aria-hidden="true" className="absolute bottom-1 right-0 top-1 w-1 rounded-l-md bg-sky-500" />}
                     </button>
                   );

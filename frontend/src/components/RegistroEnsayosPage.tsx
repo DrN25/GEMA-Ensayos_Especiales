@@ -25,6 +25,14 @@ function parseDepth(value: string) {
   return depth <= 999 ? depth : null;
 }
 
+const projectOptions = [
+  { id: 'ferro', name: 'Ferro', code: 'FRBB' },
+  { id: 'chalco', name: 'Chalco', code: 'CHABB' },
+  { id: 'charcas', name: 'Charcas', code: null },
+] as const;
+
+const charcasCodeNotice = 'Charcas todavía no tiene un código confirmado para el Registro Maestro.';
+
 const coordinateFields = [
   { key: 'east', label: 'Este (m)', digits: 6, example: '794191,25' },
   { key: 'north', label: 'Norte (m)', digits: 7, example: '8440808,91' },
@@ -247,7 +255,7 @@ function LaboratoryDetails({ lithology, month, year, onMonthChange, onYearChange
   );
 }
 
-function LaboratoryForm({ assay, lab, onLabChange, code, from, to, lithology, apiBase, sampleData, onSaved }: {
+function LaboratoryForm({ assay, lab, onLabChange, code, from, to, lithology, apiBase, sampleData, saveUnavailableReason, onSaved }: {
   assay: AssayType;
   lab: Laboratory;
   onLabChange: (lab: Laboratory) => void;
@@ -257,6 +265,7 @@ function LaboratoryForm({ assay, lab, onLabChange, code, from, to, lithology, ap
   lithology: string | null;
   apiBase: string;
   sampleData: SampleRegistrationData | null;
+  saveUnavailableReason?: string;
   onSaved: (saved: RegistrationSaved) => void;
 }) {
   const groups = getLabGroups(lab, assay);
@@ -432,7 +441,7 @@ function LaboratoryForm({ assay, lab, onLabChange, code, from, to, lithology, ap
         {saveError && <p role="alert" className="mr-auto text-xs text-red-400">{saveError}</p>}
         {!canSave && !saveError && (
           <p className="text-xs text-slate-400">
-            {invalidMeasurements ? 'Corrige los valores numéricos marcados.' : 'Completa los campos obligatorios para guardar.'}
+            {invalidMeasurements ? 'Corrige los valores numéricos marcados.' : saveUnavailableReason ?? 'Completa los campos obligatorios para guardar.'}
           </p>
         )}
         <button type="submit" disabled={!canSave} className={actionClass + ' disabled:cursor-not-allowed disabled:opacity-50'}>
@@ -468,8 +477,12 @@ export default function RegistroEnsayosPage({ apiBase, mode, onSaved }: Registra
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [request, setRequest] = useState(0);
   const [holeId, setHoleId] = useState('');
-  const [project, setProject] = useState('');
-  const projectMissing = !project.trim();
+  const [projectId, setProjectId] = useState('');
+  const project = projectOptions.find(option => option.id === projectId);
+  const projectMissing = !project;
+  const projectCode = project?.code;
+  const saveUnavailableReason = mode === 'registro' && project?.code === null ? charcasCodeNotice : undefined;
+  const projectNotice = projectMissing ? 'Selecciona el proyecto para continuar.' : saveUnavailableReason;
   const [assay, setAssay] = useState<AssayType | ''>('');
   const [lab, setLab] = useState<Laboratory>('UNI (LGM)');
   const [sample, setSample] = useState('');
@@ -534,12 +547,12 @@ export default function RegistroEnsayosPage({ apiBase, mode, onSaved }: Registra
     ? { border: 'border-navy-800', header: selectedPalette.bar + ' ' + selectedPalette.headerText }
     : sectionTones.lab;
   const code = hole && abbreviation && sample.trim() ? [hole.code, abbreviation, sample.trim().toUpperCase()].join('-') : '';
-  const sampleData: SampleRegistrationData | null = mode === 'registro' && laboratoryEnabled && hole && sample.trim() && code.length <= 150
+  const sampleData: SampleRegistrationData | null = mode === 'registro' && laboratoryEnabled && projectCode && hole && sample.trim() && code.length <= 150
     && startDepth !== null && endDepth !== null && coordinatesValid
     ? {
       sondaje_id: hole.id,
       numero_muestra: sample.trim(),
-      proyecto: project.trim(),
+      proyecto: projectCode,
       desde: startDepth,
       hasta: endDepth,
       este: east.replace(',', '.'),
@@ -585,21 +598,22 @@ export default function RegistroEnsayosPage({ apiBase, mode, onSaved }: Registra
             }}
           />
           <Field label="Proyecto (obligatorio)">
-            <input
+            <select
               name="proyecto"
               className={inputClass + ' aria-[invalid=true]:border-amber-500/70'}
-              maxLength={100}
-              placeholder="Ej. CHABB o FRBB"
-              value={project}
-              onChange={event => setProject(event.target.value)}
+              value={projectId}
+              onChange={event => setProjectId(event.target.value)}
               required
               aria-invalid={projectMissing}
-              aria-describedby={projectMissing ? 'registration-project-warning' : undefined}
-            />
-            {projectMissing && (
+              aria-describedby={projectNotice ? 'registration-project-warning' : undefined}
+            >
+              <option value="">Selecciona un proyecto</option>
+              {projectOptions.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}
+            </select>
+            {projectNotice && (
               <span id="registration-project-warning" className="flex items-center gap-1.5 text-xs text-amber-800 dark:text-amber-300">
                 <TriangleAlert size={13} aria-hidden="true" />
-                Ingresa el proyecto para continuar.
+                {projectNotice}
               </span>
             )}
           </Field>
@@ -722,7 +736,7 @@ export default function RegistroEnsayosPage({ apiBase, mode, onSaved }: Registra
               {!laboratoryEnabled && <p className="mb-3 text-xs text-slate-400">{sampleReady ? 'Completa el proyecto para habilitar el ingreso de mediciones.' : 'Valida la muestra para habilitar el ingreso de mediciones.'}</p>}
               <fieldset disabled={!laboratoryEnabled} className="min-w-0 disabled:opacity-60">
                 <LaboratoryForm key={holeId + ':' + assay} assay={assay} lab={lab} onLabChange={setLab} code={code} from={from} to={to} lithology={result?.litologia ?? null}
-                  apiBase={apiBase} sampleData={sampleData} onSaved={saved => {
+                  apiBase={apiBase} sampleData={sampleData} saveUnavailableReason={saveUnavailableReason} onSaved={saved => {
                     setSample('');
                     onSaved(saved);
                   }} />
