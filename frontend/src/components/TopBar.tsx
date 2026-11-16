@@ -32,8 +32,11 @@ interface TopBarProps {
 }
 
 const MODULE_LABELS: Record<string, string> = {
-  dashboard: 'Dashboard Ejecutivo',
+  dashboard: 'Resumen',
+  distribucion: 'Filtro por ensayo',
   registro_maestro: 'Registro Maestro',
+  registro_ensayos: 'Registro de Ensayos',
+  propuesta_registro: 'Propuesta de Registro',
   ucs: 'Compresión Uniaxial (UCS)',
   elasticas: 'Constantes Elásticas',
   traccion: 'Tracción Indirecta (Brasileño)',
@@ -66,7 +69,8 @@ export default function TopBar({
 
   const testModules = ['ucs', 'elasticas', 'traccion', 'corte', 'triaxial'];
   const isTestModule = testModules.includes(currentTab);
-  const isModified = checkModuleModified(currentTab);
+  const isRegistration = currentTab === 'registro_ensayos' || currentTab === 'propuesta_registro';
+  const isModified = !isRegistration && checkModuleModified(currentTab);
 
   return (
     <header className="min-h-16 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3 md:px-6 py-2 border-b border-navy-800 bg-navy-950/40 backdrop-blur z-10 shrink-0 select-none text-left">
@@ -154,7 +158,7 @@ export default function TopBar({
         )}
 
         {/* Save Controls */}
-        {currentTab !== 'reportes' && currentTab !== 'dashboard' && (
+        {!isRegistration && currentTab !== 'reportes' && currentTab !== 'dashboard' && (
           <div className="relative shrink-0">
             {isTestModule ? (
               <div className="inline-flex rounded-lg shadow-sm border border-navy-800 bg-navy-900">
