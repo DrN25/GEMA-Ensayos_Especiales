@@ -25,6 +25,23 @@ class DeltaManager {
   private debounceTimer: any = null;
   private pendingDelta: GridDelta | null = null;
   private hasPendingWrite = false;
+  private owner: number | null = null;
+  private ownerRevision = 0;
+
+  private get storageKey() {
+    return this.owner === null ? undefined : 'current_delta:' + this.owner;
+  }
+
+  public setOwner(owner: number | null): void {
+    if (owner === this.owner) return;
+    if (this.owner !== null && this.hasPendingWrite) void this.flushImmediate();
+    if (this.debounceTimer) clearTimeout(this.debounceTimer);
+    this.debounceTimer = null;
+    this.pendingDelta = null;
+    this.hasPendingWrite = false;
+    this.owner = owner;
+    this.ownerRevision++;
+  }
 
   /**
    * Obtiene la copia en memoria del delta actual.
@@ -114,18 +131,19 @@ class DeltaManager {
     }
 
     this.debounceTimer = setTimeout(async () => {
+      this.debounceTimer = null;
       if (this.hasPendingWrite && this.pendingDelta) {
         const hasActualChanges =
           Object.keys(this.pendingDelta.modifiedRows).length > 0 ||
           this.pendingDelta.insertedRows.length > 0 ||
           this.pendingDelta.deletedRowIds.length > 0;
 
-        if (hasActualChanges) {
-          await saveDelta(this.pendingDelta);
-        } else {
-          await clearDelta();
-        }
         this.hasPendingWrite = false;
+        if (hasActualChanges) {
+          await saveDelta(this.pendingDelta, this.storageKey);
+        } else {
+          await clearDelta(this.storageKey);
+        }
       }
     }, 500);
   }
@@ -143,6 +161,7 @@ class DeltaManager {
       this.pendingDelta = this.extractDeltaFromStore(state);
     }
 
+    this.hasPendingWrite = false;
     if (this.pendingDelta) {
       const hasActualChanges =
         Object.keys(this.pendingDelta.modifiedRows).length > 0 ||
@@ -150,19 +169,20 @@ class DeltaManager {
         this.pendingDelta.deletedRowIds.length > 0;
 
       if (hasActualChanges) {
-        await saveDelta(this.pendingDelta);
+        await saveDelta(this.pendingDelta, this.storageKey);
       } else {
-        await clearDelta();
+        await clearDelta(this.storageKey);
       }
     }
-    this.hasPendingWrite = false;
   }
 
   /**
    * Carga el delta pendiente desde IndexedDB y lo almacena en memoria.
    */
   public async initFromStorage(): Promise<GridDelta | null> {
-    const delta = await loadDelta();
+    const revision = this.ownerRevision;
+    const delta = await loadDelta(this.storageKey);
+    if (revision !== this.ownerRevision) return null;
     this.pendingDelta = delta;
     return delta;
   }
@@ -280,13 +300,13 @@ class DeltaManager {
       // Descartar el cambio local para este IDD
       delete this.pendingDelta.modifiedRows[idd];
       this.hasPendingWrite = true;
-      saveDelta(this.pendingDelta).catch(() => {});
+      saveDelta(this.pendingDelta, this.storageKey).catch(() => {});
     } else {
       // Mantener lo local: actualizar el snapshot original al nuevo valor del servidor para resolver el conflicto
       if (serverRecord && this.pendingDelta.modifiedRows[idd]) {
         this.pendingDelta.modifiedRows[idd].original = JSON.parse(JSON.stringify(serverRecord));
         this.hasPendingWrite = true;
-        saveDelta(this.pendingDelta).catch(() => {});
+        saveDelta(this.pendingDelta, this.storageKey).catch(() => {});
       }
     }
   }
@@ -301,7 +321,7 @@ class DeltaManager {
     }
     this.pendingDelta = null;
     this.hasPendingWrite = false;
-    await clearDelta();
+    await clearDelta(this.storageKey);
   }
 }
 

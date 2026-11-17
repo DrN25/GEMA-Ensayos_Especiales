@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
+import { API_BASE, useAuth } from './auth/AuthContext';
+import UsersPage from './auth/UsersPage';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import Dashboard from './components/Dashboard';
@@ -29,13 +31,6 @@ import { deltaManager } from './features/grid/storage/deltaManager';
 import type { RowConflict } from './features/grid/storage/types';
 
 
-const rawApiBase = import.meta.env.VITE_API_BASE || (
-  typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? `${window.location.protocol}//${window.location.hostname}:8002`
-    : ''
-);
-const API_BASE = rawApiBase ? rawApiBase.replace(/\/+$/, '') : '';
-
 interface NotificationMsg {
   id: number;
   type: 'success' | 'error' | 'warning' | 'info';
@@ -50,6 +45,8 @@ interface Proyecto {
 }
 
 export default function App() {
+  const { user, authFetch } = useAuth();
+  const recordsCacheKey = 'sigeg_records_v2:' + user?.usuario_id;
   // --- 1. ESTADOS DE CONTROL PRINCIPALES ---
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
   const [history, setHistory] = useState<string[]>(['dashboard']);
@@ -195,7 +192,7 @@ export default function App() {
       if (testModules.includes(tab)) {
         params.append('tipo_ensayo', tab);
       }
-      const res = await fetch(`${API_BASE}/api/ensayos?${params.toString()}`);
+      const res = await authFetch(`${API_BASE}/api/ensayos?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         const loadedItems = data.items || [];
@@ -264,7 +261,7 @@ export default function App() {
 
   // Carga inicial de datos
   useEffect(() => {
-    fetch(`${API_BASE}/api/db-status`)
+    authFetch(`${API_BASE}/api/db-status`)
       .then(res => {
         if (res.ok) return res.json();
         throw new Error();
@@ -277,7 +274,7 @@ export default function App() {
         loadEnsayos(1, 50, '', 'dashboard');
 
         // Cargar proyectos
-        fetch(`${API_BASE}/api/proyectos`)
+        authFetch(`${API_BASE}/api/proyectos`)
           .then(res => res.json())
           .then(data => {
             setProyectos(data);
@@ -288,7 +285,7 @@ export default function App() {
         setIsConnected(false);
         setDbInfo({ db_type: "Offline", is_local_fallback: true });
 
-        const cached = localStorage.getItem('sigeg_records_v2');
+        const cached = localStorage.getItem(recordsCacheKey);
         if (cached) {
           const parsed = JSON.parse(cached);
           setRecords(parsed);
@@ -458,7 +455,7 @@ export default function App() {
 
     setIsFetchingEnsayos(true);
     try {
-      const res = await fetch(`${API_BASE}/api/ensayos/clear-all`, {
+      const res = await authFetch(`${API_BASE}/api/ensayos/clear-all`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -479,7 +476,7 @@ export default function App() {
       setPage(1);
       setSaveStatus('synced');
       setHasUnsavedImport(false);
-      safeSaveLocalStorage('sigeg_records_v2', []);
+      safeSaveLocalStorage(recordsCacheKey, []);
       triggerNotification("Base de Datos Vaciada", `Se eliminaron ${data.deleted_count ?? 0} registros correctamente. La base de datos está lista para pruebas.`, "success");
     } catch (e: any) {
       triggerNotification("Error", e?.message || "No se pudo vaciar la base de datos.", "error");
@@ -662,7 +659,7 @@ export default function App() {
       ])];
 
       if (allDeletes.length > 0) {
-        const delRes = await fetch(`${API_BASE}/api/ensayos/batch-delete`, {
+        const delRes = await authFetch(`${API_BASE}/api/ensayos/batch-delete`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(allDeletes)
@@ -697,7 +694,7 @@ export default function App() {
           const chunkSize = 500;
           for (let i = 0; i < dirtyRecords.length; i += chunkSize) {
             const chunk = dirtyRecords.slice(i, i + chunkSize);
-            const res = await fetch(`${API_BASE}/api/ensayos/batch-upsert`, {
+            const res = await authFetch(`${API_BASE}/api/ensayos/batch-upsert`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(chunk)
@@ -715,7 +712,7 @@ export default function App() {
         const chunkSize = 500;
         for (let i = 0; i < records.length; i += chunkSize) {
           const chunk = records.slice(i, i + chunkSize);
-          const res = await fetch(`${API_BASE}/api/ensayos/batch-upsert`, {
+          const res = await authFetch(`${API_BASE}/api/ensayos/batch-upsert`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(chunk)
@@ -723,7 +720,7 @@ export default function App() {
           if (!res.ok) throw new Error("Fallo en sincronización por lote");
         }
 
-        safeSaveLocalStorage('sigeg_records_v2', records);
+        safeSaveLocalStorage(recordsCacheKey, records);
         setLastSavedRecords(JSON.parse(JSON.stringify(records)));
         setSaveStatus('synced');
         setHasUnsavedImport(false);
@@ -734,9 +731,9 @@ export default function App() {
     } catch {
       if (isV2) {
         const allRecords = useGridStore.getState().getAllRecords();
-        safeSaveLocalStorage('sigeg_records_v2', allRecords);
+        safeSaveLocalStorage(recordsCacheKey, allRecords);
       } else {
-        safeSaveLocalStorage('sigeg_records_v2', records);
+        safeSaveLocalStorage(recordsCacheKey, records);
         setLastSavedRecords(JSON.parse(JSON.stringify(records)));
       }
       setSaveStatus('error');
@@ -783,7 +780,7 @@ export default function App() {
       const allDeletes = [...new Set([...pendingDeleteIdds, ...storeDeleted])];
 
       if (allDeletes.length > 0) {
-        const delRes = await fetch(`${API_BASE}/api/ensayos/batch-delete`, {
+        const delRes = await authFetch(`${API_BASE}/api/ensayos/batch-delete`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(allDeletes)
@@ -798,7 +795,7 @@ export default function App() {
           const chunkSize = 500;
           for (let i = 0; i < dirtyRecords.length; i += chunkSize) {
             const chunk = dirtyRecords.slice(i, i + chunkSize);
-            const res = await fetch(`${API_BASE}/api/ensayos/batch-upsert`, {
+            const res = await authFetch(`${API_BASE}/api/ensayos/batch-upsert`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(chunk)
@@ -811,7 +808,7 @@ export default function App() {
         setSaveStatus('synced');
         triggerNotification("Guardado Segmentado", `Los cambios del módulo ${tabKey.replace('_', ' ').toUpperCase()} se han sincronizado correctamente.`, "success");
       } else {
-        const res = await fetch(`${API_BASE}/api/ensayos/batch-upsert`, {
+        const res = await authFetch(`${API_BASE}/api/ensayos/batch-upsert`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(fullMergedList)
@@ -843,7 +840,7 @@ export default function App() {
   const handleSaveProyectos = async () => {
     setProyectosSaveStatus('saving');
     try {
-      const res = await fetch(`${API_BASE}/api/proyectos`, {
+      const res = await authFetch(`${API_BASE}/api/proyectos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(proyectos)
@@ -862,7 +859,7 @@ export default function App() {
   };
 
   const handleReconnect = async () => {
-    fetch(`${API_BASE}/api/db-status`)
+    authFetch(`${API_BASE}/api/db-status`)
       .then(res => res.json())
       .then(dbStatus => {
         setIsConnected(true);
@@ -944,6 +941,7 @@ export default function App() {
         }}
         isConnected={isConnected}
         dbInfo={dbInfo}
+        canManageUsers={user?.rol_nombre === 'admin'}
         isCollapsed={isSidebarCollapsed}
         onToggleSidebar={() => setIsSidebarCollapsed(value => !value)}
       />
@@ -970,6 +968,7 @@ export default function App() {
 
         {/* CONTENEDOR DE PAGINAS */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 view-dashboard view-mapeo view-modal">
+          {currentTab === 'usuarios' && user?.rol_nombre === 'admin' && <UsersPage />}
           {currentTab === 'dashboard' && (
             <Dashboard
               records={records}

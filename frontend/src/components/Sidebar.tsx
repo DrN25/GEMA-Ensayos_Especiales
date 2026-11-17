@@ -17,7 +17,7 @@ import {
   Moon,
   BarChart2,
   FolderLock,
-  ShieldCheck,
+  Users,
   X,
   Boxes,
   type LucideIcon
@@ -30,6 +30,7 @@ interface SidebarProps {
   setDarkMode: (dark: boolean) => void;
   isConnected: boolean;
   dbInfo: { db_type: string; is_local_fallback: boolean; server?: string } | null;
+  canManageUsers: boolean;
   isCollapsed: boolean;
   onToggleSidebar?: () => void;
 }
@@ -42,6 +43,7 @@ export default function Sidebar({
   isConnected,
   dbInfo,
   isCollapsed,
+  canManageUsers,
   onToggleSidebar
 }: SidebarProps) {
   const [isDistExpanded, setIsDistExpanded] = useState(true);
@@ -79,6 +81,7 @@ export default function Sidebar({
       category: 'PROPIEDADES FÍSICAS',
       items: [{ id: 'propiedades', label: 'Propiedades Físicas', icon: Layers }]
     },
+    ...(canManageUsers ? [{ category: 'ADMINISTRACIÓN', items: [{ id: 'usuarios', label: 'Gestión de usuarios', icon: Users }] }] : []),
     /*
     {
       category: 'CONTROL DE CALIDAD',

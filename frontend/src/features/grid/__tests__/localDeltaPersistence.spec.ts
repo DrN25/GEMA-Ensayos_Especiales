@@ -14,6 +14,7 @@ import type { GridDelta } from '../storage/types';
 
 describe('Persistencia Local con IndexedDB / DeltaManager y Descarte de Cambios', () => {
   beforeEach(async () => {
+    deltaManager.setOwner(null);
     resetMemoryStoreForTesting();
     await clearDelta();
     await deltaManager.clear();
@@ -174,6 +175,21 @@ describe('Persistencia Local con IndexedDB / DeltaManager y Descarte de Cambios'
     // Al cargar mediante loadDelta(), debe detectar corrupción, descartarlo y retornar null
     const result = await loadDelta();
     expect(result).toBeNull();
+  });
+
+  it('recupera los borradores por cuenta al cerrar sesión y volver a entrar', async () => {
+    deltaManager.setOwner(101);
+    useGridStore.getState().updateCellValue(0, 'sondaje', 'DH-BORRADOR-101');
+    deltaManager.setOwner(null);
+    expect(deltaManager.getPendingDelta()).toBeNull();
+    expect(await loadDelta()).toBeNull();
+
+    deltaManager.setOwner(202);
+    expect(await deltaManager.initFromStorage()).toBeNull();
+
+    deltaManager.setOwner(101);
+    expect((await deltaManager.initFromStorage())?.modifiedRows[1].current.sondaje).toBe('DH-BORRADOR-101');
+    deltaManager.setOwner(null);
   });
 });
 

@@ -1,3 +1,4 @@
+import { useAuth } from '../../auth/AuthContext';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   UploadCloud,
@@ -49,6 +50,7 @@ interface Incidencia {
 }
 
 export default function BulkAuditor({ apiBase, onAuditSynced }: BulkAuditorProps) {
+  const { authFetch } = useAuth();
   const [status, setStatus] = useState<'idle' | 'uploading' | 'processing' | 'loaded' | 'error'>('idle');
   const [selectedAuditId, setSelectedAuditId] = useState<string>('');
   const [kpis, setKpis] = useState<AuditKpis | null>(null);
@@ -84,7 +86,7 @@ export default function BulkAuditor({ apiBase, onAuditSynced }: BulkAuditorProps
 
   const fetchHistory = async () => {
     try {
-      const res = await fetch(`${apiBase}/api/auditoria/history`);
+      const res = await authFetch(`${apiBase}/api/auditoria/history`);
       if (res.ok) {
         const data = await res.json();
         setHistory(data.history || []);
@@ -99,7 +101,7 @@ export default function BulkAuditor({ apiBase, onAuditSynced }: BulkAuditorProps
     if (status === 'processing' && selectedAuditId) {
       pollingRef.current = setInterval(async () => {
         try {
-          const res = await fetch(`${apiBase}/api/auditoria/status/${selectedAuditId}`);
+          const res = await authFetch(`${apiBase}/api/auditoria/status/${selectedAuditId}`);
           if (!res.ok) return;
           const data = await res.json();
 
@@ -133,7 +135,7 @@ export default function BulkAuditor({ apiBase, onAuditSynced }: BulkAuditorProps
 
   const loadKpis = async (auditId: string) => {
     try {
-      const res = await fetch(`${apiBase}/api/auditoria/kpis?audit_id=${auditId}`);
+      const res = await authFetch(`${apiBase}/api/auditoria/kpis?audit_id=${auditId}`);
       if (res.ok) {
         const data = await res.json();
         setKpis(data);
@@ -157,7 +159,7 @@ export default function BulkAuditor({ apiBase, onAuditSynced }: BulkAuditorProps
       if (tipo) params.append('tipo', tipo);
       if (campo) params.append('campo', campo);
 
-      const res = await fetch(`${apiBase}/api/auditoria/incidencias?${params.toString()}`);
+      const res = await authFetch(`${apiBase}/api/auditoria/incidencias?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         setIncidencias(data.items || []);
@@ -184,7 +186,7 @@ export default function BulkAuditor({ apiBase, onAuditSynced }: BulkAuditorProps
     formData.append('file', file);
 
     try {
-      const res = await fetch(`${apiBase}/api/auditoria/upload`, {
+      const res = await authFetch(`${apiBase}/api/auditoria/upload`, {
         method: 'POST',
         body: formData,
       });
@@ -213,7 +215,7 @@ export default function BulkAuditor({ apiBase, onAuditSynced }: BulkAuditorProps
     setApplySuccess(null);
 
     try {
-      const res = await fetch(`${apiBase}/api/auditoria/apply-sync`, {
+      const res = await authFetch(`${apiBase}/api/auditoria/apply-sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ audit_id: selectedAuditId, action: 'upsert' })
@@ -234,9 +236,21 @@ export default function BulkAuditor({ apiBase, onAuditSynced }: BulkAuditorProps
     }
   };
 
-  const handleDownloadExcel = () => {
+  const handleDownloadExcel = async () => {
     if (!selectedAuditId) return;
-    window.open(`${apiBase}/api/auditoria/export-excel?audit_id=${selectedAuditId}`, '_blank');
+    try {
+      const response = await authFetch(`${apiBase}/api/auditoria/export-excel?audit_id=${encodeURIComponent(selectedAuditId)}`);
+      if (!response.ok) throw new Error('No se pudo descargar el reporte de auditoría.');
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement('a');
+      const filename = response.headers.get('Content-Disposition')?.match(/filename="?([^";]+)/i)?.[1];
+      link.href = url;
+      link.download = filename || 'Reporte_Auditoria.xlsx';
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (failure) {
+      window.alert(failure instanceof Error ? failure.message : 'No se pudo descargar el reporte.');
+    }
   };
 
   const handleSelectHistory = (auditId: string) => {

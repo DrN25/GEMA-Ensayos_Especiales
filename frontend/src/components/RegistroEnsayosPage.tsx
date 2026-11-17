@@ -1,3 +1,4 @@
+import { useAuth } from '../auth/AuthContext';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Box, CircleAlert, CircleCheck, Clock3, Cylinder, Layers3, LoaderCircle, Plus, Save, Trash2, TriangleAlert } from 'lucide-react';
 import { assayFormatLabels, assayTypes, getFormatReference, getLabGroups, laboratories, type AssayType, type Laboratory } from '../config/registrationFormats';
@@ -269,6 +270,7 @@ function LaboratoryForm({ assay, lab, onLabChange, code, from, to, lithology, ap
   onSaved: (saved: RegistrationSaved) => void;
 }) {
   const groups = getLabGroups(lab, assay);
+  const { authFetch } = useAuth();
   const columns = groups.flatMap(group => group.columns);
   const [measurements, setMeasurements] = useState<Measurement[]>([{ id: 1, values: {} }]);
   const [nextRowId, setNextRowId] = useState(2);
@@ -324,7 +326,7 @@ function LaboratoryForm({ assay, lab, onLabChange, code, from, to, lithology, ap
     setSaveError('');
 
     try {
-      const response = await fetch(apiBase + '/api/ensayos/registro', {
+      const response = await authFetch(apiBase + '/api/ensayos/registro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(pending),
@@ -473,6 +475,7 @@ type RegistrationPageProps = { apiBase: string } & (
 );
 
 export default function RegistroEnsayosPage({ apiBase, mode, onSaved }: RegistrationPageProps) {
+  const { authFetch } = useAuth();
   const [holes, setHoles] = useState<Borehole[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [request, setRequest] = useState(0);
@@ -527,7 +530,7 @@ export default function RegistroEnsayosPage({ apiBase, mode, onSaved }: Registra
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       try {
-        const response = await fetch(apiBase + '/api/ensayos/validar-muestra?' + validationQuery, { signal: controller.signal });
+        const response = await authFetch(apiBase + '/api/ensayos/validar-muestra?' + validationQuery, { signal: controller.signal });
         if (!response.ok) throw new Error('Error al consultar el logueo');
         const data: SampleValidation = await response.json();
         if (!controller.signal.aborted) setValidation({ key: validationKey, result: data });
@@ -539,7 +542,7 @@ export default function RegistroEnsayosPage({ apiBase, mode, onSaved }: Registra
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [apiBase, validationQuery, validationKey]);
+  }, [apiBase, authFetch, validationQuery, validationKey]);
 
   const abbreviation = assay === 'CE' ? 'UCS' : assay;
   const selectedPalette = abbreviation ? summaryAssayPalette[abbreviation] : null;
@@ -563,7 +566,7 @@ export default function RegistroEnsayosPage({ apiBase, mode, onSaved }: Registra
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch(apiBase + '/api/ensayos/sondajes-registro', { signal: controller.signal })
+    authFetch(apiBase + '/api/ensayos/sondajes-registro', { signal: controller.signal })
       .then(response => {
         if (!response.ok) throw new Error('Error al consultar los sondajes');
         return response.json();
@@ -577,7 +580,7 @@ export default function RegistroEnsayosPage({ apiBase, mode, onSaved }: Registra
         if (!controller.signal.aborted) setStatus('error');
       });
     return () => controller.abort();
-  }, [apiBase, request]);
+  }, [apiBase, authFetch, request]);
 
   return (
     <div className="mx-auto max-w-6xl space-y-4">

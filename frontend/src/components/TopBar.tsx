@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ProfileMenu from '../auth/ProfileMenu';
 import {
   ArrowLeft,
   BookOpen,
@@ -33,6 +34,7 @@ interface TopBarProps {
 
 const MODULE_LABELS: Record<string, string> = {
   dashboard: 'Resumen',
+  usuarios: 'Gestión de usuarios',
   distribucion: 'Filtro por ensayo',
   registro_maestro: 'Registro Maestro',
   registro_ensayos: 'Registro de Ensayos',
@@ -70,7 +72,8 @@ export default function TopBar({
   const testModules = ['ucs', 'elasticas', 'traccion', 'corte', 'triaxial'];
   const isTestModule = testModules.includes(currentTab);
   const isRegistration = currentTab === 'registro_ensayos' || currentTab === 'propuesta_registro';
-  const isModified = !isRegistration && checkModuleModified(currentTab);
+  const isUsersPage = currentTab === 'usuarios';
+  const isModified = !isUsersPage && !isRegistration && checkModuleModified(currentTab);
 
   return (
     <header className="min-h-16 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3 md:px-6 py-2 border-b border-navy-800 bg-navy-950/40 backdrop-blur z-10 shrink-0 select-none text-left">
@@ -133,15 +136,19 @@ export default function TopBar({
           </button>
         )}
 
-        {/* Catálogos de Referencia button */}
-        <button
-          onClick={onOpenCatalogs}
-          className="flex items-center gap-1.5 bg-sky-500/10 border border-sky-500/40 hover:bg-sky-500/20 hover:border-sky-400 text-sky-400 px-3 md:px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-[0_0_12px_rgba(14,165,233,0.12)] active:scale-95 shrink-0"
-          title="Ver Catálogos de Referencia Geomecánica e ISRM"
-        >
-          <BookOpen size={14} className="text-sky-400" />
-          <span className="hidden sm:inline">Catálogos</span>
-        </button>
+        <div className="flex shrink-0 items-center gap-2 md:gap-3">
+          {/* Catálogos de Referencia button */}
+          <button
+            onClick={onOpenCatalogs}
+            className="flex items-center gap-1.5 bg-sky-500/10 border border-sky-500/40 hover:bg-sky-500/20 hover:border-sky-400 text-sky-400 px-3 md:px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-[0_0_12px_rgba(14,165,233,0.12)] active:scale-95 shrink-0"
+            title="Ver catálogo de Litología y K" aria-label="Catálogos"
+          >
+            <BookOpen size={14} className="text-sky-400" />
+            <span className="hidden sm:inline">Catálogos</span>
+          </button>
+
+          <ProfileMenu hasUnsavedChanges={saveStatus === 'unsaved' || saveStatus === 'saving' || saveStatus === 'error'} />
+        </div>
 
         {/* Botón Descartar cambios: visible solo si hay cambios pendientes */}
         {isModified && onDiscard && (
@@ -158,7 +165,7 @@ export default function TopBar({
         )}
 
         {/* Save Controls */}
-        {!isRegistration && currentTab !== 'reportes' && currentTab !== 'dashboard' && (
+        {!isUsersPage && !isRegistration && currentTab !== 'reportes' && currentTab !== 'dashboard' && (
           <div className="relative shrink-0">
             {isTestModule ? (
               <div className="inline-flex rounded-lg shadow-sm border border-navy-800 bg-navy-900">

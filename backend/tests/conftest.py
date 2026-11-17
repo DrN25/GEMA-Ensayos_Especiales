@@ -17,6 +17,7 @@ os.environ["DB_SERVER"] = "SQLITE_TEST_MEMORY"
 from app.database import Base, get_db
 from app import models
 from app.main import app
+from app.auth.router import current_user
 
 @pytest.fixture(scope="session")
 def engine():
@@ -55,6 +56,8 @@ def client(db_session):
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
+    # Los tests de negocio subyacentes ejercitan los endpoints con sesión ya resuelta.
+    app.dependency_overrides[current_user] = lambda: None
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()

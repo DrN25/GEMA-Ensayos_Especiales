@@ -1,3 +1,4 @@
+import { useAuth } from '../auth/AuthContext';
 import { useState, useEffect } from 'react';
 import DashboardDistributions, { type AssayCount, type StackedAssayCount } from './DashboardDistributions';
 import { assayTypes } from '../config/registrationFormats';
@@ -60,12 +61,13 @@ const assayCards = [
 ] as const;
 
 export default function Dashboard({ records, onNavigateTab, apiBase = '' }: DashboardProps) {
+  const { authFetch } = useAuth();
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const request = new AbortController();
-    fetch(`${apiBase}/api/ensayos/resumen`, { signal: request.signal })
+    authFetch(`${apiBase}/api/ensayos/resumen`, { signal: request.signal })
       .then(response => {
         if (!response.ok) throw new Error('No se pudo cargar el resumen de ensayos.');
         return response.json() as Promise<SummaryData>;
@@ -78,7 +80,7 @@ export default function Dashboard({ records, onNavigateTab, apiBase = '' }: Dash
         if (!request.signal.aborted) setLoading(false);
       });
     return () => request.abort();
-  }, [apiBase]);
+  }, [apiBase, authFetch]);
 
   const totalGlobal = summary?.total_ensayos;
   const totalsByType = new Map(summary?.por_tipo.map(entry => [entry.etiqueta, entry.ensayos]));

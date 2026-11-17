@@ -50,14 +50,14 @@ export function isDeltaCorrupted(data: any): boolean {
 /**
  * Guarda el delta actual en IndexedDB (o fallback en memoria).
  */
-export async function saveDelta(delta: GridDelta): Promise<void> {
+export async function saveDelta(delta: GridDelta, key = DELTA_KEY): Promise<void> {
   if (isDeltaCorrupted(delta)) {
     console.warn('[IndexedDbDeltaStore] Se intentó guardar un delta inválido/corrupto.');
     return;
   }
 
   if (!isIndexedDbAvailable()) {
-    memoryStore[DELTA_KEY] = JSON.parse(JSON.stringify(delta));
+    memoryStore[key] = JSON.parse(JSON.stringify(delta));
     return;
   }
 
@@ -66,13 +66,13 @@ export async function saveDelta(delta: GridDelta): Promise<void> {
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, 'readwrite');
       const store = tx.objectStore(STORE_NAME);
-      const req = store.put(delta, DELTA_KEY);
+      const req = store.put(delta, key);
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
   } catch (err) {
     console.warn('[IndexedDbDeltaStore] Error al guardar delta en IndexedDB, usando fallback:', err);
-    memoryStore[DELTA_KEY] = JSON.parse(JSON.stringify(delta));
+    memoryStore[key] = JSON.parse(JSON.stringify(delta));
   }
 }
 
@@ -80,12 +80,12 @@ export async function saveDelta(delta: GridDelta): Promise<void> {
  * Carga el delta pendiente desde IndexedDB (o fallback en memoria).
  * Si está corrupto o es de una versión vieja del esquema, lo descarta limpiamente y retorna null.
  */
-export async function loadDelta(): Promise<GridDelta | null> {
+export async function loadDelta(key = DELTA_KEY): Promise<GridDelta | null> {
   if (!isIndexedDbAvailable()) {
-    const raw = memoryStore[DELTA_KEY];
+    const raw = memoryStore[key];
     if (!raw) return null;
     if (isDeltaCorrupted(raw)) {
-      delete memoryStore[DELTA_KEY];
+      delete memoryStore[key];
       return null;
     }
     return raw;
@@ -96,14 +96,14 @@ export async function loadDelta(): Promise<GridDelta | null> {
     return new Promise((resolve) => {
       const tx = db.transaction(STORE_NAME, 'readonly');
       const store = tx.objectStore(STORE_NAME);
-      const req = store.get(DELTA_KEY);
+      const req = store.get(key);
 
       req.onsuccess = () => {
         const val = req.result;
         if (!val) return resolve(null);
         if (isDeltaCorrupted(val)) {
           console.warn('[IndexedDbDeltaStore] Delta local corrupto o versión obsoleta detectada. Descartando.');
-          clearDelta().catch(() => {});
+          clearDelta(key).catch(() => {});
           return resolve(null);
         }
         resolve(val as GridDelta);
@@ -123,8 +123,8 @@ export async function loadDelta(): Promise<GridDelta | null> {
 /**
  * Borra el delta pendiente de IndexedDB (ej. tras guardar exitosamente o descartar).
  */
-export async function clearDelta(): Promise<void> {
-  delete memoryStore[DELTA_KEY];
+export async function clearDelta(key = DELTA_KEY): Promise<void> {
+  delete memoryStore[key];
 
   if (!isIndexedDbAvailable()) return;
 
@@ -133,7 +133,7 @@ export async function clearDelta(): Promise<void> {
     return new Promise((resolve) => {
       const tx = db.transaction(STORE_NAME, 'readwrite');
       const store = tx.objectStore(STORE_NAME);
-      const req = store.delete(DELTA_KEY);
+      const req = store.delete(key);
       req.onsuccess = () => resolve();
       req.onerror = () => resolve(); // No bloquear flujo
     });

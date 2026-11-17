@@ -1,3 +1,4 @@
+import { useAuth } from '../auth/AuthContext';
 import { useState, useEffect } from 'react';
 import {
   FlaskConical,
@@ -38,16 +39,17 @@ export default function DistribucionModulos({
   onNavigateTab,
   apiBase = ''
 }: DistribucionModulosProps) {
+  const { authFetch } = useAuth();
   const [stats, setStats] = useState<StatsData | null>(null);
 
   useEffect(() => {
-    fetch(`${apiBase}/api/ensayos/stats`)
+    authFetch(`${apiBase}/api/ensayos/stats`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data) setStats(data);
       })
       .catch((e) => console.warn('No se pudo cargar estadísticas', e));
-  }, [apiBase]);
+  }, [apiBase, authFetch]);
 
   const totalGlobal = stats ? stats.total : records.length;
 

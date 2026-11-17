@@ -1,270 +1,197 @@
-import React, { useState } from 'react';
-import { X, BookOpen, Layers, Compass, BarChart } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { BookOpen, Layers, X } from 'lucide-react';
+import lithologyReference from '../assets/tabla_litologias.png';
+import { lithologyByProject } from '../config/lithologyCatalog';
 
 interface CatalogsModalProps {
-    isOpen: boolean;
-    onClose: () => void;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-const ISRM_TABLE = [
-    { indice: "R0", minUcs: 0.25, maxUcs: 1, denominacion: "Roca extremadamente débil" },
-    { indice: "R1", minUcs: 1, maxUcs: 5, denominacion: "Roca muy débil" },
-    { indice: "R2", minUcs: 5, maxUcs: 25, denominacion: "Roca débil" },
-    { indice: "R3", minUcs: 25, maxUcs: 50, denominacion: "Roca moderadamente resistente" },
-    { indice: "R4", minUcs: 50, maxUcs: 100, denominacion: "Roca resistente" },
-    { indice: "R5", minUcs: 100, maxUcs: 250, denominacion: "Roca muy resistente" },
-    { indice: "R6", minUcs: 250, maxUcs: Infinity, denominacion: "Roca extremadamente resistente" },
+const projects = [
+  { id: 'ferrobamba', label: 'Ferrobamba' },
+  { id: 'chalco', label: 'Chalcobamba' },
+] as const;
+
+type Project = (typeof projects)[number]['id'];
+type Lithology = (typeof lithologyByProject)[Project][number];
+
+const groupBadges = [
+  { code: 'INTRUSIVO', label: 'INTRUSIVOS', color: 'bg-violet-500/10 text-violet-800 dark:text-violet-300' },
+  { code: 'SEDIMENTARI', label: 'SEDIMENTARIAS', color: 'bg-sky-500/10 text-sky-800 dark:text-sky-300' },
+  { code: 'METAMORFIC', label: 'METAMÓRFICAS', color: 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-300' },
+  { code: 'BRECHA', label: 'BRECHAS', color: 'bg-rose-500/10 text-rose-800 dark:text-rose-300' },
+  { code: 'ENDOSKARN', label: 'ENDOSKARN', color: 'bg-amber-500/10 text-amber-800 dark:text-amber-300' },
 ];
 
+function GroupBadge({ group }: { group: string }) {
+  const badge = groupBadges.find(({ code }) => group.toUpperCase().includes(code));
+  if (!badge) return <span className="font-semibold">{group}</span>;
+
+  return (
+    <span className={'inline-flex rounded px-2 py-0.5 text-[10px] font-extrabold ' + badge.color}>
+      {badge.label}
+    </span>
+  );
+}
+
+const summaryColumns = ['Clase / Grupo', 'Litología 1 (Lito 1)', 'Litología 2 (Lito 2)', 'Litología 3 (Lito 3)', 'Factor K'];
+const detailedColumns = ['Unidad Geotécnica', 'Lito 2', 'Lito 3', 'Validación Lito', 'Factor K (K)'];
+const titleClass = 'flex items-center gap-2 text-sm font-bold';
+const panelBorder = 'border-navy-800';
+
+function LithologyTable({ rows, detailed = false, labelId }: {
+  rows: Lithology[];
+  detailed?: boolean;
+  labelId: string;
+}) {
+  const columns = detailed ? detailedColumns : summaryColumns;
+  const seenPairs = new Set<string>();
+  const visibleRows = detailed ? rows.filter(({ lito2, lito3 }) => {
+    // Mapeo conserva la primera fila de cada par exacto Lito 2 / Lito 3.
+    const pair = JSON.stringify([lito2, lito3]);
+    if (seenPairs.has(pair)) return false;
+    seenPairs.add(pair);
+    return true;
+  }) : rows;
+
+  return (
+    <div
+      role="region"
+      aria-labelledby={labelId}
+      tabIndex={0}
+      className={'max-h-[36dvh] overflow-auto rounded-lg border custom-scrollbar ' + panelBorder}
+    >
+      <table aria-labelledby={labelId} className="w-full border-separate border-spacing-0 text-left text-xs">
+        <thead className="sticky top-0 z-10 bg-navy-950">
+          <tr>
+            {columns.map((column, index) => (
+              <th key={column} scope="col" className={'whitespace-nowrap border-b px-3 py-2.5 text-[10px] font-bold uppercase tracking-wide ' + panelBorder
+                + (index === columns.length - 1 ? ' text-center text-cyan-800 dark:text-cyan-300' : ' text-slate-300')}>
+                {column}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-navy-800">
+          {visibleRows.map(({ grupo, lito1, lito2, lito3, k }, index) => (
+            <tr key={index} className="hover:bg-navy-900 dark:hover:bg-navy-800/50">
+              <td className="px-3 py-2"><GroupBadge group={grupo} /></td>
+              {!detailed && <td className="px-3 py-2 font-semibold">{lito1}</td>}
+              <td className={'px-3 py-2' + (detailed ? ' font-semibold' : '')}>{lito2}</td>
+              <td className="px-3 py-2">{lito3}</td>
+              {detailed && <td className="px-3 py-2 font-mono">{lito2}/{lito3}</td>}
+              <td className="px-3 py-2 text-center font-bold tabular-nums text-cyan-800 dark:text-cyan-300">{k.toFixed(2)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function CatalogsModal({ isOpen, onClose }: CatalogsModalProps) {
-    const [activeSubTab, setActiveTab] = useState<string>('registro_maestro');
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [project, setProject] = useState<Project>('ferrobamba');
+  const rows = lithologyByProject[project];
 
-    if (!isOpen) return null;
+  useEffect(() => {
+    const modal = dialog.current;
+    if (!modal) return;
+    if (isOpen && !modal.open) modal.showModal();
+    if (!isOpen && modal.open) modal.close();
+  }, [isOpen]);
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-950/80 backdrop-blur-sm animate-fade-in text-left">
-            <div className="glass-panel w-full max-w-4xl p-6 rounded-2xl border border-navy-800 bg-navy-900/95 shadow-2xl flex flex-col overflow-hidden text-xs text-slate-100 space-y-4 view-modal">
+  return (
+    <dialog
+      ref={dialog}
+      aria-labelledby="catalogs-title"
+      onCancel={event => {
+        event.preventDefault();
+        onClose();
+      }}
+      className="m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-[1440px] overflow-hidden rounded-2xl border border-navy-800 bg-navy-950 p-0 text-slate-100 shadow-2xl backdrop:bg-black/50 backdrop:backdrop-blur-sm dark:backdrop:bg-slate-950/70"
+    >
+      {isOpen && (
+        <div className="flex max-h-[90dvh] flex-col">
+          <div className={'flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3 sm:px-6 ' + panelBorder}>
+            <h2 id="catalogs-title" className="flex items-center gap-2 text-sm font-bold">
+              <BookOpen size={17} aria-hidden="true" className="text-sky-700 dark:text-sky-400" />
+              Catálogos de Referencia Geotécnica
+            </h2>
+            <button
+              type="button"
+              autoFocus
+              onClick={onClose}
+              aria-label="Cerrar catálogos"
+              className="rounded-lg p-2 text-slate-300 hover:bg-navy-900 dark:hover:bg-navy-800"
+            >
+              <X size={18} aria-hidden="true" />
+            </button>
+          </div>
 
-                <div className="flex justify-between items-center border-b border-navy-800 pb-3 shrink-0">
-                    <div className="flex items-center gap-2">
-                        <BookOpen size={16} className="text-sky-400" />
-                        <h3 className="text-xs font-black text-slate-100 uppercase tracking-widest">Catálogos de Referencia Geotécnica</h3>
-                    </div>
-                    <button onClick={onClose} className="p-1 rounded hover:bg-navy-850 text-slate-400 hover:text-white transition-colors">
-                        <X size={14} />
-                    </button>
-                </div>
-
-                {/* 7 pestañas obligatorias con estilo de brillo sky activo */}
-                <div className="flex flex-wrap gap-1.5 border-b border-navy-800 pb-2.5 shrink-0">
-                    {[
-                        { id: 'registro_maestro', label: 'Registros Maestros' },
-                        { id: 'ucs', label: 'Compresión Uniaxial' },
-                        { id: 'elasticas', label: 'Constantes Elásticas' },
-                        { id: 'traccion', label: 'Tracción Indirecta' },
-                        { id: 'corte', label: 'Corte Directo' },
-                        { id: 'triaxial', label: 'Triaxial' },
-                        { id: 'propiedades', label: 'Propiedades Físicas' }
-                    ].map(t => (
-                        <button
-                            key={t.id}
-                            onClick={() => setActiveTab(t.id)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all border ${activeSubTab === t.id
-                                    ? 'bg-sky-500/15 border-sky-500/40 text-sky-400 shadow-[0_0_12px_rgba(14,165,233,0.18)]'
-                                    : 'bg-navy-950/60 border-navy-800 text-slate-400 hover:bg-navy-850 hover:text-slate-200'
-                                }`}
-                        >
-                            {t.label}
-                        </button>
-                    ))}
-                </div>
-
-                <div className="flex-1 overflow-y-auto max-h-96 pr-1 space-y-3 custom-scrollbar">
-                    {activeSubTab === 'registro_maestro' && (
-                        <div className="space-y-3 animate-fade-in text-xs">
-                            <h4 className="font-extrabold text-slate-200 text-xs">Guía de Parámetros de Registro de Campo</h4>
-                            <p className="text-slate-400 text-xs">Metadatos de posicionamiento y códigos de control sugeridos para SIGEG 2.0.</p>
-                            <table className="w-full text-left border-collapse border border-navy-900 rounded-lg overflow-hidden text-xs">
-                                <thead>
-                                    <tr className="bg-navy-950 text-slate-400 font-bold uppercase tracking-wider border-b border-navy-850">
-                                        <th className="py-2 px-3">Parámetro</th>
-                                        <th className="py-2 px-3">Código de Control</th>
-                                        <th className="py-2 px-3">Clasificación Geotécnica</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-navy-900/30 text-slate-300 font-semibold">
-                                    <tr className="hover:bg-navy-900/10">
-                                        <td className="py-2.5 px-3">Sondaje Diamantino</td>
-                                        <td className="py-2.5 px-3 text-emerald-400">CHS-19 / CHS-20</td>
-                                        <td className="py-2.5 px-3 font-medium">Sondaje de perforación con testigo continuo</td>
-                                    </tr>
-                                    <tr className="hover:bg-navy-900/10">
-                                        <td className="py-2.5 px-3">Zonificación de Litologías</td>
-                                        <td className="py-2.5 px-3 text-emerald-400">LIT_01 / LIT_02</td>
-                                        <td className="py-2.5 px-3 font-medium">Estructura litoestratigráfica maestra</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-
-                    {activeSubTab === 'ucs' && (
-                        <div className="space-y-3 animate-fade-in text-xs">
-                            <h4 className="font-black text-slate-200">Resistencias y Grados ISRM (Ensayos UCS)</h4>
-                            <table className="w-full text-left border-collapse border border-navy-900 rounded-lg overflow-hidden">
-                                <thead>
-                                    <tr className="bg-navy-950 text-slate-400 font-bold uppercase tracking-wider text-[10px] border-b border-navy-850">
-                                        <th className="py-2 px-3">Grado</th>
-                                        <th className="py-2 px-3">Denominación</th>
-                                        <th className="py-2 px-3 text-center">UCS Mínimo (MPa)</th>
-                                        <th className="py-2 px-3 text-center">UCS Máximo (MPa)</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-navy-900/30 text-slate-300 font-semibold">
-                                    {[
-                                        { g: "R0", d: "Roca extremadamente débil", min: 0.25, max: 1.0 },
-                                        { g: "R1", d: "Roca muy débil", min: 1.0, max: 5.0 },
-                                        { g: "R2", d: "Roca débil", min: 5.0, max: 25.0 },
-                                        { g: "R3", d: "Roca moderadamente resistente", min: 25.0, max: 50.0 },
-                                        { g: "R4", d: "Roca resistente", min: 50.0, max: 100.0 },
-                                        { g: "R5", d: "Roca muy resistente", min: 100.0, max: 250.0 },
-                                        { g: "R6", d: "Roca extremadamente resistente", min: 250.0, max: Infinity }
-                                    ].map(r => (
-                                        <tr key={r.g} className="hover:bg-navy-900/10">
-                                            <td className="py-2.5 px-3 font-bold text-emerald-400">{r.g}</td>
-                                            <td className="py-2.5 px-3 font-medium">{r.d}</td>
-                                            <td className="py-2.5 px-3 text-center font-mono">{r.min}</td>
-                                            <td className="py-2.5 px-3 text-center font-mono">{r.max === Infinity ? '∞' : r.max}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-
-                    {activeSubTab === 'elasticas' && (
-                        <div className="space-y-3 animate-fade-in text-xs">
-                            <h4 className="font-black text-slate-200">Constantes Elásticas Típicas</h4>
-                            <p className="text-slate-400 text-xs">Límites de elasticidad y Poisson sugeridos para auditoría geomecánica.</p>
-                            <table className="w-full text-left border-collapse border border-navy-900 rounded-lg overflow-hidden">
-                                <thead>
-                                    <tr className="bg-navy-950 text-slate-400 font-bold uppercase tracking-wider text-xs border-b border-navy-850">
-                                        <th className="py-2 px-3">Tipo de Roca</th>
-                                        <th className="py-2 px-3">Módulo de Young (GPa)</th>
-                                        <th className="py-2 px-3">Relación de Poisson</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-navy-900/30 text-slate-300 font-semibold">
-                                    <tr className="hover:bg-navy-900/10">
-                                        <td className="py-2.5 px-3 font-medium">Granito</td>
-                                        <td className="py-2.5 px-3 font-mono">10.0 - 70.0</td>
-                                        <td className="py-2.5 px-3 font-mono">0.10 - 0.30</td>
-                                    </tr>
-                                    <tr className="hover:bg-navy-900/10">
-                                        <td className="py-2.5 px-3 font-medium">Arenisca</td>
-                                        <td className="py-2.5 px-3 font-mono">5.0 - 40.0</td>
-                                        <td className="py-2.5 px-3 font-mono">0.05 - 0.40</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-
-                    {activeSubTab === 'traccion' && (
-                        <div className="space-y-3 animate-fade-in text-xs">
-                            <h4 className="font-black text-slate-200">Ensayos Brasileños (Tracción Indirecta)</h4>
-                            <table className="w-full text-left border-collapse border border-navy-900 rounded-lg overflow-hidden">
-                                <thead>
-                                    <tr className="bg-navy-950 text-slate-400 font-bold uppercase tracking-wider text-xs border-b border-navy-850">
-                                        <th className="py-2 px-3">Litología</th>
-                                        <th className="py-2 px-3">Carga Promedio (kN)</th>
-                                        <th className="py-2 px-3">Resistencia Sugerida (MPa)</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-navy-900/30 text-slate-300 font-semibold font-mono">
-                                    <tr className="hover:bg-navy-900/10">
-                                        <td className="py-2.5 px-3 font-sans font-medium">Basalto</td>
-                                        <td className="py-2.5 px-3">15.0 - 35.0</td>
-                                        <td className="py-2.5 px-3">5.0 - 15.0</td>
-                                    </tr>
-                                    <tr className="hover:bg-navy-900/10">
-                                        <td className="py-2.5 px-3 font-sans font-medium">Esquisto</td>
-                                        <td className="py-2.5 px-3">3.0 - 12.0</td>
-                                        <td className="py-2.5 px-3">2.0 - 8.0</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-
-                    {activeSubTab === 'corte' && (
-                        <div className="space-y-3 animate-fade-in text-xs">
-                            <h4 className="font-black text-slate-200">Parámetros de Ensayos de Corte Directo</h4>
-                            <table className="w-full text-left border-collapse border border-navy-900 rounded-lg overflow-hidden">
-                                <thead>
-                                    <tr className="bg-navy-950 text-slate-400 font-bold uppercase tracking-wider text-xs border-b border-navy-850">
-                                        <th className="py-2 px-3">Estado de la Discontinuidad</th>
-                                        <th className="py-2 px-3">Cohesión C (MPa)</th>
-                                        <th className="py-2 px-3">Ángulo de Fricción (°)</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-navy-900/30 text-slate-300 font-semibold font-mono">
-                                    <tr className="hover:bg-navy-900/10">
-                                        <td className="py-2.5 px-3 font-sans font-medium">Limpia y Rugosa (Sana)</td>
-                                        <td className="py-2.5 px-3">0.10 - 2.00</td>
-                                        <td className="py-2.5 px-3">35.0 - 45.0</td>
-                                    </tr>
-                                    <tr className="hover:bg-navy-900/10">
-                                        <td className="py-2.5 px-3 font-sans font-medium">Con Relleno de Arcilla</td>
-                                        <td className="py-2.5 px-3">0.01 - 0.15</td>
-                                        <td className="py-2.5 px-3">10.0 - 20.0</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-
-                    {activeSubTab === 'triaxial' && (
-                        <div className="space-y-3 animate-fade-in text-xs">
-                            <h4 className="font-black text-slate-200">Parámetros Intactos de Hoek-Brown (mi)</h4>
-                            <table className="w-full text-left border-collapse border border-navy-900 rounded-lg overflow-hidden">
-                                <thead>
-                                    <tr className="bg-navy-950 text-slate-400 font-bold uppercase tracking-wider text-xs border-b border-navy-850">
-                                        <th className="py-2 px-3">Grupo Litológico</th>
-                                        <th className="py-2 px-3 text-center">Parámetro mi</th>
-                                        <th className="py-2 px-3 text-center">Fricción Interna Promedio</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-navy-900/30 text-slate-300 font-semibold">
-                                    <tr className="hover:bg-navy-900/10">
-                                        <td className="py-2.5 px-3 font-medium">Granito / Riolita</td>
-                                        <td className="py-2.5 px-3 text-center font-mono">30 ± 3</td>
-                                        <td className="py-2.5 px-3 text-center font-mono">45° - 55°</td>
-                                    </tr>
-                                    <tr className="hover:bg-navy-900/10">
-                                        <td className="py-2.5 px-3 font-medium">Caliza / Dolomita</td>
-                                        <td className="py-2.5 px-3 text-center font-mono">8 ± 2</td>
-                                        <td className="py-2.5 px-3 text-center font-mono">30° - 40°</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-
-                    {activeSubTab === 'propiedades' && (
-                        <div className="space-y-3 animate-fade-in text-xs">
-                            <h4 className="font-black text-slate-200">Peso Unitario Típico de las Rocas</h4>
-                            <table className="w-full text-left border-collapse border border-navy-900 rounded-lg overflow-hidden">
-                                <thead>
-                                    <tr className="bg-navy-950 text-slate-400 font-bold uppercase tracking-wider text-xs border-b border-navy-850">
-                                        <th className="py-2 px-3">Litología</th>
-                                        <th className="py-2 px-3 text-center">Peso Unitario Mínimo (gr/cm3)</th>
-                                        <th className="py-2 px-3 text-center">Peso Unitario Máximo (gr/cm3)</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-navy-900/30 text-slate-300 font-semibold font-mono">
-                                    <tr className="hover:bg-navy-900/10">
-                                        <td className="py-2.5 px-3 font-sans font-medium">Andesita / Basalto</td>
-                                        <td className="py-2.5 px-3 text-center">2.40</td>
-                                        <td className="py-2.5 px-3 text-center">2.90</td>
-                                    </tr>
-                                    <tr className="hover:bg-navy-900/10">
-                                        <td className="py-2.5 px-3 font-sans font-medium">Toba / Ignimbrita</td>
-                                        <td className="py-2.5 px-3 text-center">1.20</td>
-                                        <td className="py-2.5 px-3 text-center">2.20</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </div>
-
-                <div className="flex justify-end pt-3 border-t border-navy-800 shrink-0">
-                    <button onClick={onClose} className="bg-navy-900 border border-navy-800 hover:bg-navy-850 text-slate-300 hover:text-slate-100 px-5 py-2 rounded-lg text-xs font-bold transition-all active:scale-95 shadow-sm">
-                        Cerrar Catálogo
-                    </button>
-                </div>
+          <div className="min-h-0 overflow-y-auto p-4 custom-scrollbar sm:p-6 xl:flex xl:items-start xl:gap-5">
+            <div className={'mb-4 shrink-0 rounded-xl border bg-white p-3 dark:bg-navy-900 xl:mb-0 xl:w-48 ' + panelBorder}>
+              <h3 className="mb-2 text-[10px] font-black uppercase tracking-wide text-slate-400">
+                Roca Intacta &amp; Litología
+              </h3>
+              <p className="flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-900 dark:bg-indigo-600 dark:text-white">
+                <Layers size={14} aria-hidden="true" />
+                Litología y K
+              </p>
             </div>
+
+            <div className="min-w-0 flex-1 gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,300px)]">
+              <div className="min-w-0 space-y-6">
+                <section className="space-y-3">
+                  <div className={'flex flex-wrap items-center justify-between gap-3 border-b pb-2 ' + panelBorder}>
+                    <h3 id="lithology-summary-title" className={titleClass}>
+                      <Layers size={15} aria-hidden="true" className="shrink-0 text-cyan-700 dark:text-cyan-400" />
+                      Factor de correlación para ensayos de carga puntual (Proyecto: {project.toUpperCase()})
+                    </h3>
+                    <div role="group" aria-label="Proyecto" className={'flex gap-1 rounded-lg border bg-white p-1 dark:bg-navy-900 ' + panelBorder}>
+                      {projects.map(({ id, label }) => (
+                        <button
+                          key={id}
+                          type="button"
+                          aria-pressed={project === id}
+                          onClick={() => setProject(id)}
+                          className={'rounded-md px-2.5 py-1.5 text-xs font-bold transition-colors ' + (project === id
+                            ? 'bg-cyan-50 text-cyan-900 ring-1 ring-inset ring-cyan-200 dark:bg-cyan-400 dark:text-slate-950 dark:ring-0'
+                            : 'text-slate-300 hover:bg-navy-900 dark:hover:bg-navy-800')}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <LithologyTable key={project} labelId="lithology-summary-title" rows={rows} />
+                </section>
+
+                <section className="space-y-3">
+                  <h3 id="lithology-detail-title" className={titleClass + ' border-b pb-2 ' + panelBorder}>
+                    <Layers size={15} aria-hidden="true" className="shrink-0 text-violet-700 dark:text-violet-400" />
+                    Factor de correlación para ensayos de carga puntual (Detallado)
+                  </h3>
+                  <LithologyTable key={project} labelId="lithology-detail-title" rows={rows} detailed />
+                </section>
+              </div>
+
+              <figure className="mt-6 space-y-3 lg:sticky lg:top-0 lg:mt-0">
+                <figcaption className={titleClass + ' border-b pb-2 ' + panelBorder}>
+                  <Layers size={15} aria-hidden="true" className="text-emerald-700 dark:text-emerald-400" />
+                  Tabla de Litologías
+                </figcaption>
+                <img
+                  src={lithologyReference}
+                  alt="Tabla de referencia de códigos de litología"
+                  className={'mx-auto h-auto w-full max-w-[380px] rounded-lg border ' + panelBorder}
+                />
+              </figure>
+            </div>
+          </div>
         </div>
-    );
+      )}
+    </dialog>
+  );
 }

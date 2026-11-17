@@ -5,13 +5,14 @@ Alineado a la arquitectura y directrices de GEMA-Mapeo.
 """
 import os
 import sys
-from fastapi import FastAPI, HTTPException, Depends, Body
+from fastapi import FastAPI, HTTPException, Depends, Body, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.database import engine, Base, auto_heal_schema, get_db
+from app.auth.router import admin, auth, current_user
 from app.routers.ensayos import router as ensayos_router
 from app.routers.proyectos import router as proyectos_router
 from app.routers.auditoria import router as auditoria_router
@@ -31,7 +32,7 @@ uploads_dir = os.path.join(BASE_DIR, "uploads")
 os.makedirs(uploads_dir, exist_ok=True)
 os.makedirs(os.path.join(uploads_dir, "auditoria_history"), exist_ok=True)
 
-app.mount("/api/uploads", StaticFiles(directory=uploads_dir), name="uploads")
+uploads = StaticFiles(directory=uploads_dir)
 
 # CORS Middleware universal
 app.add_middleware(
@@ -40,6 +41,7 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"],
 )
 
 # Inicialización de Tablas y Esquema
@@ -53,18 +55,28 @@ def startup_db():
         print(f"Error al inicializar la base de datos: {e}")
 
 # Registro de Routers Modulares
-app.include_router(ensayos_router)
-app.include_router(proyectos_router)
-app.include_router(auditoria_router)
-app.include_router(config_router)
+app.include_router(auth)
+app.include_router(admin)
+
+require_session = [Depends(current_user)]
+app.include_router(ensayos_router, dependencies=require_session)
+app.include_router(proyectos_router, dependencies=require_session)
+app.include_router(auditoria_router, dependencies=require_session)
+app.include_router(config_router, dependencies=require_session)
+
+@app.get("/api/uploads/{file_path:path}", dependencies=require_session)
+@app.head("/api/uploads/{file_path:path}", dependencies=require_session, include_in_schema=False)
+async def get_uploaded_file(file_path: str, request: Request):
+    return await uploads.get_response(file_path, request.scope)
+
 
 # Alias de compatibilidad hacia atrás
-@app.get("/api/db-status")
+@app.get("/api/db-status", dependencies=require_session)
 def db_status_alias(db: Session = Depends(get_db)):
     from app.routers.config import get_db_status
     return get_db_status(db)
 
-@app.post("/api/records/bulk")
+@app.post("/api/records/bulk", dependencies=require_session)
 def records_bulk_alias(payload: list = Body(...), db: Session = Depends(get_db)):
     from app.routers.ensayos import batch_upsert_ensayos
     return batch_upsert_ensayos(payload, db)
