@@ -1,0 +1,11 @@
+{% extends "comunes/base-tabla-corridas.html" %}
+
+{% set columnas = [
+  ("ucs_diametro", "Diámetro del testigo (cm)", 14),
+  ("ucs_carga_rotura", "Carga de rotura (kN)", 13),
+  ("ucs_resistencia", "Resistencia a la compresión uniaxial (MPa)", 18),
+  ("ucs_resistencia_calculada", "Resistencia Calculada", 14),
+  ("ucs_rotura", "Rotura_UX", 11),
+  ("elasticas_modulo_young", "Modulo de Young (GPa)", 16),
+  ("elasticas_poisson", "Relación de Poisson", 14)
+] %}

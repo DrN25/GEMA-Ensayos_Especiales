@@ -1053,12 +1053,7 @@ export default function App() {
             />
           )}
 
-          {currentTab === 'reportes' && (
-            <Reportes
-              records={records}
-              alertsCount={qaqcAlertsCount}
-            />
-          )}
+          {currentTab === 'reportes' && <Reportes />}
         </main>
 
         {/* 3. ALERTA QA/QC FLOATING CHATBOT PANEL */}

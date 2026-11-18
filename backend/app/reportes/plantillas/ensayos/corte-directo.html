@@ -1,0 +1,46 @@
+{% extends "comunes/base-a4.html" %}
+
+{% block estilos_ensayo %}
+{% include "comunes/fotos.css" %}
+{% include "ensayos/corte-directo.css" %}
+{% endblock %}
+
+{% block resultados %}
+{% set columnas = [
+  ("corte_tipo_fractura", "Tipo de fractura", 15),
+  ("corte_area", "Área de ensayo (cm2)", 12),
+  ("corte_esf_normal_kpa", "Esf Normal (kPa)", 11),
+  ("corte_esf_corte_kpa", "Esf Corte (kPa)", 11),
+  ("corte_esf_normal_mpa", "Esfuerzo Normal (MPa)", 13),
+  ("corte_esf_corte_mpa", "Esfuerzo de Corte (MPa)", 13),
+  ("corte_cohesion_mpa", "CD_Cohesion (Mpa)", 12),
+  ("corte_angulo_friccion", "CD_Ang. Friccion (°)", 13)
+] %}
+<table class="tabla-resultados tabla-corte-directo" aria-label="Resultados de corte directo">
+  <colgroup>
+    {% for campo, etiqueta, ancho in columnas %}
+    <col style="width:{{ ancho }}%">
+    {% endfor %}
+  </colgroup>
+  <thead>
+    <tr>
+      {% for campo, etiqueta, ancho in columnas %}
+      <th scope="col">{{ etiqueta }}</th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for corrida in corridas %}
+    <tr>
+      {% for campo, etiqueta, ancho in columnas %}
+      <td>{% if mostrar_variables %}{{ "{{ corrida." ~ campo ~ " }}" }}{% else %}{{ corrida.get(campo) }}{% endif %}</td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+
+{% block anexos %}
+{% include "comunes/fotos.html" %}
+{% endblock %}

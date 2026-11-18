@@ -1,0 +1,36 @@
+{% extends "comunes/base-a4.html" %}
+
+{% block estilos_ensayo %}
+{% include "comunes/fotos.css" %}
+{% include "comunes/tabla-corridas.css" %}
+{% endblock %}
+
+{% block resultados %}
+<table class="tabla-resultados tabla-corridas" aria-label="Resultados de {{ tipo_ensayo }}">
+  <colgroup>
+    {% for campo, etiqueta, ancho in columnas %}
+    <col style="width:{{ ancho }}%">
+    {% endfor %}
+  </colgroup>
+  <thead>
+    <tr>
+      {% for campo, etiqueta, ancho in columnas %}
+      <th scope="col">{{ etiqueta }}</th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for corrida in corridas %}
+    <tr>
+      {% for campo, etiqueta, ancho in columnas %}
+      <td>{% if mostrar_variables %}{{ "{{ corrida." ~ campo ~ " }}" }}{% else %}{{ corrida.get(campo) }}{% endif %}</td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+
+{% block anexos %}
+{% include "comunes/fotos.html" %}
+{% endblock %}

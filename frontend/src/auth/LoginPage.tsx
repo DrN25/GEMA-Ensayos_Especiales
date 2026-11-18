@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Boxes, CircleAlert, Info, Loader2, Moon, Sun } from 'lucide-react';
+import { Cylinder, CircleAlert, Info, Loader2, Moon, Sun } from 'lucide-react';
 import { getStoredDarkMode, persistTheme } from '../utils/theme';
 import { useAuth } from './AuthContext';
 import { AuthPasswordField, authFilledInputClass, authPrimaryClass } from './AuthFields';
@@ -50,7 +50,7 @@ export function LoginPage() {
       <div className="glass-panel relative w-full max-w-md rounded-2xl px-6 py-8 sm:px-9">
         <div className="mb-7 text-center">
           <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 text-white">
-            <Boxes size={24} aria-hidden="true" />
+            <Cylinder size={24} aria-hidden="true" />
           </div>
           <p className="text-xs font-black uppercase tracking-widest text-sky-700 dark:text-sky-400">GEMA SIGEG</p>
           <h1 className="mt-1 text-2xl font-black">Ensayos Especiales</h1>

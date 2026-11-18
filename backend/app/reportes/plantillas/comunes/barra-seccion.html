@@ -1,0 +1,10 @@
+{% macro barra_seccion(id, texto, icono) -%}
+<h2 class="titulo-seccion" id="{{ id }}">
+  <span class="icono icono-{{ icono }}" aria-hidden="true">
+    {%- for _ in range({"personas": 2, "roca": 0, "resultados": 3}[icono]) -%}
+    <i></i>
+    {%- endfor -%}
+  </span>
+  {{ texto }}
+</h2>
+{%- endmacro %}

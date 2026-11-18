@@ -3,6 +3,7 @@ import ProfileMenu from '../auth/ProfileMenu';
 import {
   ArrowLeft,
   BookOpen,
+  FileText,
   Save,
   ChevronDown,
   RefreshCw,
@@ -47,7 +48,7 @@ const MODULE_LABELS: Record<string, string> = {
   propiedades: 'Propiedades Físicas',
   auditoria: 'Auditoría QA/QC Masiva',
   proyectos: 'Proyectos y Canteras',
-  reportes: 'Reportes Estadísticos'
+  reportes: 'Reportes'
 };
 
 export default function TopBar({
@@ -137,6 +138,15 @@ export default function TopBar({
         )}
 
         <div className="flex shrink-0 items-center gap-2 md:gap-3">
+          <button type="button"
+            onClick={() => setCurrentTab('reportes')}
+            aria-current={currentTab === 'reportes' ? 'page' : undefined}
+            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-navy-800 bg-navy-900 px-3 py-2 text-xs font-bold text-slate-200 hover:border-sky-500/60"
+            title="Reportes de ensayos" aria-label="Reportes"
+          >
+            <FileText size={14} className="text-sky-500" aria-hidden="true" />
+            <span className="hidden sm:inline">Reportes</span>
+          </button>
           {/* Catálogos de Referencia button */}
           <button
             onClick={onOpenCatalogs}

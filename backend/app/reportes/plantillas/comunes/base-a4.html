@@ -1,0 +1,30 @@
+{% from "comunes/barra-seccion.html" import barra_seccion -%}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ensayo de {{ tipo_ensayo }}{% if texto_titulo %} - {{ texto_titulo }}{% endif %} | Plantilla A4</title>
+  <style>
+{% include "comunes/reporte-a4.css" %}
+{% block estilos_ensayo %}{% endblock %}
+{% if mostrar_variables %}{% include "evidencias/variables.css" %}{% endif %}
+  </style>
+</head>
+<body>
+  <article class="hoja" aria-labelledby="titulo-reporte">
+    {% include "comunes/encabezado.html" %}
+    <main class="contenido">
+      <h1 class="titulo-reporte" id="titulo-reporte">ENSAYO DE <span class="tipo-ensayo">{{ tipo_ensayo }}</span>{% if texto_titulo %} - <span class="texto-titulo">{{ texto_titulo }}</span>{% endif %}</h1>
+      {% include "comunes/datos.html" %}
+      {% include "comunes/datos-muestra.html" %}
+      <section class="seccion" aria-labelledby="titulo-resultados">
+        {{ barra_seccion("titulo-resultados", "Resultados", "resultados") }}
+        {% block resultados %}{% endblock %}
+      </section>
+      {% block anexos %}{% endblock %}
+    </main>
+    {% include "comunes/pie.html" %}
+  </article>
+</body>
+</html>

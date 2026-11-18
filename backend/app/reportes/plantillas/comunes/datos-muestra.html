@@ -1,0 +1,19 @@
+<section class="seccion" aria-labelledby="titulo-muestra">
+  {{ barra_seccion("titulo-muestra", "Datos muestra", "roca") }}
+  <div class="datos datos-muestra">
+    <dl class="grupo-datos">
+      <div class="campo"><dt>Material</dt><dd>{{ muestra.material }}</dd></div>
+      <div class="campo"><dt>Presentación</dt><dd>{{ muestra.presentacion }}</dd></div>
+      <div class="campo"><dt>Muestreado</dt><dd>{{ muestra.muestreado }}</dd></div>
+    </dl>
+    <dl class="grupo-datos">
+      <div class="campo"><dt>Código</dt><dd>{{ muestra.codigo }}</dd></div>
+      <div class="campo"><dt>Sondaje</dt><dd>{{ muestra.sondaje }}</dd></div>
+      <div class="campo"><dt>Observaciones</dt><dd>{{ muestra.observaciones }}</dd></div>
+    </dl>
+    <dl class="grupo-datos">
+      <div class="campo"><dt>Litología</dt><dd>{{ muestra.litologia }}</dd></div>
+      <div class="campo"><dt>Profundidad</dt><dd>{{ muestra.profundidad }}</dd></div>
+    </dl>
+  </div>
+</section>

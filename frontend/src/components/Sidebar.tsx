@@ -19,7 +19,7 @@ import {
   FolderLock,
   Users,
   X,
-  Boxes,
+  Cylinder,
   type LucideIcon
 } from 'lucide-react';
 
@@ -130,7 +130,7 @@ export default function Sidebar({
               className="flex items-center gap-2.5 cursor-pointer group min-w-0"
             >
               <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-600 via-indigo-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-sky-500/20 group-hover:scale-105 transition-transform shrink-0">
-                <Boxes className="w-5 h-5 text-white" />
+                <Cylinder className="w-5 h-5 text-white" />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">

@@ -1,0 +1,16 @@
+<section class="seccion" aria-labelledby="titulo-datos">
+  {{ barra_seccion("titulo-datos", "Datos", "personas") }}
+  <div class="datos datos-generales">
+    <dl class="grupo-datos">
+      <div class="campo"><dt>Informe N.º</dt><dd><strong>{{ datos.informe }}</strong></dd></div>
+      <div class="campo"><dt>Muestreo</dt><dd>{{ datos.muestreo }}</dd></div>
+      <div class="campo"><dt>Proyecto</dt><dd>{{ datos.proyecto }}</dd></div>
+    </dl>
+    <dl class="grupo-datos">
+      <div class="campo"><dt>Fecha de emisión</dt><dd><strong>{{ datos.fecha_emision }}</strong></dd></div>
+      <div class="campo"><dt>Coordenadas</dt><dd class="coordenadas">{{ datos.coordenadas }}</dd></div>
+      <div class="campo"><dt>Ubicación</dt><dd>{{ datos.ubicacion }}</dd></div>
+      <div class="campo"><dt>Sector</dt><dd>{{ datos.sector }}</dd></div>
+    </dl>
+  </div>
+</section>

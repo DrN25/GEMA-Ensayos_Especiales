@@ -17,6 +17,7 @@ from app.routers.ensayos import router as ensayos_router
 from app.routers.proyectos import router as proyectos_router
 from app.routers.auditoria import router as auditoria_router
 from app.routers.config import router as config_router
+from app.reportes.router import router as reportes_router
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -63,6 +64,7 @@ app.include_router(ensayos_router, dependencies=require_session)
 app.include_router(proyectos_router, dependencies=require_session)
 app.include_router(auditoria_router, dependencies=require_session)
 app.include_router(config_router, dependencies=require_session)
+app.include_router(reportes_router, dependencies=require_session)
 
 @app.get("/api/uploads/{file_path:path}", dependencies=require_session)
 @app.head("/api/uploads/{file_path:path}", dependencies=require_session, include_in_schema=False)

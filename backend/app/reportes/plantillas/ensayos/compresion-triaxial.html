@@ -1,0 +1,11 @@
+{% extends "comunes/base-tabla-corridas.html" %}
+
+{% set columnas = [
+  ("triaxial_carga_confinamiento", "Carga de confinamiento (MPa)", 18),
+  ("triaxial_esfuerzo_maximo", "Esfuerzo máximo (MPa)", 16),
+  ("triaxial_resistencia_mpa", "Resistencia (Mpa)", 14),
+  ("triaxial_mi", "mi", 8),
+  ("triaxial_cohesion_mpa", "TX_Cohesion (Mpa)", 15),
+  ("triaxial_angulo_friccion", "TX_Ang. Friccion (°)", 16),
+  ("triaxial_rotura", "Rotura_TX", 13)
+] %}
