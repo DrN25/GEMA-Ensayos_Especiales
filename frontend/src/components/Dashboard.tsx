@@ -29,19 +29,14 @@ interface SummaryData {
 
 const assayCards = [
   {
-    id: 'registro_maestro', assay: null, short: 'Códigos de muestra únicos', icon: Database,
-    iconTone: 'bg-navy-900 text-slate-300',
-    barTone: 'bg-slate-500',
-  },
-  {
-    id: 'ucs', assay: 'UCS', short: 'Compresión Uniaxial', icon: FlaskConical,
+    id: 'ucs', assay: 'UCS', icon: FlaskConical,
     iconTone: summaryAssayPalette.UCS.icon,
     barTone: summaryAssayPalette.UCS.bar,
   },
   {
     id: 'elasticas', assay: 'CE', short: 'Young / Poisson', icon: Activity,
-    iconTone: summaryAssayPalette.UCS.icon,
-    barTone: summaryAssayPalette.UCS.bar,
+    iconTone: summaryAssayPalette.CE.icon,
+    barTone: summaryAssayPalette.CE.bar,
   },
   {
     id: 'traccion', assay: 'TI', short: 'Brasileño', icon: TrendingUp,
@@ -94,21 +89,33 @@ export default function Dashboard({ records, onNavigateTab, apiBase = '' }: Dash
         </span>
         <div>
           <h2 className="text-xl font-black tracking-wide text-slate-100">Ensayos Especiales</h2>
-          <p className="mt-1 text-xs font-semibold text-slate-400">
-            {loading ? 'Cargando resumen…' : totalGlobal === undefined
-              ? 'No se pudo cargar el total de ensayos.'
-              : `Total de ${totalGlobal.toLocaleString('es-PE')} ${totalGlobal === 1 ? 'ensayo' : 'ensayos'} en el Registro Maestro`}
-          </p>
         </div>
       </div>
 
-      <DashboardDistributions
-        campaigns={summary?.por_campana}
-        laboratories={summary?.por_laboratorio}
-        loading={loading}
-      />
+      <button
+        type="button"
+        onClick={() => onNavigateTab('registro_maestro')}
+        className="group flex w-full flex-wrap items-center justify-between gap-4 rounded-xl border border-navy-800 border-l-4 border-l-sky-600 bg-white dark:bg-navy-950 px-4 py-4 text-left transition-colors hover:border-sky-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600 sm:px-6"
+      >
+        <span className="flex items-center gap-3 sm:gap-4">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-sky-100 text-sky-800 dark:bg-sky-400/15 dark:text-sky-200">
+            <Database size={23} aria-hidden="true" />
+          </span>
+          <span>
+            <span className="block text-base font-black leading-tight text-slate-100 sm:text-lg">Total de ensayos</span>
+            <span className="mt-1 block text-xs font-medium text-slate-400">
+              {loading ? 'Cargando resumen…' : totalGlobal === undefined ? 'No se pudo cargar el total.' : 'Códigos de muestra únicos'}
+            </span>
+          </span>
+        </span>
+        <span className="flex items-center gap-2">
+          <strong className="text-lg font-black tabular-nums text-slate-100 sm:text-xl">
+            {totalGlobal?.toLocaleString('es-PE') ?? '—'}
+          </strong>
+          <ChevronRight size={19} className="text-slate-400 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+        </span>
+      </button>
 
-      {/* 3. Módulos y Familias con Navegación Rápida */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
@@ -123,33 +130,32 @@ export default function Dashboard({ records, onNavigateTab, apiBase = '' }: Dash
           </button>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
           {assayCards.map((m) => {
             const Icon = m.icon;
-            const label = m.assay === null ? 'Total de ensayos' : assayTypes[m.assay];
-            const count = m.assay === null ? totalGlobal ?? 0 : totalsByType.get(label.toLocaleLowerCase('es-PE')) ?? 0;
+            const label = m.assay === 'UCS' ? 'Compresión uniaxial' : assayTypes[m.assay];
+            const count = totalsByType.get(m.assay) ?? 0;
             const pct = totalGlobal ? Math.round(count / totalGlobal * 100) : 0;
             return (
-              <div
+              <button
+                type="button"
                 key={m.id}
                 onClick={() => onNavigateTab(m.id)}
-                className="glass-panel p-4 rounded-xl border border-navy-800 bg-navy-950/25 hover:border-sky-500/40 hover:bg-navy-900/30 cursor-pointer transition-all active:scale-[0.98] flex min-h-36 flex-col justify-between gap-2 group"
+                className="glass-panel p-4 rounded-xl border border-navy-800 bg-navy-950/25 hover:border-sky-500/40 hover:bg-navy-900/30 text-left cursor-pointer transition-all active:scale-[0.98] flex min-h-36 flex-col justify-between gap-2 group"
               >
-                <div className="flex items-center justify-between">
-                  <div className={'p-2 rounded-lg border border-navy-800 group-hover:scale-105 transition-transform ' + m.iconTone}>
-                    <Icon size={16} />
-                  </div>
-                  {m.assay !== null && (
-                    <span className="text-[10px] font-bold text-slate-500 font-mono">{summary ? pct + '%' : '—'}</span>
-                  )}
+                <div className="flex w-full items-center justify-between gap-2">
+                  <span className={'inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-navy-800 px-2 py-1.5 text-xs font-extrabold ' + m.iconTone}>
+                    <Icon size={15} aria-hidden="true" /> {m.assay}
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-500 font-mono">{summary ? pct + '%' : '—'}</span>
                 </div>
 
                 <div>
                   <div className="text-lg font-black text-slate-100 font-mono leading-tight">
                     {summary ? count.toLocaleString('es-PE') : '—'}
                   </div>
-                  <div className="text-[11px] font-bold text-slate-300 leading-tight mt-0.5">{label}</div>
-                  <div className="text-[10px] text-slate-500 truncate">{m.short}</div>
+                  <div className="mt-1 text-[13px] font-bold leading-snug text-slate-200 sm:text-sm">{label}</div>
+                  {'short' in m && <div className="mt-0.5 text-[10px] text-slate-400">{m.short}</div>}
                 </div>
 
                 <div className="w-full bg-navy-900 rounded-full h-1.5 overflow-hidden">
@@ -158,13 +164,19 @@ export default function Dashboard({ records, onNavigateTab, apiBase = '' }: Dash
                     style={{ width: `${Math.min(100, pct)}%` }}
                   />
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
       </div>
 
-      {/* 4. Tabla de Muestras Recientes */}
+      <DashboardDistributions
+        campaigns={summary?.por_campana}
+        laboratories={summary?.por_laboratorio}
+        loading={loading}
+      />
+
+      {/* Tabla de Muestras Recientes */}
       <div className="glass-panel p-5 rounded-xl border border-navy-800 bg-navy-950/15 shadow-xl space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-navy-800">
           <div>

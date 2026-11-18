@@ -48,6 +48,7 @@ const MODULE_LABELS: Record<string, string> = {
   propiedades: 'Propiedades Físicas',
   auditoria: 'Auditoría QA/QC Masiva',
   proyectos: 'Proyectos y Canteras',
+  revision_excel: 'Revisión de Excel',
   reportes: 'Reportes'
 };
 
@@ -74,7 +75,8 @@ export default function TopBar({
   const isTestModule = testModules.includes(currentTab);
   const isRegistration = currentTab === 'registro_ensayos' || currentTab === 'propuesta_registro';
   const isUsersPage = currentTab === 'usuarios';
-  const isModified = !isUsersPage && !isRegistration && checkModuleModified(currentTab);
+  const isExcelReview = currentTab === 'revision_excel';
+  const isModified = !isExcelReview && !isUsersPage && !isRegistration && checkModuleModified(currentTab);
 
   return (
     <header className="min-h-16 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3 md:px-6 py-2 border-b border-navy-800 bg-navy-950/40 backdrop-blur z-10 shrink-0 select-none text-left">
@@ -175,7 +177,7 @@ export default function TopBar({
         )}
 
         {/* Save Controls */}
-        {!isUsersPage && !isRegistration && currentTab !== 'reportes' && currentTab !== 'dashboard' && (
+        {!isExcelReview && !isUsersPage && !isRegistration && currentTab !== 'reportes' && currentTab !== 'dashboard' && (
           <div className="relative shrink-0">
             {isTestModule ? (
               <div className="inline-flex rounded-lg shadow-sm border border-navy-800 bg-navy-900">

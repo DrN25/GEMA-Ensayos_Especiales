@@ -4,13 +4,13 @@ import {
   Database,
   ClipboardPlus,
   FileText,
+  FileSpreadsheet,
   ListFilter,
   FlaskConical,
   Activity,
   TrendingUp,
   Scissors,
   Compass,
-  Layers,
   ChevronDown,
   ChevronRight,
   Sun,
@@ -78,8 +78,8 @@ export default function Sidebar({
       ]
     },
     {
-      category: 'PROPIEDADES FÍSICAS',
-      items: [{ id: 'propiedades', label: 'Propiedades Físicas', icon: Layers }]
+      category: 'CONTROL DE CALIDAD',
+      items: [{ id: 'revision_excel', label: 'Revisión de Excel', icon: FileSpreadsheet }]
     },
     ...(canManageUsers ? [{ category: 'ADMINISTRACIÓN', items: [{ id: 'usuarios', label: 'Gestión de usuarios', icon: Users }] }] : []),
     /*

@@ -18,6 +18,7 @@ from app.routers.proyectos import router as proyectos_router
 from app.routers.auditoria import router as auditoria_router
 from app.routers.config import router as config_router
 from app.reportes.router import router as reportes_router
+from app.revision_excel.router import router as revision_excel_router
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -42,7 +43,7 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["Content-Disposition"],
+    expose_headers=["Content-Disposition", "X-Resumen-Revision"],
 )
 
 # Inicialización de Tablas y Esquema
@@ -65,6 +66,7 @@ app.include_router(proyectos_router, dependencies=require_session)
 app.include_router(auditoria_router, dependencies=require_session)
 app.include_router(config_router, dependencies=require_session)
 app.include_router(reportes_router, dependencies=require_session)
+app.include_router(revision_excel_router, dependencies=require_session)
 
 @app.get("/api/uploads/{file_path:path}", dependencies=require_session)
 @app.head("/api/uploads/{file_path:path}", dependencies=require_session, include_in_schema=False)

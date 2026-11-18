@@ -9,6 +9,7 @@ import GeotechPage from './components/GeotechPage';
 import RegistroEnsayosPage from './components/RegistroEnsayosPage';
 import ProyectosPage from './components/ProyectosPage';
 import Reportes from './components/Reportes';
+import ExcelReview from './features/revisionExcel/ExcelReview';
 import ValidationPanel from './components/ValidationPanel';
 import NotificationItem from './components/NotificationItem';
 import ExcelImportModal from './components/ExcelImportModal';
@@ -872,7 +873,7 @@ export default function App() {
   };
 
   const checkModuleModified = (tabKey: string): boolean => {
-    if (tabKey === 'dashboard' || tabKey === 'reportes') return false;
+    if (tabKey === 'dashboard' || tabKey === 'reportes' || tabKey === 'revision_excel') return false;
 
     if (isV2) {
       const { dirtyRowIds, deletedRowIds, recordsById, originalRecordsById } = useGridStore.getState();
@@ -1054,6 +1055,7 @@ export default function App() {
           )}
 
           {currentTab === 'reportes' && <Reportes />}
+          {currentTab === 'revision_excel' && <ExcelReview />}
         </main>
 
         {/* 3. ALERTA QA/QC FLOATING CHATBOT PANEL */}

@@ -4,6 +4,11 @@ export const summaryAssayPalette = {
     bar: 'bg-sky-600 dark:bg-sky-400',
     headerText: 'text-black',
   },
+  CE: {
+    icon: 'bg-violet-50 text-violet-800 dark:bg-violet-400/10 dark:text-violet-300',
+    bar: 'bg-violet-600 dark:bg-violet-400',
+    headerText: 'text-white dark:text-black',
+  },
   TX: {
     icon: 'bg-rose-50 text-rose-800 dark:bg-rose-400/10 dark:text-rose-300',
     bar: 'bg-rose-600 dark:bg-rose-400',

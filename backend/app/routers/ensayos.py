@@ -152,19 +152,10 @@ def _recent_ensayos(db: Session):
     return [{column.name: getattr(row, column.name) for column in row.__table__.columns} for row in rows]
 
 
-def _count_assays_by(query, column):
-    # Group missing values together before COUNT DISTINCT so a code can only count once in that group.
-    label = func.nullif(func.ltrim(func.rtrim(column)), literal_column("''"))
-    rows = query.add_columns(label).group_by(label).all()
-    return [
-        {"etiqueta": name, "ensayos": count}
-        for count, name in sorted(rows, key=lambda row: (row[1] is None, row[1] or ""))
-    ]
-
-
 _ASSAY_SERIES = {
-    "determinación de constantes elásticas": "UCS",
-    "constantes elásticas": "UCS",
+    "determinación de constantes elásticas": "CE",
+    "constantes elásticas": "CE",
+    "ce": "CE",
     "compresión uniaxial": "UCS",
     "ucs": "UCS",
     "compresión triaxial": "TX",
@@ -175,6 +166,20 @@ _ASSAY_SERIES = {
     "ti": "TI",
     "tr": "TI",
 }
+
+
+def _count_assays_by_type(db: Session, identified_assays):
+    maestro = models.RegistroMaestro
+    kind = func.nullif(func.ltrim(func.rtrim(maestro.tipo_ensayo)), literal_column("''"))
+    label = case(_ASSAY_SERIES, value=func.lower(kind), else_=func.lower(kind))
+    by_type = identified_assays.with_entities(
+        maestro.codigo_muestra.label("codigo"), label.label("tipo")
+    ).subquery()
+    rows = db.query(by_type.c.tipo, func.count(by_type.c.codigo.distinct())).group_by(by_type.c.tipo).all()
+    return [
+        {"etiqueta": name, "ensayos": count}
+        for name, count in sorted(rows, key=lambda row: (row[0] is None, row[0] or ""))
+    ]
 
 
 def _stacked_assay_distribution(db: Session, identified_assays, dimension):
@@ -226,7 +231,7 @@ def get_ensayos_summary(db: Session = Depends(get_db)):
         "total_ensayos": assays.scalar() or 0,
         "por_campana": _stacked_assay_distribution(db, identified, maestro.campana),
         "por_laboratorio": _stacked_assay_distribution(db, identified, maestro.laboratorio),
-        "por_tipo": _count_assays_by(assays, func.lower(maestro.tipo_ensayo)),
+        "por_tipo": _count_assays_by_type(db, identified),
         "recent": _recent_ensayos(db),
     }
 
