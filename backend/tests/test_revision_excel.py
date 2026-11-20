@@ -5,9 +5,12 @@ from zipfile import ZipFile
 
 import pytest
 from openpyxl import Workbook, load_workbook
-from openpyxl.formula.translate import Translator
 
 from app.revision_excel.service import NS, SHEET, TEMPLATE, ReviewError, write_review
+from app.revision_excel.rules import definitions
+from app.revision_excel.grouping import optimize_legacy_pattern
+from app.revision_excel.service import formula_pattern
+from openpyxl.utils.cell import get_column_letter
 
 
 def input_file(records, *, reorder=False, formula=False):
@@ -54,6 +57,8 @@ def test_review_extends_all_rules_and_preserves_input_types():
         assert sheet["AE3"].value == "170..99"
         assert sheet["AA3"].value is None
         assert sheet.max_row == 303
+        last_values = next(sheet.iter_rows(min_row=303, max_row=303))
+        last_formulas = {cell.column_letter: cell.value[1:] for cell in last_values if cell.data_type == 'f'}
         result.close()
 
         output.seek(0)
@@ -65,21 +70,26 @@ def test_review_extends_all_rules_and_preserves_input_types():
                 cell.get("r").rstrip("3"): cell.findtext(NS + "f")
                 for cell in seed if cell.find(NS + "f") is not None
             }
-            formulas = {
-                cell.get("r").rstrip("0123456789"): cell.findtext(NS + "f")
-                for cell in last if cell.find(NS + "f") is not None
-            }
-            assert len(formulas) == len(expected) == 35
+            formulas = last_formulas
+            assert len(expected) == 35
+            assert len(formulas) == len(expected) + sum(c.formula is not None for c in definitions())
             for col, original in expected.items():
-                translated = Translator("=" + original, origin=f"{col}3").translate_formula(f"{col}303")[1:]
-                assert formulas[col] == translated.replace("$302", "$303")
+                refs = {c.key: get_column_letter(81+i) for i,c in enumerate(definitions())}
+                optimized = optimize_legacy_pattern(formula_pattern(original), refs['legacy_start'], refs['legacy_end'])
+                assert formulas[col] == optimized.format(row=303,last=303)
             formats = [node.get("sqref") for node in generated.findall(NS + "conditionalFormatting")]
-            assert len(formats) == 15
+            assert len(formats) == 16
             assert "AT3:BV303" in formats
-            assert len(generated.findall(f"{NS}dataValidations/{NS}dataValidation")) == 2
+            assert len(generated.findall(f"{NS}dataValidations/{NS}dataValidation")) == 3
             assert generated.find(f"{NS}dataValidations/{NS}dataValidation").get("sqref") == "F3:F303 AS3:AS303"
             assert book.read("xl/comments1.xml") == template.read("xl/comments1.xml")
-            assert book.read("xl/styles.xml") == template.read("xl/styles.xml")
+            # Additional styles append to the existing collections; none of the
+            # original cell-style indexes are moved or changed.
+            old_styles = ET.fromstring(template.read("xl/styles.xml"))
+            new_styles = ET.fromstring(book.read("xl/styles.xml"))
+            for name in ("fonts", "fills", "cellXfs", "dxfs"):
+                for old, new in zip(old_styles.find(NS+name), new_styles.find(NS+name)):
+                    assert ET.tostring(old) == ET.tostring(new)
 
 
 def test_review_flags_formulas_in_the_original_data():

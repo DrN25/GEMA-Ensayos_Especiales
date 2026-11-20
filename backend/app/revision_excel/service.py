@@ -12,6 +12,10 @@ from openpyxl.formula.tokenizer import Tokenizer
 from openpyxl.utils.cell import get_column_letter
 from openpyxl.utils.datetime import to_excel
 
+from app.revision_excel.layout import extend_sheet, extra_parts, text_cell, theme_colors
+from app.revision_excel.rules import definitions, red_components
+from app.revision_excel.grouping import GroupIndex, optimize_legacy_pattern
+
 
 TEMPLATE = Path(__file__).with_name("plantilla_auditoria_v1.xlsx")
 SHEET = "xl/worksheets/sheet1.xml"
@@ -122,7 +126,7 @@ def input_rows(sheet, first, positions):
         yield [cells[idx] for idx in positions]
 
 
-def summarize(sheet, first, positions):
+def summarize(sheet, first, positions, group_index=None):
     codes = Counter()
     types = Counter()
     total = 0
@@ -130,6 +134,8 @@ def summarize(sheet, first, positions):
         total += 1
         if total > MAX_RECORDS:
             raise ReviewError(f"El archivo supera el límite de {MAX_RECORDS:,} registros por revisión.")
+        if group_index is not None:
+            group_index.observe(total + SEED_ROW - 1, row)
         code = row[2].value
         if code is not None and str(code).strip():
             codes[str(code).strip().casefold()] += 1
@@ -164,6 +170,26 @@ def value_xml(address, style, cell, date_epoch):
     return f'{ref} t="inlineStr"><is><t xml:space="preserve">{text}</t></is></c>'
 
 
+def shared_formula_xml(col, row, last, style, index, pattern):
+    """Excel-native shared formulas keep large reviews small and recalculable.
+
+    Only the anchor contains formula text. All other rows refer to its shared
+    index; Excel translates relative references and preserves absolute ranges.
+    """
+    # Excel's shared-formula reader can discard dynamic reference expressions
+    # (INDEX(...):INDEX(...)). Emit those as ordinary formulas; keep compact
+    # sharing for the remaining scalar formulas. Calculation bounds stay intact.
+    if 'INDEX(' in pattern.upper():
+        formula = escape(pattern.format(row=row, last=last))
+        return f'<c r="{col}{row}" s="{style}"><f>{formula}</f></c>'
+    if row == SEED_ROW:
+        formula = escape(pattern.format(row=row, last=last))
+        body = f'<f t="shared" ref="{col}{row}:{col}{last}" si="{index}">{formula}</f>'
+    else:
+        body = f'<f t="shared" si="{index}"/>'
+    return f'<c r="{col}{row}" s="{style}">{body}</c>'
+
+
 def write_review(source, output):
     check_archive(source)
     head, headers, tail, expected, styles, formulas = template_parts()
@@ -174,27 +200,61 @@ def write_review(source, output):
 
     try:
         sheet, first, positions = identify_input(workbook, expected)
-        summary = summarize(sheet, first, positions)
+        group_index = GroupIndex()
+        summary = summarize(sheet, first, positions, group_index)
         last_row = summary["registros"] + SEED_ROW - 1
         end = str(last_row).encode()
-        head = head.replace(b'ref="A1:CB3"', b'ref="A1:CB' + end + b'"')
         tail = re.sub(rb'sqref="([^"]+)"',
                       lambda match: b'sqref="' + re.sub(rb'(?<=[A-Z])302\b', end, match[1]) + b'"', tail)
         columns = tuple(get_column_letter(i) for i in range(1, INPUT_WIDTH + 1))
+        new_rules = tuple((get_column_letter(81+i), column, formula_pattern(column.formula) if column.formula else None)
+                          for i, column in enumerate(definitions()))
+        addresses = {rule.key: col for col, rule, _ in new_rules}
+        formulas = [(col, optimize_legacy_pattern(pattern, addresses['legacy_start'], addresses['legacy_end']))
+                    for col, pattern in formulas]
+        theme = theme_colors(workbook)
 
         with ZipFile(TEMPLATE) as base, ZipFile(output, "w", compression=ZIP_DEFLATED, compresslevel=3) as result:
+            additions, added_styles, red_styles = extra_parts(base, last_row)
+            head, headers, tail = extend_sheet(head, headers, tail, last_row, added_styles)
             for name in base.namelist():
                 if name != SHEET:
-                    result.writestr(name, base.read(name))
+                    result.writestr(name, additions.pop(name, None) or base.read(name))
+            for name, content in additions.items():
+                result.writestr(name, content)
             with result.open(SHEET, "w") as out:
                 out.write(head + b"<sheetData>" + headers)
                 for row_number, values in enumerate(input_rows(sheet, first, positions), SEED_ROW):
+                    constants = group_index.constants(values)
                     cells = [f'<row r="{row_number}">']
-                    cells.extend(value_xml(f"{col}{row_number}", styles.get(col, "0"), cell, workbook.epoch)
-                                 for col, cell in zip(columns, values))
-                    for col, pattern in formulas:
-                        formula = escape(pattern.format(row=row_number, last=last_row))
-                        cells.append(f'<c r="{col}{row_number}" s="{styles[col]}"><f>{formula}</f></c>')
+                    red_columns = []
+                    for col, cell in zip(columns, values):
+                        font_red, fill_red = red_components(cell, theme)
+                        style = styles.get(col, "0")
+                        if (font_red or fill_red) and cell.value is not None:
+                            red_columns.append(col)
+                            style = red_styles[(style, font_red, fill_red)]
+                        cells.append(value_xml(f"{col}{row_number}", style, cell, workbook.epoch))
+                    for index, (col, pattern) in enumerate(formulas):
+                        cells.append(shared_formula_xml(col, row_number, last_row, styles[col], index, pattern))
+                    for index, (col, rule, pattern) in enumerate(new_rules, len(formulas)):
+                        address = f"{col}{row_number}"
+                        if pattern is not None:
+                            cells.append(shared_formula_xml(col, row_number, last_row, added_styles["value"], index, pattern))
+                        elif rule.key == "red":
+                            cells.append(text_cell(address, "|" + "|".join(red_columns) + "|" if red_columns else "", added_styles["input"]))
+                        elif rule.key == "exclude":
+                            cells.append(text_cell(address, "No", added_styles["input"]))
+                        elif rule.key == 'original_code':
+                            cells.append(value_xml(address, added_styles['value'], values[2], workbook.epoch))
+                        elif rule.key in constants:
+                            value = constants[rule.key]
+                            if isinstance(value, int):
+                                cells.append(f'<c r="{address}" s="{added_styles["value"]}"><v>{value}</v></c>')
+                            else:
+                                cells.append(text_cell(address, value, added_styles['value']))
+                        else:
+                            cells.append(f'<c r="{address}" s="{added_styles["input"]}"/>')
                     cells.append("</row>")
                     out.write("".join(cells).encode())
                 out.write(b"</sheetData>" + tail)
