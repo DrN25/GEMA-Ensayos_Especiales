@@ -30,27 +30,27 @@ interface SummaryData {
 const assayCards = [
   {
     id: 'ucs', assay: 'UCS', icon: FlaskConical,
-    iconTone: summaryAssayPalette.UCS.icon,
+    badgeTone: summaryAssayPalette.UCS.badge,
     barTone: summaryAssayPalette.UCS.bar,
   },
   {
     id: 'elasticas', assay: 'CE', short: 'Young / Poisson', icon: Activity,
-    iconTone: summaryAssayPalette.CE.icon,
+    badgeTone: summaryAssayPalette.CE.badge,
     barTone: summaryAssayPalette.CE.bar,
   },
   {
     id: 'traccion', assay: 'TI', short: 'Brasileño', icon: TrendingUp,
-    iconTone: summaryAssayPalette.TI.icon,
+    badgeTone: summaryAssayPalette.TI.badge,
     barTone: summaryAssayPalette.TI.bar,
   },
   {
     id: 'corte', assay: 'CD', short: 'Discontinuidades', icon: Scissors,
-    iconTone: summaryAssayPalette.CD.icon,
+    badgeTone: summaryAssayPalette.CD.badge,
     barTone: summaryAssayPalette.CD.bar,
   },
   {
     id: 'triaxial', assay: 'TX', short: 'Hoek-Brown', icon: Compass,
-    iconTone: summaryAssayPalette.TX.icon,
+    badgeTone: summaryAssayPalette.TX.badge,
     barTone: summaryAssayPalette.TX.bar,
   },
 ] as const;
@@ -95,7 +95,7 @@ export default function Dashboard({ records, onNavigateTab, apiBase = '' }: Dash
       <button
         type="button"
         onClick={() => onNavigateTab('registro_maestro')}
-        className="group flex w-full flex-wrap items-center justify-between gap-4 rounded-xl border border-navy-800 border-l-4 border-l-sky-600 bg-white dark:bg-navy-950 px-4 py-4 text-left transition-colors hover:border-sky-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600 sm:px-6"
+        className="glass-panel group flex w-full flex-wrap items-center justify-between gap-4 rounded-xl border border-navy-800 border-l-4 border-l-sky-600 px-4 py-4 text-left transition-colors hover:border-sky-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600 sm:px-6"
       >
         <span className="flex items-center gap-3 sm:gap-4">
           <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-sky-100 text-sky-800 dark:bg-sky-400/15 dark:text-sky-200">
@@ -144,14 +144,14 @@ export default function Dashboard({ records, onNavigateTab, apiBase = '' }: Dash
                 className="glass-panel p-4 rounded-xl border border-navy-800 bg-navy-950/25 hover:border-sky-500/40 hover:bg-navy-900/30 text-left cursor-pointer transition-all active:scale-[0.98] flex min-h-36 flex-col justify-between gap-2 group"
               >
                 <div className="flex w-full items-center justify-between gap-2">
-                  <span className={'inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-navy-800 px-2 py-1.5 text-xs font-extrabold ' + m.iconTone}>
+                  <span className={'inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-extrabold ' + m.badgeTone}>
                     <Icon size={15} aria-hidden="true" /> {m.assay}
                   </span>
-                  <span className="text-[10px] font-bold text-slate-500 font-mono">{summary ? pct + '%' : '—'}</span>
+                  <span className="text-xs font-bold text-slate-400 font-mono">{summary ? pct + '%' : '—'}</span>
                 </div>
 
                 <div>
-                  <div className="text-lg font-black text-slate-100 font-mono leading-tight">
+                  <div className="text-2xl font-black text-slate-100 font-mono leading-tight">
                     {summary ? count.toLocaleString('es-PE') : '—'}
                   </div>
                   <div className="mt-1 text-[13px] font-bold leading-snug text-slate-200 sm:text-sm">{label}</div>
