@@ -1,4 +1,35 @@
 from sqlalchemy import text
+from decimal import Decimal
+
+
+EDGE_TOLERANCE = Decimal('0.05')
+
+
+def resolve_borehole(db, sondaje_id=None, sondaje_codigo=None):
+    """Resolve existing metadata without creating a Sondajes record."""
+    from fastapi import HTTPException
+    if sondaje_id is not None:
+        row = db.execute(text('SELECT SondajeID AS id, CodigoSondaje AS code FROM dbo.Sondajes WHERE SondajeID = :id'), {'id': sondaje_id}).mappings().first()
+        if row is None:
+            raise HTTPException(404, 'El sondaje seleccionado no existe.')
+        if sondaje_codigo and row['code'].strip().casefold() != sondaje_codigo.strip().casefold():
+            raise HTTPException(422, 'El código y el identificador del sondaje no coinciden.')
+        return row['id'], row['code']
+    code = (sondaje_codigo or '').strip()
+    if not code:
+        raise HTTPException(422, 'Selecciona o escribe un sondaje.')
+    row = db.execute(text('SELECT SondajeID AS id, CodigoSondaje AS code FROM dbo.Sondajes WHERE CodigoSondaje = :code'), {'code': code}).mappings().first()
+    return (row['id'], row['code']) if row else (None, code)
+
+
+def _affects_core(row, desde, hasta):
+    start, end = Decimal(str(desde)), Decimal(str(hasta))
+    overlap_start = max(start, Decimal(str(row['desde'])))
+    overlap_end = min(end, Decimal(str(row['hasta'])))
+    # Only fractures wholly confined to an edge strip are tolerated. For
+    # samples <= 10 cm the strips overlap, so all overlapping fractures fit.
+    return (overlap_start < overlap_end and end-start > EDGE_TOLERANCE*2
+            and overlap_start < end-EDGE_TOLERANCE and overlap_end > start+EDGE_TOLERANCE)
 
 
 _STRUCTURES = text("""
@@ -54,7 +85,9 @@ def validate_sample_interval(db, sondaje_id, desde, hasta, ensayo):
         source = "geotecnico_general" if lithology else None
 
     codes = [(row["tipo"] or "").strip().upper() for row in structures]
-    fractures = sum(bool(code) and code != "SE" for code in codes)
+    fractures = sum(bool(code) and code != "SE" and _affects_core(row, desde, hasta)
+                    for row, code in zip(structures, codes))
+    total_fractures = sum(bool(code) and code != 'SE' for code in codes)
     unknown = codes.count("")
     reason = None
     if ensayo != "CD":
@@ -69,6 +102,9 @@ def validate_sample_interval(db, sondaje_id, desde, hasta, ensayo):
         "valida": reason is None,
         "motivo": reason,
         "fracturas": fractures,
+        "fracturas_totales": total_fractures,
+        "fracturas_toleradas": total_fractures - fractures,
+        "tolerancia_extremos_m": float(EDGE_TOLERANCE),
         "tipos_sin_dato": unknown,
         "registros_estructurales": len(structures),
         "litologia": lithology,

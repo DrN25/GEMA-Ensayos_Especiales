@@ -289,10 +289,11 @@ def get_registration_boreholes(db: Session = Depends(get_db)):
 
 @router.get("/validar-muestra")
 def validate_registration_sample(
-    sondaje_id: int = Query(gt=0),
     desde: Decimal = Query(ge=0, le=99999999.99),
     hasta: Decimal = Query(ge=0, le=99999999.99),
     ensayo: Literal["TX", "UCS", "CD", "TI", "CE", "PF"] = Query(),
+    sondaje_id: int | None = Query(default=None, gt=0),
+    sondaje_codigo: str | None = Query(default=None, min_length=1, max_length=100),
     db: Session = Depends(get_db),
 ):
     if desde >= hasta:
@@ -300,14 +301,9 @@ def validate_registration_sample(
     if db.get_bind().dialect.name != "mssql":
         raise HTTPException(status_code=503, detail="La validación requiere SQL Server.")
 
-    hole = db.execute(
-        text("SELECT SondajeID FROM dbo.Sondajes WHERE SondajeID = :sondaje_id"),
-        {"sondaje_id": sondaje_id},
-    ).scalar_one_or_none()
-    if hole is None:
-        raise HTTPException(status_code=404, detail="El sondaje seleccionado no existe.")
-
-    return validate_sample_interval(db, sondaje_id, desde, hasta, ensayo)
+    from app.services.sample_validation import resolve_borehole
+    resolved_id, _ = resolve_borehole(db, sondaje_id, sondaje_codigo)
+    return validate_sample_interval(db, resolved_id, desde, hasta, ensayo)
 
 
 @router.get("/sondajes", response_model=List[str])

@@ -27,11 +27,14 @@ export default function BoreholePicker({ holes, selected, disabled, placeholder,
   useEffect(() => {
     if (!expanded) return;
     const closeOutside = (event: PointerEvent) => {
-      if (event.target instanceof Node && !picker.current?.contains(event.target)) setOpen(false);
+      if (event.target instanceof Node && !picker.current?.contains(event.target)) {
+        if (query.trim()) onSelect(holes.find(h => h.code.toLowerCase() === term) ?? { id: 0, code: query.trim(), project: null });
+        setOpen(false);
+      }
     };
     document.addEventListener('pointerdown', closeOutside);
     return () => document.removeEventListener('pointerdown', closeOutside);
-  }, [expanded]);
+  }, [expanded, query, holes, onSelect, term]);
 
   function openList() {
     setQuery('');
@@ -46,6 +49,7 @@ export default function BoreholePicker({ holes, selected, disabled, placeholder,
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === 'Tab') {
+      if (expanded && query.trim()) selectTyped();
       setOpen(false);
     } else if (event.key === 'Escape' && expanded) {
       event.preventDefault();
@@ -62,9 +66,9 @@ export default function BoreholePicker({ holes, selected, disabled, placeholder,
         : Math.max(0, Math.min(matches.length - 1, active + (event.key === 'ArrowDown' ? 1 : -1)));
       setActive(next);
       document.getElementById(listId + '-' + matches[next].id)?.scrollIntoView({ block: 'nearest' });
-    } else if (event.key === 'Enter' && expanded && matches.length) {
+    } else if (event.key === 'Enter' && expanded) {
       const exact = matches.find(hole => hole.code.toLowerCase() === term);
-      const choice = matches[active] ?? exact ?? (matches.length === 1 ? matches[0] : undefined);
+      const choice = matches[active] ?? exact ?? (query.trim() ? { id: 0, code: query.trim(), project: null } : undefined);
       if (choice) {
         event.preventDefault();
         select(choice);
@@ -72,10 +76,18 @@ export default function BoreholePicker({ holes, selected, disabled, placeholder,
     }
   }
 
+  function selectTyped() {
+    const code = query.trim();
+    if (code) select(holes.find(h => h.code.toLowerCase() === code.toLowerCase()) ?? { id: 0, code, project: null });
+  }
+
   return (
     <div ref={picker} className="relative min-w-0 space-y-1.5"
       onBlur={event => {
-        if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+        if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) {
+          if (expanded && query.trim()) selectTyped();
+          setOpen(false);
+        }
       }}>
       <label htmlFor={id} className="block text-xs font-semibold text-slate-400">Sondaje</label>
       <div className="relative">
@@ -88,6 +100,7 @@ export default function BoreholePicker({ holes, selected, disabled, placeholder,
           aria-autocomplete="list"
           aria-activedescendant={expanded && matches[active] ? listId + '-' + matches[active].id : undefined}
           autoComplete="off"
+          maxLength={100}
           disabled={disabled}
           value={expanded ? query : selected?.code ?? ''}
           placeholder={placeholder}
@@ -116,10 +129,17 @@ export default function BoreholePicker({ holes, selected, disabled, placeholder,
                 {hole.project && <span className="truncate text-xs text-slate-400">{hole.project}</span>}
               </li>
             ))}
+            {query.trim() && !holes.some(h => h.code.toLowerCase() === term) && (
+              <li role="option" aria-selected={false} className="cursor-pointer rounded-md px-3 py-2 text-sm font-semibold text-sky-400 hover:bg-sky-500/10"
+                onMouseDown={event => event.preventDefault()} onClick={selectTyped}>
+                Usar nuevo sondaje: {query.trim()}
+              </li>
+            )}
           </ul>
           {!matches.length && <p role="status" className="px-3 pb-3 text-xs text-slate-400">No hay sondajes que coincidan.</p>}
         </div>
       )}
+      <p className="text-[11px] text-slate-400">Busca un sondaje o escribe uno nuevo y pulsa Enter.</p>
     </div>
   );
 }

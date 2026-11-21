@@ -13,6 +13,8 @@ interface SampleValidation {
   valida: boolean;
   motivo: 'fracturas' | 'tipo_desconocido' | 'sin_registros' | null;
   fracturas: number;
+  fracturas_totales?: number;
+  fracturas_toleradas?: number;
   tipos_sin_dato: number;
   registros_estructurales: number;
   litologia: string | null;
@@ -56,13 +58,14 @@ function validationMessage(result: SampleValidation) {
   if (result.valida) return 'Muestra válida.';
   if (result.motivo === 'sin_registros') return 'Muestra no válida. No hay registros estructurales en el tramo para comprobar el tipo SE.';
   if (result.motivo === 'tipo_desconocido') return 'Muestra no válida. Hay registros sin un tipo de estructura identificable.';
-  return 'Muestra no válida. Para este ensayo todos los registros del tramo deben ser de tipo SE (Superficie Espejo).';
+  return 'Muestra no válida. Hay fracturas en la parte central del tramo, fuera de los 5 cm de tolerancia en cada extremo.';
 }
 
 type Measurement = { id: number; values: Record<string, string> };
 
 interface SampleRegistrationData {
-  sondaje_id: number;
+  sondaje_id?: number;
+  sondaje_codigo: string;
   numero_muestra: string;
   proyecto: string;
   desde: number;
@@ -480,6 +483,7 @@ export default function RegistroEnsayosPage({ apiBase, mode, onSaved }: Registra
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [request, setRequest] = useState(0);
   const [holeId, setHoleId] = useState('');
+  const [customHole, setCustomHole] = useState<Borehole | null>(null);
   const [projectId, setProjectId] = useState('');
   const project = projectOptions.find(option => option.id === projectId);
   const projectMissing = !project;
@@ -492,7 +496,7 @@ export default function RegistroEnsayosPage({ apiBase, mode, onSaved }: Registra
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [coordinates, setCoordinates] = useState({ east: '', north: '', elevation: '' });
-  const hole = holes.find(item => String(item.id) === holeId);
+  const hole = customHole ?? holes.find(item => String(item.id) === holeId);
   const [validationRequest, setValidationRequest] = useState(0);
   const [validation, setValidation] = useState<{ key: string; result: SampleValidation | null } | null>(null);
   const startDepth = parseDepth(from);
@@ -514,7 +518,7 @@ export default function RegistroEnsayosPage({ apiBase, mode, onSaved }: Registra
     || coordinates.elevation.trim() && elevation === null);
   const intervalValid = startDepth !== null && endDepth !== null && startDepth < endDepth;
   const validationQuery = hole && assay && intervalValid
-    ? new URLSearchParams({ sondaje_id: holeId, desde: String(startDepth), hasta: String(endDepth), ensayo: assay }).toString()
+    ? new URLSearchParams({ ...(hole.id ? { sondaje_id: String(hole.id) } : { sondaje_codigo: hole.code }), desde: String(startDepth), hasta: String(endDepth), ensayo: assay }).toString()
     : '';
   const validationKey = validationQuery + ':' + validationRequest;
   const currentValidation = validationQuery && validation?.key === validationKey ? validation : null;
@@ -553,7 +557,8 @@ export default function RegistroEnsayosPage({ apiBase, mode, onSaved }: Registra
   const sampleData: SampleRegistrationData | null = mode === 'registro' && laboratoryEnabled && projectCode && hole && sample.trim() && code.length <= 150
     && startDepth !== null && endDepth !== null && coordinatesValid
     ? {
-      sondaje_id: hole.id,
+      sondaje_id: hole.id || undefined,
+      sondaje_codigo: hole.code,
       numero_muestra: sample.trim(),
       proyecto: projectCode,
       desde: startDepth,
@@ -588,11 +593,12 @@ export default function RegistroEnsayosPage({ apiBase, mode, onSaved }: Registra
 
       <Section number={1} tone={sectionTones.hole} title="Sondaje" icon={<Layers3 size={18} />}>
         <div className="grid gap-4 sm:grid-cols-2">
-          <BoreholePicker holes={holes} selected={hole} disabled={status !== 'ready' || holes.length === 0}
+          <BoreholePicker holes={holes} selected={hole} disabled={false}
             placeholder={status === 'loading' ? 'Cargando sondajes…' : 'Busca por código de sondaje'}
             onSelect={selected => {
               const id = String(selected.id);
-              if (id === holeId) return;
+              if (selected.code === hole?.code && selected.id === hole.id) return;
+              setCustomHole(selected.id ? null : selected);
               setHoleId(id);
               setSample('');
               setFrom('');
@@ -714,7 +720,8 @@ export default function RegistroEnsayosPage({ apiBase, mode, onSaved }: Registra
             ) : result ? (
               <>
                 <p className={result.valida ? 'mt-1 font-semibold text-emerald-400' : 'mt-1 font-semibold text-red-400'}>{validationMessage(result)}</p>
-                <p className="mt-1">Fracturas detectadas: {result.fracturas}{result.tipos_sin_dato > 0 ? ' · Registros sin tipo: ' + result.tipos_sin_dato : ''}</p>
+                <p className="mt-1">Fracturas totales: {result.fracturas_totales ?? result.fracturas} · Fuera de tolerancia: {result.fracturas}{result.tipos_sin_dato > 0 ? ' · Registros sin tipo: ' + result.tipos_sin_dato : ''}</p>
+                <p className="mt-1">Tolerancia: 5 cm dentro de cada extremo. Fracturas toleradas: {result.fracturas_toleradas ?? 0}.</p>
                 {assay === 'CD' && <p className="mt-1">Corte Directo admite estructuras en el tramo.</p>}
               </>
             ) : currentValidation ? (

@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.rules import COLUMNS_CONFIG, calculate_derived_fields
 from app.models import RegistroMaestro
-from app.services.sample_validation import validate_sample_interval
+from app.services.sample_validation import validate_sample_interval, resolve_borehole
 
 
 logger = logging.getLogger(__name__)
@@ -43,7 +43,8 @@ ASSAY_GROUPS = {
 class AssayRegistration(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
-    sondaje_id: int = Field(gt=0)
+    sondaje_id: int | None = Field(default=None, gt=0)
+    sondaje_codigo: str | None = Field(default=None, min_length=1, max_length=100)
     numero_muestra: str = Field(min_length=1, max_length=95)
     proyecto: str = Field(min_length=1, max_length=100)
     ensayo: Literal["TX", "CD", "CE", "UCS", "TI"]
@@ -63,6 +64,8 @@ class AssayRegistration(BaseModel):
 
     @model_validator(mode="after")
     def validate_interval_and_date(self):
+        if self.sondaje_id is None and not self.sondaje_codigo:
+            raise ValueError('Selecciona o escribe un sondaje.')
         if self.hasta <= self.desde:
             raise ValueError("Hasta debe ser mayor que Desde.")
         if self.mes not in MONTHS:
@@ -114,14 +117,8 @@ def register_assay(payload: AssayRegistration, db: Session):
 
     measurements = registration_measurements(payload)
     try:
-        hole = db.execute(
-            text("SELECT CodigoSondaje FROM dbo.Sondajes WHERE SondajeID = :sondaje_id"),
-            {"sondaje_id": payload.sondaje_id},
-        ).scalar_one_or_none()
-        if hole is None:
-            raise HTTPException(404, "El sondaje seleccionado no existe.")
-
-        validation = validate_sample_interval(db, payload.sondaje_id, payload.desde, payload.hasta, payload.ensayo)
+        resolved_id, hole = resolve_borehole(db, payload.sondaje_id, payload.sondaje_codigo)
+        validation = validate_sample_interval(db, resolved_id, payload.desde, payload.hasta, payload.ensayo)
         if not validation["valida"]:
             raise HTTPException(422, "La muestra no cumple la validación de Logueo. Revisa el sondaje y el tramo.")
 
