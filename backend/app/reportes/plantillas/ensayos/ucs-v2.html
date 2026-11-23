@@ -1,0 +1,43 @@
+{% extends "comunes/base-a4.html" %}
+
+{% block estilos_ensayo %}
+{% include "ensayos/ucs.css" %}
+{% endblock %}
+
+{% block resultados %}
+{% set columnas = [
+  ("ucs_diametro", "Diámetro del testigo (cm)", 18),
+  ("ucs_carga_rotura", "Carga de rotura (kN)", 20),
+  ("ucs_resistencia", "Resistencia a la compresión uniaxial (MPa)", 20),
+  ("ucs_resistencia_calculada", "Resistencia Calculada", 26),
+  ("ucs_rotura", "Rotura_UX", 16)
+] %}
+<table class="tabla-resultados tabla-ucs" aria-label="Resultados de compresión uniaxial">
+  <colgroup>
+    {% for campo, etiqueta, ancho in columnas %}
+    <col style="width:{{ ancho }}%">
+    {% endfor %}
+  </colgroup>
+  <thead>
+    <tr>
+      {% for campo, etiqueta, ancho in columnas %}
+      <th scope="col">{{ etiqueta }}</th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for corrida in corridas %}
+    <tr>
+      {% for campo, etiqueta, ancho in columnas %}
+      <td>{% if mostrar_variables %}{{ "{{ corrida." ~ campo ~ " }}" }}{% else %}{{ corrida.get(campo) }}{% endif %}</td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p class="leyenda">
+  <strong>ROTURA:</strong> (1) Corte plano diagonal (2) Fracturas verticales
+  (3) Corte por discontinuidad (4) Cónico (5) Desprendimiento (6) Otros
+</p>
+{% endblock %}

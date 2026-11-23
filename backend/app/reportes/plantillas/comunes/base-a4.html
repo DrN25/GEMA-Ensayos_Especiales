@@ -8,6 +8,8 @@
   <style>
 {% include "comunes/reporte-a4.css" %}
 {% block estilos_ensayo %}{% endblock %}
+{% include "comunes/fotos.css" %}
+{% include "comunes/firmas.css" %}
 {% if mostrar_variables %}{% include "evidencias/variables.css" %}{% endif %}
   </style>
 </head>
@@ -23,6 +25,8 @@
         {% block resultados %}{% endblock %}
       </section>
       {% block anexos %}{% endblock %}
+      {% include "comunes/fotos.html" %}
+      {% include "comunes/firmas.html" %}
     </main>
     {% include "comunes/pie.html" %}
   </article>

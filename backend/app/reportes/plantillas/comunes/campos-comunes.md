@@ -22,7 +22,8 @@ El encabezado del reporte se muestra como `ENSAYO DE {{ tipo_ensayo }} - {{ text
 | --- | --- | --- |
 | Nombre del proyecto en el encabezado | `nombre_proyecto` | Resolver `registro_maestro.proyecto` según la correspondencia de proyectos. El formato actual muestra «Proyecto Ferro» como ejemplo. |
 | Informe N.º | `datos.informe` | Dato propio de la emisión. Usar `reporte_ensayo.numero_informe`. Puede repetirse. |
-| Muestreo | `datos.muestreo` | Dato propio de la emisión. Usar `reporte_ensayo.muestreo`. La definición del campo queda pendiente de validar. |
+| Ejecutor | `datos.ejecutor` | Nombre ingresado por el usuario. Se guarda en `reporte_ensayo.ejecutor` y en la instantánea de la emisión. |
+| Supervisor | `datos.supervisor` | Nombre ingresado por el usuario. Se guarda en `reporte_ensayo.supervisor` y en la instantánea de la emisión. |
 | Proyecto | `datos.proyecto` | Nombre derivado de `registro_maestro.proyecto` según la correspondencia de proyectos. |
 | Fecha de emisión | `datos.fecha_emision` | Dato propio de la emisión. Usar `reporte_ensayo.fecha_emision`. |
 | Coordenadas | `datos.coordenadas` | Formatear `este`, `norte` y `elevacion`, en ese orden. La plantilla muestra cada valor disponible en una línea. |
@@ -53,7 +54,7 @@ Una sola tabla nueva, `dbo.reporte_ensayo`, con un registro por reporte y un sol
 | `numero_informe` | Texto visible del informe. Admite números repetidos. |
 | `fecha_emision` | Fecha registrada para el reporte. Tipo propuesto `date`. |
 | `texto_titulo` | Texto libre que ingresa el usuario para la última parte del título. |
-| `ubicacion`, `muestreo`, `material`, `presentacion`, `muestreado`, `profundidad` | Datos propios del reporte. |
+| `ubicacion`, `ejecutor`, `supervisor`, `material`, `presentacion`, `muestreado`, `profundidad` | Datos propios del reporte. |
 
 ## Relación con el registro maestro
 
@@ -66,3 +67,45 @@ Para mantener una sola tabla nueva, el módulo puede validar que exista al menos
 - En las 454 corridas revisadas, los campos que vienen de `registro_maestro` son consistentes dentro de cada `codigo_muestra` al comparar cada columna por separado. Si aparecen discrepancias en datos futuros, resolverlas por campo antes de imprimir el informe.
 - `comunes/preparar_campos.py` prepara las variables antes de renderizar el HTML. Este, Norte y Elevación aparecen en líneas separadas bajo `datos.coordenadas`. La litología mantiene las posiciones de los niveles vacíos, por ejemplo `TBX__MZH`, y queda en blanco si faltan los tres.
 - `tipo_ensayo` permite elegir la plantilla según el tipo de las corridas. La franja del título se arma en la base común.
+
+
+## Firmas comunes del reporte
+
+`comunes/base-a4.html` incluye una sola vez `comunes/firmas.html` al finalizar los
+anexos, para todos los tipos de ensayo. `comunes/firmas.css` define dos columnas
+iguales, centradas en un contenedor de hasta 150 mm, con separación de 16 mm.
+Se mantiene espacio de 22 mm para firma/sello, texto de 7 pt y línea al 75 %. El interlineado es 1.15, sin la altura mínima
+que antes separaba artificialmente el nombre de la segunda línea.
+
+- Izquierda: `datos.ejecutor`, seguido de «Ejecutor del Ensayo».
+- Derecha: `datos.supervisor`, seguido de «Supervisor de Laboratorio».
+
+No se obtienen los nombres desde la sesión ni del Registro Maestro: son valores
+de la emisión. Se conservan dentro de `datos_emitidos` para descargar el mismo
+reporte desde el historial. No hay firmantes fijos ni bloques duplicados en UCS.
+Los nombres siguen siendo opcionales, como lo era el campo reemplazado; el usuario
+puede completarlos en Datos. Cada nombre admite hasta 150 caracteres Unicode.
+
+La migración manual `backend/migrations/004_reporte_ejecutor_supervisor.sql` agrega
+ambas columnas. La antigua `muestreo` permanece solo por compatibilidad, con valor
+predeterminado vacío para los INSERT nuevos; no aparece en el formulario ni en el
+PDF. No confundirla con `muestreado`, que sigue en Datos de muestra sin cambios.
+No se reinterpretan valores antiguos de Muestreo como nombres de personas. Las
+instantáneas anteriores sin nombres se pueden abrir, con los espacios de nombre
+vacíos. No es obligatorio limpiar el historial.
+
+
+## Fotografías comunes de todos los ensayos
+
+La base incluye `comunes/fotos.html` después de los anexos y antes de las firmas;
+`comunes/fotos.css` aplica el mismo formato aprobado para UCS a los cinco tipos.
+No quedan marcos vacíos cuando no se adjuntan fotos. Con fotografías se requiere
+la pareja Antes/Después y la misma orientación, con alturas iguales, marcos que
+siguen la proporción y separación de 20 mm. La tabla de resultados de cada tipo
+se conserva; agregar fotos no transforma el formato en UCS.
+
+El `photo_folder` de cada ReportFormat determina su carpeta de Drive. CE mantiene
+su propia carpeta aunque el código de muestra incluya UCS. La vista previa usa
+archivos locales; únicamente Guardar reporte inicia la carga. El historial usa
+los metadatos de la emisión para recuperar los archivos por ID. Esta ampliación
+no requiere modificar el esquema SQL ni reautorizar Google Drive.

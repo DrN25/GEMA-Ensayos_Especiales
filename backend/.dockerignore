@@ -5,3 +5,11 @@ venv
 .pytest_cache
 uploads
 
+
+.venv
+.secrets
+.env.*
+client_secret*.json
+credentials*.json
+google-drive-token*.json
+google-drive-client*.json

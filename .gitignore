@@ -7,6 +7,7 @@ yarn-error.log*
 
 # Python
 venv/
+.venv/
 __pycache__/
 *.pyc
 *.pyo
@@ -30,6 +31,9 @@ share/python-wheels/
 *.db
 .env
 .env.backup
+.env.*
+!.env.example
+!.env.*.example
 cloudflared.exe
 
 # IDEs
@@ -49,3 +53,10 @@ backend/uploads/
 scratch/
 **/realData.json
 
+
+# Google OAuth credentials and local configuration (never commit)
+.secrets/
+client_secret*.json
+credentials*.json
+google-drive-token*.json
+google-drive-client*.json

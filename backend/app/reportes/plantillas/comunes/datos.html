@@ -3,7 +3,8 @@
   <div class="datos datos-generales">
     <dl class="grupo-datos">
       <div class="campo"><dt>Informe N.º</dt><dd><strong>{{ datos.informe }}</strong></dd></div>
-      <div class="campo"><dt>Muestreo</dt><dd>{{ datos.muestreo }}</dd></div>
+      <div class="campo"><dt>Ejecutor</dt><dd>{{ datos.get('ejecutor', '') }}</dd></div>
+      <div class="campo"><dt>Supervisor</dt><dd>{{ datos.get('supervisor', '') }}</dd></div>
       <div class="campo"><dt>Proyecto</dt><dd>{{ datos.proyecto }}</dd></div>
     </dl>
     <dl class="grupo-datos">
