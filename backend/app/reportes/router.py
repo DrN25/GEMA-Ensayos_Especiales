@@ -2,10 +2,15 @@ import json
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Annotated
+from tempfile import SpooledTemporaryFile
+from threading import BoundedSemaphore
+from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
+from starlette.background import BackgroundTask
+from starlette.concurrency import run_in_threadpool
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import case, Date, DateTime, Integer, String, Unicode, UnicodeText, func, or_, select
@@ -17,6 +22,8 @@ from app.auth.router import current_user
 from app.database import get_db
 from app.models import RegistroMaestro
 from app.reportes.plantillas.comunes.preparar_campos import NOMBRES_PROYECTO, preparar_campos
+from app.reportes import images
+from app.reportes.image_storage import BLOCK_SIZE, MAX_IMAGE_BYTES, MAX_IMAGE_SIDE
 
 
 router = APIRouter(prefix="/api/reportes", tags=["Reportes de ensayos"])
@@ -30,6 +37,7 @@ class ReportFormat:
     abbreviation: str
     search_label: str
     result_fields: tuple[str, ...]
+    photo_folder: str | None = None
 
 
 FORMATS = {
@@ -43,6 +51,7 @@ FORMATS = {
             "corte_tipo_fractura", "corte_area", "corte_esf_normal_kpa", "corte_esf_corte_kpa",
             "corte_esf_normal_mpa", "corte_esf_corte_mpa", "corte_cohesion_mpa", "corte_angulo_friccion",
         ),
+        photo_folder="corte-directo",
     ),
     "compresión triaxial": ReportFormat(
         "compresion-triaxial-v1", "ensayos/compresion-triaxial.html", "TX", "Compresión triaxial",
@@ -50,10 +59,12 @@ FORMATS = {
             "triaxial_carga_confinamiento", "triaxial_esfuerzo_maximo", "triaxial_resistencia_mpa", "triaxial_mi",
             "triaxial_cohesion_mpa", "triaxial_angulo_friccion", "triaxial_rotura",
         ),
+        photo_folder="compresion-triaxial",
     ),
     "tracción indirecta": ReportFormat(
         "traccion-indirecta-v1", "ensayos/traccion-indirecta.html", "TI", "Tracción indirecta",
         ("traccion_carga_promedio", "traccion_resistencia_kgcm2", "traccion_vacia_28", "traccion_resistencia_mpa"),
+        photo_folder="traccion-indirecta",
     ),
     "determinación de constantes elásticas": ReportFormat(
         "constantes-elasticas-v1", "ensayos/constantes-elasticas.html", "CE", "Determinación de constantes elásticas",
@@ -61,10 +72,14 @@ FORMATS = {
             "ucs_diametro", "ucs_carga_rotura", "ucs_resistencia", "ucs_resistencia_calculada", "ucs_rotura",
             "elasticas_modulo_young", "elasticas_poisson",
         ),
+        photo_folder="constantes-elasticas",
     ),
 }
 # Keep entries for issued template versions when introducing a new version.
 FORMATS_BY_VERSION = {item.version: item for item in FORMATS.values()}
+UCS_CURRENT = ReportFormat('ucs-v2', 'ensayos/ucs-v2.html', 'UCS', 'Compresión uniaxial (UCS)', FORMATS['ucs'].result_fields, photo_folder='ucs')
+FORMATS_BY_VERSION[UCS_CURRENT.version] = UCS_CURRENT
+FORMATS['ucs'] = UCS_CURRENT
 TYPE_ALIASES = {"compresión uniaxial": "ucs", "compresion uniaxial": "ucs"}
 SOURCE_FIELDS = (
     "idd", "codigo_muestra", "tipo_ensayo", "proyecto", "sectores", "este", "norte", "elevacion",
@@ -92,7 +107,8 @@ class Report(ReportBase):
     fecha_emision: Mapped[date] = mapped_column(Date)
     texto_titulo: Mapped[str] = mapped_column(Unicode(150))
     ubicacion: Mapped[str] = mapped_column(Unicode(200))
-    muestreo: Mapped[str] = mapped_column(Unicode(150))
+    ejecutor: Mapped[str] = mapped_column(Unicode(150), default="")
+    supervisor: Mapped[str] = mapped_column(Unicode(150), default="")
     material: Mapped[str] = mapped_column(Unicode(150))
     presentacion: Mapped[str] = mapped_column(Unicode(150))
     muestreado: Mapped[str] = mapped_column(Unicode(150))
@@ -113,11 +129,23 @@ class Emission(BaseModel):
     fecha_emision: date
     texto_titulo: str = Field(default="", max_length=150)
     ubicacion: str = Field(default="", max_length=200)
-    muestreo: str = Field(default="", max_length=150)
+    ejecutor: str = Field(default="", max_length=150)
+    supervisor: str = Field(default="", max_length=150)
     material: str = Field(default="", max_length=150)
     presentacion: str = Field(default="", max_length=150)
     muestreado: str = Field(default="", max_length=150)
     profundidad: str = Field(default="", max_length=100)
+    imagenes: dict[Literal['antes', 'despues'], UUID] = Field(default_factory=dict)
+
+
+class PhotoDimensions(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    ancho: int = Field(gt=0, le=MAX_IMAGE_SIDE)
+    alto: int = Field(gt=0, le=MAX_IMAGE_SIDE)
+
+
+class PreviewEmission(Emission):
+    fotografias_locales: dict[Literal['antes', 'despues'], PhotoDimensions] = Field(default_factory=dict)
 
 
 class SaveEmission(Emission):
@@ -160,7 +188,7 @@ def source_rows(db: Session, code: str) -> tuple[list[dict], ReportFormat]:
 def snapshot(db: Session, emission: Emission) -> tuple[dict, ReportFormat]:
     rows, report_format = source_rows(db, emission.codigo_muestra)
     canonical_code = rows[0]["codigo_muestra"].strip()
-    fields = {**emission.model_dump(mode="json", exclude={"solicitud_id"}), "codigo_muestra": canonical_code}
+    fields = {**emission.model_dump(mode="json", exclude={"solicitud_id", "imagenes", "fotografias_locales"}), "codigo_muestra": canonical_code}
     try:
         context = preparar_campos(rows, fields)
     except ValueError as exc:
@@ -176,7 +204,92 @@ def render_html(data: dict, version: str) -> str:
     report_format = FORMATS_BY_VERSION.get(version)
     if report_format is None:
         raise HTTPException(409, "La versión de la plantilla de este reporte no está disponible.")
-    return jinja.get_template(report_format.template).render(**data["contexto"], corridas=data["corridas"], mostrar_variables=False)
+    return jinja.get_template(report_format.template).render(**data["contexto"], corridas=data["corridas"],
+                                                           fotos=images.photo_urls(data), foto_medidas=images.photo_layout(data),
+                                                           mostrar_variables=False)
+
+
+class ImageUpload(BaseModel):
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
+    codigo_muestra: str = Field(min_length=1, max_length=150)
+    posicion: Literal['antes', 'despues']
+    solicitud_id: UUID
+
+
+_photo_transfers = BoundedSemaphore(2)
+
+
+def store_uploaded_image(payload, stream, db, user):
+    rows, report_format = source_rows(db, payload.codigo_muestra)
+    if not report_format.photo_folder:
+        raise HTTPException(422, 'Este tipo de ensayo todavía no admite fotografías.')
+    return images.issue_upload(db, user, rows[0]['codigo_muestra'].strip(), payload.posicion,
+                               payload.solicitud_id, stream, assay_kind=report_format.photo_folder)
+
+
+@router.post('/imagenes/cargas', status_code=201)
+async def upload_image(request: Request, codigo_muestra: str = Query(min_length=1, max_length=150),
+                       posicion: Literal['antes', 'despues'] = Query(), solicitud_id: UUID = Query(),
+                       db: Session = Depends(get_db), user: User = Depends(current_user)):
+    if request.headers.get('content-type', '').split(';')[0].strip().lower() != 'image/jpeg':
+        raise HTTPException(415, 'La fotografía optimizada debe enviarse como image/jpeg.')
+    length = request.headers.get('content-length')
+    if length is not None and (not length.isdigit() or int(length) > MAX_IMAGE_BYTES):
+        raise HTTPException(413, 'La fotografía optimizada supera 1 MiB.')
+    if not _photo_transfers.acquire(blocking=False):
+        raise HTTPException(429, 'Hay otras fotografías procesándose. Reintenta en unos momentos.', headers={'Retry-After': '2'})
+    try:
+        # Bound even requests without Content-Length. Spill to ephemeral disk
+        # after 64 KiB; never parse unbounded multipart files or decode pixels.
+        with SpooledTemporaryFile(max_size=BLOCK_SIZE, mode='w+b') as stream:
+            total = 0
+            async for chunk in request.stream():
+                total += len(chunk)
+                if total > MAX_IMAGE_BYTES:
+                    raise HTTPException(413, 'La fotografía optimizada supera 1 MiB.')
+                stream.write(chunk)
+            stream.seek(0)
+            payload = ImageUpload(codigo_muestra=codigo_muestra, posicion=posicion, solicitud_id=solicitud_id)
+            return await run_in_threadpool(store_uploaded_image, payload, stream, db, user)
+    finally:
+        _photo_transfers.release()
+
+
+@router.get('/imagenes/{image_id}')
+def get_image(image_id: UUID, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    if not _photo_transfers.acquire(blocking=False):
+        raise HTTPException(429, 'Hay otras fotografías procesándose. Reintenta en unos momentos.', headers={'Retry-After': '2'})
+    try:
+        stream, size = images.download_image(db, image_id)
+    finally:
+        # The Drive transfer is complete; slow/disconnected browser clients must
+        # not keep the network semaphore acquired.
+        _photo_transfers.release()
+
+    def chunks():
+        try:
+            while block := stream.read(BLOCK_SIZE):
+                yield block
+        finally:
+            stream.close()
+
+    return StreamingResponse(chunks(), media_type='image/jpeg', background=BackgroundTask(stream.close),
+                             headers={'Content-Length': str(size), 'Cache-Control': 'private, no-store',
+                                      'X-Content-Type-Options': 'nosniff'})
+
+
+def add_photos(db, user, emission, data, report_format, *, lock=False):
+    if not emission.imagenes:
+        return report_format, []
+    if set(emission.imagenes) != {'antes', 'despues'}:
+        raise HTTPException(422, 'Adjunta Antes y Después, o quita ambas fotografías.')
+    if not report_format.photo_folder:
+        raise HTTPException(422, 'Este tipo de ensayo todavía no admite fotografías.')
+    refs, rows = images.references(db, user, data['contexto']['muestra']['codigo'], emission.imagenes, lock=lock)
+    if (refs['antes']['ancho'] >= refs['antes']['alto']) != (refs['despues']['ancho'] >= refs['despues']['alto']):
+        raise HTTPException(422, 'Ambas fotografías deben tener la misma orientación: verticales u horizontales.')
+    data['imagenes'] = refs
+    return report_format, rows
 
 
 FILTER_COLUMNS = {
@@ -284,18 +397,30 @@ def search(
 
 @router.get("/muestra")
 def sample(codigo_muestra: str = Query(min_length=1, max_length=150), db: Session = Depends(get_db)):
-    data, _ = snapshot(db, Emission(codigo_muestra=codigo_muestra, numero_informe="vista previa", fecha_emision=date.today()))
+    data, report_format = snapshot(db, Emission(codigo_muestra=codigo_muestra, numero_informe="vista previa", fecha_emision=date.today()))
     return {
         "muestra": data["contexto"]["muestra"],
         "datos": data["contexto"]["datos"],
         "tipo_ensayo": data["contexto"]["tipo_ensayo"],
         "corridas": len(data["corridas"]),
+        "fotografias_habilitadas": bool(report_format.photo_folder),
     }
 
 
 @router.post("/vista-previa")
-def preview(emission: Emission, db: Session = Depends(get_db)):
+def preview(emission: PreviewEmission, db: Session = Depends(get_db), user: User = Depends(current_user)):
     data, report_format = snapshot(db, emission)
+    local = getattr(emission, 'fotografias_locales', {})
+    if emission.imagenes:
+        raise HTTPException(422, 'La vista previa usa fotografías locales, sin cargas a Drive.')
+    if local:
+        if not report_format.photo_folder:
+            raise HTTPException(422, 'Este tipo de ensayo todavía no admite fotografías.')
+        if set(local) != {'antes', 'despues'}:
+            raise HTTPException(422, 'Adjunta Antes y Después, o quita ambas fotografías.')
+        if (local['antes'].ancho >= local['antes'].alto) != (local['despues'].ancho >= local['despues'].alto):
+            raise HTTPException(422, 'Ambas fotografías deben tener la misma orientación: verticales u horizontales.')
+        data['imagenes'] = {position: {**photo.model_dump(), 'local': True} for position, photo in local.items()}
     return {"html": render_html(data, report_format.version)}
 
 
@@ -318,11 +443,13 @@ def save(emission: SaveEmission, db: Session = Depends(get_db), user: User = Dep
         return db.scalar(select(Report).where(Report.solicitud_id == key))
 
     def prior_document(report: Report):
-        fields = emission.model_dump(exclude={"solicitud_id", "codigo_muestra"})
+        fields = emission.model_dump(exclude={"solicitud_id", "codigo_muestra", "imagenes"})
+        stored = {position: value['id'] for position, value in json.loads(report.datos_emitidos).get('imagenes', {}).items()}
         if (
             report.usuario_id != user.id
             or report.codigo_muestra.casefold() != emission.codigo_muestra.casefold()
             or any(getattr(report, name) != value for name, value in fields.items())
+            or stored != {position: str(value) for position, value in emission.imagenes.items()}
         ):
             raise HTTPException(409, "La solicitud pertenece a otra emisión.")
         return document(report)
@@ -332,8 +459,9 @@ def save(emission: SaveEmission, db: Session = Depends(get_db), user: User = Dep
         return prior_document(existing)
 
     data, report_format = snapshot(db, emission)
+    report_format, photo_rows = add_photos(db, user, emission, data, report_format, lock=True)
     html = render_html(data, report_format.version)
-    fields = emission.model_dump(exclude={"solicitud_id"})
+    fields = emission.model_dump(exclude={"solicitud_id", "imagenes"})
     fields["codigo_muestra"] = data["contexto"]["muestra"]["codigo"]
     report = Report(
         **fields,
@@ -346,6 +474,9 @@ def save(emission: SaveEmission, db: Session = Depends(get_db), user: User = Dep
     )
     db.add(report)
     try:
+        db.flush()
+        for photo in photo_rows:
+            photo.id_reporte = report.id_reporte
         db.commit()
     except IntegrityError:
         db.rollback()

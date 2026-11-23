@@ -47,3 +47,31 @@ Si había cambios pendientes de la grilla guardados por una versión anterior al
 2. Configura `JWT_SECRET_KEY` en **Render** con una clave nueva y distinta de las de desarrollo, Mapeo y Logueo. Conserva las variables de conexión a SQL Server. La cuenta SQL de Render necesita lectura de `auth.Sistemas` y `auth.Roles`, y lectura, inserción y actualización de `auth.Usuarios`.
 3. Verifica en **Netlify** que `VITE_API_BASE` siga apuntando a la URL HTTPS del backend de Ensayos Especiales en Render. Las dependencias de firma y bcrypt se instalan desde `backend/requirements.txt` al desplegar el backend. Publica backend y frontend desde el mismo cambio de `master`.
 4. Una vez desplegados ambos servicios, verifica `/api/health` y prueba el inicio de sesión, el panel de cuentas, la navegación y el cierre de sesión. Los clientes externos que consuman endpoints de negocio necesitarán enviar el encabezado `Authorization: Bearer <token>`.
+
+
+## Ejecutor, Supervisor y firmas comunes en reportes
+
+La actualización `004_reporte_ejecutor_supervisor.sql` corresponde a los reportes
+de todos los tipos de ensayo, con o sin fotografías.
+
+1. Detén el backend local para no mezclar código anterior y nuevo durante la prueba.
+2. En SSMS conecta a **localhost**, selecciona la copia local `db_ad0a4f_gema` y
+   abre `004_reporte_ejecutor_supervisor.sql`.
+3. Ejecuta todo el archivo. Requiere `002_reporte_ensayo.sql` ya aplicado. La consulta
+   final debe mostrar `ejecutor` y `supervisor` como `nvarchar` de 300 bytes (150
+   caracteres), además del valor predeterminado de la columna antigua `muestreo`.
+4. El script es idempotente, no elimina registros y no altera Registro Maestro,
+   imágenes ni autenticación. Conserva `muestreo` por compatibilidad; la aplicación
+   nueva ya no lo envía ni lo consulta.
+5. Reinicia backend y frontend con los comandos habituales. En Reportes, completa
+   **Ejecutor** y **Supervisor** dentro de Datos y revisa vista previa, guardado y
+   descarga del historial en UCS, Corte directo, Triaxial, Tracción y Elásticas.
+6. Ambas firmas deben aparecer centradas, con los nombres ingresados y los textos
+   «Ejecutor del Ensayo» y «Supervisor de Laboratorio». En UCS comprueba también
+   la emisión con fotografías: las firmas deben aparecer una sola vez debajo.
+
+La limpieza de reportes de prueba sigue siendo opcional y es independiente de esta
+actualización. No se ejecutó SQL Server durante el desarrollo. En un futuro despliegue,
+el responsable debe aplicar esta migración en la BD de producción antes de activar
+el backend actualizado; no se ejecuta automáticamente al iniciar la aplicación.
+No cambian las variables de Google Drive, JWT ni frontend.

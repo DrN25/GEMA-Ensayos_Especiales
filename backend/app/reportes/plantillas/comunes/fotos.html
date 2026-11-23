@@ -1,10 +1,12 @@
+{% if fotos %}
 <div class="fotos" role="group" aria-label="Registro fotográfico">
-  <figure class="foto">
-    <div class="espacio-foto"></div>
-    <figcaption>ANTES</figcaption>
+  {% for posicion, rotulo in [('antes', 'ANTES'), ('despues', 'DESPUÉS')] %}
+  {% if fotos.get(posicion) %}
+  <figure class="foto" style="--foto-ancho:{{ foto_medidas[posicion]['ancho'] }}mm;--foto-alto:{{ foto_medidas[posicion]['alto'] }}mm">
+    <div class="espacio-foto"><img data-report-photo="{{ posicion }}" src="{{ fotos[posicion] }}" alt="Muestra {{ 'antes' if posicion == 'antes' else 'después' }} del ensayo"></div>
+    <figcaption>{{ rotulo }}</figcaption>
   </figure>
-  <figure class="foto">
-    <div class="espacio-foto"></div>
-    <figcaption>DESPUÉS</figcaption>
-  </figure>
+  {% endif %}
+  {% endfor %}
 </div>
+{% endif %}

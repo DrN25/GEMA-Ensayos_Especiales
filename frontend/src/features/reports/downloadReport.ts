@@ -58,6 +58,7 @@ export async function createReportPdf(html: string): Promise<Blob> {
     pageStyle.textContent = '.hoja { margin: 0; box-shadow: none; }';
     frameDoc.head.append(pageStyle);
     await frameDoc.fonts.ready;
+    await Promise.all(Array.from(sheet.querySelectorAll('img'), image => image.decode()));
     const css = Array.from(frameDoc.querySelectorAll('head style'), style => style.textContent).join('\n');
     const rows = Array.from(table.rows);
     const annexes = Array.from(content.querySelectorAll('.fotos, .firmas'));

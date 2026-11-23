@@ -1,0 +1,27 @@
+/* Shared by every report, after its photographs and results. */
+.firmas-comunes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 16mm;
+  align-items: start;
+  width: min(100%, 150mm);
+  margin: 7mm auto 0;
+  padding-bottom: 3mm;
+  break-inside: avoid;
+}
+.firmas-comunes .firma {
+  min-width: 0;
+  text-align: center;
+  font-size: 7pt;
+  line-height: 1.15;
+}
+.firmas-comunes .firma-trazo {
+  display: block;
+  width: 75%;
+  height: 22mm;
+  margin: 0 auto;
+  border-bottom: .24mm solid var(--borde);
+}
+.firmas-comunes .firma-datos { margin: 1.5mm 0 0; }
+.firmas-comunes .firma-datos span { display: block; overflow-wrap: anywhere; }
+.firmas-comunes .firma-nombre { font-weight: 700; }

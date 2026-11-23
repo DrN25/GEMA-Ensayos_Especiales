@@ -61,7 +61,8 @@ def preparar_campos(corridas, emision):
         "nombre_proyecto": f"Proyecto {nombre}" if nombre else "",
         "datos": {
             "informe": _texto(emision.get("numero_informe")),
-            "muestreo": _texto(emision.get("muestreo")),
+            "ejecutor": _texto(emision.get("ejecutor")),
+            "supervisor": _texto(emision.get("supervisor")),
             "proyecto": nombre,
             "fecha_emision": date.fromisoformat(fecha).strftime("%d/%m/%Y") if fecha else "",
             "coordenadas": coordenadas,

@@ -69,7 +69,7 @@ def test_ucs_report_retains_repetitions_and_issued_data(report_db):
     historical_item = history(q=code, page=1, db=db)["items"][0]
     assert historical_item["sondaje"] == "FEGT20-001"
     assert historical_item["tipo_ensayo"] == "Compresión uniaxial"
-    assert historical_item["version_plantilla"] == "ucs-v1"
+    assert historical_item["version_plantilla"] == "ucs-v2"
     assert get_report(issued["id_reporte"], db)["sigla_ensayo"] == "UCS"
     assert "datos_emitidos" not in historical_item
 
@@ -201,3 +201,56 @@ def test_report_filters_use_master_values_and_preserve_mixed_type_diagnostics(re
     assert [item["codigo_muestra"] for item in result] == ["DH-UCS-M02"]
     assert result[0]["estado_plantilla"] == "revisar"
     assert search(q="DH-01", laboratorio="Geomec", db=db) == []
+
+
+@pytest.mark.parametrize('kind', ['UCS', 'Corte directo', 'Compresión triaxial', 'Tracción indirecta', 'Determinación de constantes elásticas'])
+def test_executor_and_supervisor_are_shared_and_saved_in_every_report(report_db, kind):
+    db = report_db
+    code = 'DH-ENSAYO-M01'
+    db.add(RegistroMaestro(idd=1, codigo_muestra=code, tipo_ensayo=kind, sondaje='DH'))
+    db.flush()
+    emission = SaveEmission(codigo_muestra=code, numero_informe='FIRMAS-1', fecha_emision=date(2026, 11, 22),
+                            ejecutor='  Ana María Pérez  ', supervisor='Carlos & García', solicitud_id=uuid4())
+    preview_html = preview(Emission(**emission.model_dump(exclude={'solicitud_id'})), db)['html']
+    assert '<dt>Muestreo</dt>' not in preview_html
+    assert '<dt>Ejecutor</dt><dd>Ana María Pérez</dd>' in preview_html
+    assert '<dt>Supervisor</dt><dd>Carlos &amp; García</dd>' in preview_html
+    assert preview_html.count('class="firmas firmas-comunes"') == 1
+    assert preview_html.count('class="firma-trazo"') == 2
+    assert '<span class="firma-nombre">Ana María Pérez</span>' in preview_html
+    assert '<span class="firma-nombre">Carlos &amp; García</span>' in preview_html
+    assert preview_html.count('Ejecutor del Ensayo') == 1
+    assert preview_html.count('Supervisor de Laboratorio') == 1
+    assert preview_html.index('class="firmas firmas-comunes"') > preview_html.index('</table>')
+    assert 'Adolfo Jesus' not in preview_html and 'ELVIS WILLIAM' not in preview_html
+    issued = save(emission, db, SimpleNamespace(id=10, usuario='TEST_FIRMAS'))
+    report = db.get(Report, issued['id_reporte'])
+    assert report.ejecutor == 'Ana María Pérez' and report.supervisor == 'Carlos & García'
+    assert json.loads(report.datos_emitidos)['contexto']['datos']['ejecutor'] == report.ejecutor
+    assert json.loads(report.datos_emitidos)['contexto']['datos']['supervisor'] == report.supervisor
+    assert issued['html'] == preview_html
+    assert get_report(report.id_reporte, db)['html'] == preview_html
+    assert save(emission, db, SimpleNamespace(id=10, usuario='TEST_FIRMAS'))['id_reporte'] == report.id_reporte
+    with pytest.raises(HTTPException) as conflict:
+        save(emission.model_copy(update={'supervisor': 'Otra persona'}), db, SimpleNamespace(id=10, usuario='TEST_FIRMAS'))
+    assert conflict.value.status_code == 409
+
+
+def test_old_report_snapshot_without_new_names_still_renders(report_db):
+    db = report_db
+    db.add(RegistroMaestro(idd=1, codigo_muestra='DH-UCS-M01', tipo_ensayo='UCS'))
+    db.flush()
+    issued = save(SaveEmission(codigo_muestra='DH-UCS-M01', numero_informe='ANTERIOR', fecha_emision=date.today(),
+                              solicitud_id=uuid4()), db, SimpleNamespace(id=1, usuario='TEST'))
+    report = db.get(Report, issued['id_reporte'])
+    snapshot = json.loads(report.datos_emitidos)
+    snapshot['contexto']['datos'].pop('ejecutor')
+    snapshot['contexto']['datos'].pop('supervisor')
+    snapshot['contexto']['datos']['muestreo'] = 'Valor anterior de muestreo'
+    report.datos_emitidos = json.dumps(snapshot)
+    db.flush()
+    html = get_report(report.id_reporte, db)['html']
+    assert '<dt>Muestreo</dt>' not in html
+    assert 'Valor anterior de muestreo' not in html
+    assert html.count('class="firma-trazo"') == 2
+    assert '<span class="firma-nombre"></span>' in html

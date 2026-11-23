@@ -6,6 +6,8 @@ import { authFilledInputClass, authPrimaryClass } from '../auth/AuthFields';
 import ReportAssayPicker from '../features/reports/ReportAssayPicker';
 import type { ReportAssayMatch } from '../features/reports/ReportAssayPicker';
 import { downloadReport } from '../features/reports/downloadReport';
+import ReportPhotos from '../features/reports/ReportPhotoFields';
+import { embedReportPhotos, uploadReportPhoto, photoPairError, previewPhotoDimensions, type ReportPhotos as Photos, type PhotoPosition } from '../features/reports/reportPhotos';
 
 const url = API_BASE + '/api/reportes';
 const sections = [
@@ -20,7 +22,8 @@ const sections = [
       { key: 'numero_informe', label: 'Informe N.º', max: 100, required: true },
       { key: 'fecha_emision', label: 'Fecha de emisión', type: 'date', required: true },
       { key: 'texto_titulo', label: 'Texto del título', max: 150, example: 'Ej. ASTM D2938' },
-      { key: 'muestreo', label: 'Muestreo', max: 150 },
+      { key: 'ejecutor', label: 'Ejecutor', max: 150, example: 'Ej. Ana Pérez' },
+      { key: 'supervisor', label: 'Supervisor', max: 150, example: 'Ej. Carlos García' },
       { key: 'ubicacion', label: 'Ubicación', max: 200 },
     ],
   },
@@ -44,7 +47,7 @@ const historyColumns = ['Informe', 'Código de muestra', 'Tipo de ensayo', 'Sond
 
 type Field = typeof sections[number]['fields'][number]['key'];
 type EmissionFields = Record<Field, string>;
-type Sample = { muestra: Record<string, string>; datos: Record<string, string>; tipo_ensayo: string; corridas: number };
+type Sample = { muestra: Record<string, string>; datos: Record<string, string>; tipo_ensayo: string; corridas: number; fotografias_habilitadas?: boolean };
 type DocumentResponse = { id_reporte: number; codigo_muestra: string; numero_informe: string; html: string; sigla_ensayo: string };
 type HistoryItem = Pick<DocumentResponse, 'id_reporte' | 'codigo_muestra' | 'numero_informe'> & {
   fecha_emision: string; usuario_emisor: string; tipo_ensayo: string | null; sondaje: string | null;
@@ -56,7 +59,7 @@ const secondary = 'inline-flex items-center justify-center gap-2 rounded-xl bord
 function emptyEmission(): EmissionFields {
   return {
     numero_informe: '', fecha_emision: new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Lima' }).format(new Date()),
-    texto_titulo: '', muestreo: '', ubicacion: '', material: '', presentacion: '', muestreado: '', profundidad: '',
+    texto_titulo: '', ejecutor: '', supervisor: '', ubicacion: '', material: '', presentacion: '', muestreado: '', profundidad: '',
   };
 }
 
@@ -74,6 +77,8 @@ export default function Reportes() {
   const [html, setHtml] = useState('');
   const [saved, setSaved] = useState<DocumentResponse | null>(null);
   const [busy, setBusy] = useState(false);
+  const [photos, setPhotos] = useState<Photos>({});
+  const [photoProcessing, setPhotoProcessing] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [historyInput, setHistoryInput] = useState('');
@@ -104,6 +109,12 @@ export default function Reportes() {
     return response.json();
   }
 
+  async function loadPhoto(path: string) {
+    const response = await authFetch(API_BASE + path);
+    if (!response.ok) throw await responseError(response, 'No se pudo recuperar la fotografía del reporte.');
+    return response;
+  }
+
   async function run(operation: () => Promise<void>) {
     if (busy) return;
     setBusy(true);
@@ -124,6 +135,7 @@ export default function Reportes() {
       setSample(null);
       setSaved(null);
       setHtml('');
+      setPhotos({});
       pendingKey.current = null;
       if (status !== 'disponible') {
         setNotice(status === 'pendiente'
@@ -139,32 +151,49 @@ export default function Reportes() {
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const isPreview = (event.nativeEvent as SubmitEvent).submitter?.getAttribute('value') === 'preview';
-    if (!sample || saved && !isPreview) return;
+    if (!sample || photoProcessing || saved && !isPreview) return;
+    const pairError = photoPairError(photos);
+    if (pairError) { setError(pairError); return; }
     if (!emission.numero_informe.trim()) {
       setError('Ingresa el número de informe.');
       return;
     }
     void run(async () => {
-      const payload = { ...emission, codigo_muestra: sample.muestra.codigo };
-      if (!isPreview) pendingKey.current ??= crypto.randomUUID();
+      const ids: Partial<Record<PhotoPosition, string>> = {};
+      if (!isPreview) {
+        pendingKey.current ??= crypto.randomUUID();
+        for (const position of ['antes', 'despues'] as const) {
+          const photo = photos[position];
+          if (photo) {
+            const id = await uploadReportPhoto(photo, position, sample.muestra.codigo, pendingKey.current, request);
+            ids[position] = id;
+            setPhotos(current => ({ ...current, [position]: { ...photo, id, uploadRequest: pendingKey.current! } }));
+          }
+        }
+      }
+      const common = { ...emission, codigo_muestra: sample.muestra.codigo };
+      const payload = isPreview
+        ? { ...common, fotografias_locales: previewPhotoDimensions(photos) }
+        : { ...common, imagenes: ids, solicitud_id: pendingKey.current };
       const result: DocumentResponse = await request(isPreview ? '/vista-previa' : '', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(isPreview ? payload : { ...payload, solicitud_id: pendingKey.current }),
+        body: JSON.stringify(payload),
       });
-      setHtml(result.html);
       if (!isPreview) {
         setSaved(result);
-        setNotice('Reporte guardado.');
-        await downloadReport(result.html, result.id_reporte, result.codigo_muestra, result.sigla_ensayo);
+        setNotice('Reporte guardado. Si la descarga falla, puedes reintentar desde el historial.');
       }
+      const prepared = await embedReportPhotos(result.html, loadPhoto, photos);
+      setHtml(prepared);
+      if (!isPreview) await downloadReport(prepared, result.id_reporte, result.codigo_muestra, result.sigla_ensayo);
     });
   }
 
   function download(id: number) {
     void run(async () => {
       const result: DocumentResponse = await request('/' + id);
-      await downloadReport(result.html, result.id_reporte, result.codigo_muestra, result.sigla_ensayo);
+      await downloadReport(await embedReportPhotos(result.html, loadPhoto), result.id_reporte, result.codigo_muestra, result.sigla_ensayo);
     });
   }
 
@@ -172,8 +201,8 @@ export default function Reportes() {
     <section className="space-y-4 text-slate-100">
       <h1 className="flex items-center gap-2 text-xl font-black"><FileText size={22} className="text-sky-600" aria-hidden="true" /> Reportes de ensayos</h1>
       <div aria-label="Vistas de reportes" className="flex flex-wrap gap-2">
-        <button type="button" aria-pressed={tab === 'new'} disabled={busy} onClick={() => setTab('new')} className={tab === 'new' ? authPrimaryClass : secondary}><FilePlus size={16} aria-hidden="true" /> Nuevo reporte</button>
-        <button type="button" aria-pressed={tab === 'history'} disabled={busy} onClick={() => setTab('history')} className={tab === 'history' ? authPrimaryClass : secondary}>
+        <button type="button" aria-pressed={tab === 'new'} disabled={busy || photoProcessing} onClick={() => setTab('new')} className={tab === 'new' ? authPrimaryClass : secondary}><FilePlus size={16} aria-hidden="true" /> Nuevo reporte</button>
+        <button type="button" aria-pressed={tab === 'history'} disabled={busy || photoProcessing} onClick={() => setTab('history')} className={tab === 'history' ? authPrimaryClass : secondary}>
           <History size={16} aria-hidden="true" /> Historial
         </button>
       </div>
@@ -183,7 +212,7 @@ export default function Reportes() {
       {tab === 'new' ? (
         <>
           <div className="rounded-xl border border-navy-800 bg-navy-950 p-4">
-            <ReportAssayPicker disabled={busy} selectedCode={selectedCode} onSelect={match => selectSample(match.codigo_muestra, match.estado_plantilla)} />
+            <ReportAssayPicker disabled={busy || photoProcessing} selectedCode={selectedCode} onSelect={match => selectSample(match.codigo_muestra, match.estado_plantilla)} />
           </div>
 
           {sample && (
@@ -226,6 +255,8 @@ export default function Reportes() {
                   </div>
                 </fieldset>
               ))}
+              {sample.fotografias_habilitadas && <ReportPhotos photos={photos} disabled={busy || Boolean(saved)} onProcessing={setPhotoProcessing}
+                onChange={next => { setPhotos(next); setHtml(''); pendingKey.current = null; }} />}
               <div className="flex flex-wrap gap-2">
                 {saved ? (
                   <>
@@ -234,8 +265,8 @@ export default function Reportes() {
                   </>
                 ) : (
                   <>
-                    <button type="submit" value="preview" disabled={busy} className={secondary}><Eye size={16} aria-hidden="true" /> Vista previa</button>
-                    <button type="submit" value="save" disabled={busy} className={authPrimaryClass}><Save size={16} aria-hidden="true" /> {busy ? 'Procesando…' : 'Guardar reporte'}</button>
+                    <button type="submit" value="preview" disabled={busy || photoProcessing} className={secondary}><Eye size={16} aria-hidden="true" /> Vista previa</button>
+                    <button type="submit" value="save" disabled={busy || photoProcessing} className={authPrimaryClass}><Save size={16} aria-hidden="true" /> {busy || photoProcessing ? 'Procesando…' : 'Guardar reporte'}</button>
                   </>
                 )}
               </div>
