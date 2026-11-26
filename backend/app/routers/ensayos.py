@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import case, func, literal_column, or_, text
 
 from app.database import get_db
+from app.auth.router import current_user
 from app import models, schemas
 from app.core.rules import calculate_derived_fields, clamp_value, validate_record_qaqc
 from app.services.excel_exporter import export_ensayos_to_excel
@@ -448,7 +449,7 @@ def batch_delete_ensayos(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Fallo al eliminar registros por lote: {e}")
 
-@router.post("/clear-all")
+@router.post("/clear-all", dependencies=[Depends(current_user)])
 def clear_all_ensayos(
     db: Session = Depends(get_db)
 ):

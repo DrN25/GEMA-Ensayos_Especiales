@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.auth.router import current_user
 from app import models, schemas
 
 router = APIRouter(prefix="/api/proyectos", tags=["Proyectos Geotécnicos"])
@@ -15,7 +16,7 @@ router = APIRouter(prefix="/api/proyectos", tags=["Proyectos Geotécnicos"])
 def get_proyectos(db: Session = Depends(get_db)):
     return db.query(models.Proyecto).all()
 
-@router.post("")
+@router.post("", dependencies=[Depends(current_user)])
 def save_proyectos(data: List[schemas.ProyectoBase], db: Session = Depends(get_db)):
     try:
         existing_projs = {p.id: p for p in db.query(models.Proyecto).all() if p.id is not None}

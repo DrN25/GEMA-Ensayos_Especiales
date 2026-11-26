@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useGridStore } from '../features/grid/gridStore';
 import { deltaManager } from '../features/grid/storage/deltaManager';
@@ -25,6 +25,7 @@ export interface User {
 
 interface Session {
   user: User | null;
+  testAccess: boolean;
   checking: boolean;
   message: string | null;
   login: (identifier: string, password: string) => Promise<void>;
@@ -52,12 +53,19 @@ export async function responseError(response: Response, fallback: string) {
   return new Error(typeof body?.detail === 'string' ? body.detail : fallback);
 }
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [initialToken] = useState(readToken);
+export function AuthProvider({ children, testAccess }: { children: ReactNode; testAccess: boolean }) {
+  const [initialToken] = useState(() => testAccess ? null : readToken());
   const active = useRef(initialToken);
   const [session, setSession] = useState<{ token: string; user: User } | null>(null);
   const [checking, setChecking] = useState(Boolean(initialToken));
   const [message, setMessage] = useState<string | null>(null);
+
+  useLayoutEffect(() => {
+    if (!testAccess) return;
+    // Keep guest drafts in a separate browser slot from authenticated users.
+    deltaManager.setOwner(-1);
+    return () => deltaManager.setOwner(null);
+  }, [testAccess]);
 
   const endSession = useCallback((notice?: string) => {
     active.current = null;
@@ -114,6 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const token = session?.token;
   const authFetch: typeof fetch = useCallback(async (url, options) => {
+    if (testAccess) return fetch(url, options);
     if (!token || active.current !== token) throw new Error('La sesión ya no está activa.');
     const headers = new Headers(options?.headers);
     headers.set('Authorization', 'Bearer ' + token);
@@ -121,9 +130,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (active.current !== token) throw new Error('La sesión ya no está activa.');
     if (response.status === 401) endSession('Tu sesión expiró. Vuelve a iniciar sesión.');
     return response;
-  }, [endSession, token]);
+  }, [endSession, testAccess, token]);
 
-  return <AuthContext.Provider value={{ user: session?.user ?? null, checking, message, login, endSession, authFetch }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user: session?.user ?? null, testAccess, checking, message, login, endSession, authFetch }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

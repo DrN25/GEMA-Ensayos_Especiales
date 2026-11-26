@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import ProfileMenu from '../auth/ProfileMenu';
+import { useAuth } from '../auth/AuthContext';
 import {
   ArrowLeft,
   BookOpen,
@@ -69,6 +70,7 @@ export default function TopBar({
   hasAlerts,
   checkModuleModified
 }: TopBarProps) {
+  const { testAccess } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const testModules = ['ucs', 'elasticas', 'traccion', 'corte', 'triaxial'];
@@ -159,7 +161,11 @@ export default function TopBar({
             <span className="hidden sm:inline">Catálogos</span>
           </button>
 
-          <ProfileMenu hasUnsavedChanges={saveStatus === 'unsaved' || saveStatus === 'saving' || saveStatus === 'error'} />
+          {testAccess ? (
+            <span className="rounded-lg border border-amber-500/40 px-2.5 py-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
+              Modo de prueba
+            </span>
+          ) : <ProfileMenu hasUnsavedChanges={saveStatus === 'unsaved' || saveStatus === 'saving' || saveStatus === 'error'} />}
         </div>
 
         {/* Botón Descartar cambios: visible solo si hay cambios pendientes */}

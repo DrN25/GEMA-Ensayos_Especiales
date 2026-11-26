@@ -1,8 +1,10 @@
+from dataclasses import dataclass
 from datetime import datetime, timezone
+import os
 from typing import Literal
 import re
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 from sqlalchemy import select, update
@@ -16,6 +18,23 @@ from app.database import get_db
 
 bearer = HTTPBearer(auto_error=False)
 auth = APIRouter(prefix="/api/auth", tags=["Autenticación"])
+TEST_ACCESS = os.environ.get("ESPECIALES_TEST_ACCESS") == "1"
+
+
+@dataclass(frozen=True)
+class TestUser:
+    # Account tokens only accept positive IDs. This identity is never stored in auth.
+    id: int = -1
+    usuario: str = "INVITADO_PRUEBAS"
+
+
+TEST_USER = TestUser()
+
+
+@auth.get("/mode")
+def access_mode(response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    return {"login_required": not TEST_ACCESS}
 
 
 class LoginInput(BaseModel):
@@ -79,6 +98,13 @@ def current_user(
     if user is None:
         raise session_error()
     return user
+
+
+def test_user() -> TestUser:
+    return TEST_USER
+
+
+work_user = test_user if TEST_ACCESS else current_user
 
 
 def require_admin(user: User = Depends(current_user)) -> User:

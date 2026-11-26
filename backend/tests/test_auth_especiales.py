@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
 from app.auth.models import AuthBase, Role, System, User
+from app.auth.router import TEST_ACCESS
 from app.auth.security import hash_password
 from app.database import get_db
 from app.main import app
@@ -75,6 +76,9 @@ def bearer(response):
 
 def test_scoped_login_and_api_gate(account_client):
     client = account_client
+    mode = client.get("/api/auth/mode")
+    assert mode.json() == {"login_required": True}
+    assert mode.headers["cache-control"] == "no-store"
     for path in ["/api/ensayos", "/api/proyectos", "/api/auditoria/history", "/api/uploads/test.xlsx", "/api/db-status"]:
         assert client.get(path).status_code == 401
     assert client.post("/api/records/bulk", json=[]).status_code == 401
@@ -91,6 +95,20 @@ def test_scoped_login_and_api_gate(account_client):
     operational = bearer(login(client, "test_especiales"))
     assert client.get("/api/config/columnas", headers=operational).status_code == 200
     assert client.get("/api/admin/usuarios", headers=operational).status_code == 403
+
+
+@pytest.mark.skipif(not TEST_ACCESS, reason="Run with ESPECIALES_TEST_ACCESS=1")
+def test_guest_operational_access_keeps_account_and_sensitive_actions_protected(account_client):
+    client = account_client
+    mode = client.get("/api/auth/mode")
+    assert mode.json() == {"login_required": False}
+    assert mode.headers["cache-control"] == "no-store"
+    assert client.get("/api/config/columnas").status_code == 200
+    assert client.post("/api/records/bulk", json=[]).status_code == 200
+    for path in ("/api/admin/usuarios", "/api/auth/me", "/api/auditoria/history", "/api/uploads/test.xlsx"):
+        assert client.get(path).status_code == 401
+    for path in ("/api/ensayos/clear-all", "/api/proyectos"):
+        assert client.post(path, json=[]).status_code == 401
 
 
 def test_manage_accounts_and_keep_first_admin_protected(account_client):

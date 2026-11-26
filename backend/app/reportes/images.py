@@ -126,9 +126,10 @@ def photo_urls(data):
     return result
 
 
-def download_image(db, image_id):
+def download_image(db, image_id, *, owner_id=None):
     image = db.get(ReportImage, str(image_id))
-    if image is None or image.estado != 'lista' or image.id_reporte is None:
+    if (image is None or image.estado != 'lista' or image.id_reporte is None
+            or (owner_id is not None and image.usuario_id != owner_id)):
         raise HTTPException(404, 'La fotografía no está asociada a un reporte emitido.')
     if image.proveedor != 'google_drive':
         raise HTTPException(409, 'Esta fotografía pertenece al almacenamiento anterior.')

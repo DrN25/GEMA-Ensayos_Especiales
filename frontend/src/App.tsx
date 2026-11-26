@@ -46,8 +46,8 @@ interface Proyecto {
 }
 
 export default function App() {
-  const { user, authFetch } = useAuth();
-  const recordsCacheKey = 'sigeg_records_v2:' + user?.usuario_id;
+  const { user, testAccess, authFetch } = useAuth();
+  const recordsCacheKey = 'sigeg_records_v2:' + (testAccess ? 'test-access' : user?.usuario_id);
   // --- 1. ESTADOS DE CONTROL PRINCIPALES ---
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
   const [history, setHistory] = useState<string[]>(['dashboard']);
@@ -1014,7 +1014,7 @@ export default function App() {
               totalRecords={totalRecords}
               isLoading={isFetchingEnsayos}
               onDeleteRow={handleDeleteRow}
-              onClearDatabase={handleClearDatabase}
+              onClearDatabase={testAccess ? undefined : handleClearDatabase}
               onPageChange={(newPage) => {
                 setPage(newPage);
                 if (!hasUnsavedImport) {

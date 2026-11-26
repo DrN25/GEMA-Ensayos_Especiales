@@ -18,7 +18,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 from app.auth.models import User
-from app.auth.router import current_user
+from app.auth.router import TEST_ACCESS, TEST_USER, TestUser, work_user
 from app.database import get_db
 from app.models import RegistroMaestro
 from app.reportes.plantillas.comunes.preparar_campos import NOMBRES_PROYECTO, preparar_campos
@@ -230,7 +230,7 @@ def store_uploaded_image(payload, stream, db, user):
 @router.post('/imagenes/cargas', status_code=201)
 async def upload_image(request: Request, codigo_muestra: str = Query(min_length=1, max_length=150),
                        posicion: Literal['antes', 'despues'] = Query(), solicitud_id: UUID = Query(),
-                       db: Session = Depends(get_db), user: User = Depends(current_user)):
+                       db: Session = Depends(get_db), user: User | TestUser = Depends(work_user)):
     if request.headers.get('content-type', '').split(';')[0].strip().lower() != 'image/jpeg':
         raise HTTPException(415, 'La fotografía optimizada debe enviarse como image/jpeg.')
     length = request.headers.get('content-length')
@@ -256,11 +256,14 @@ async def upload_image(request: Request, codigo_muestra: str = Query(min_length=
 
 
 @router.get('/imagenes/{image_id}')
-def get_image(image_id: UUID, db: Session = Depends(get_db), user: User = Depends(current_user)):
+def get_image(image_id: UUID, db: Session = Depends(get_db), user: User | TestUser = Depends(work_user)):
     if not _photo_transfers.acquire(blocking=False):
         raise HTTPException(429, 'Hay otras fotografías procesándose. Reintenta en unos momentos.', headers={'Retry-After': '2'})
     try:
-        stream, size = images.download_image(db, image_id)
+        if TEST_ACCESS:
+            stream, size = images.download_image(db, image_id, owner_id=TEST_USER.id)
+        else:
+            stream, size = images.download_image(db, image_id)
     finally:
         # The Drive transfer is complete; slow/disconnected browser clients must
         # not keep the network semaphore acquired.
@@ -408,7 +411,7 @@ def sample(codigo_muestra: str = Query(min_length=1, max_length=150), db: Sessio
 
 
 @router.post("/vista-previa")
-def preview(emission: PreviewEmission, db: Session = Depends(get_db), user: User = Depends(current_user)):
+def preview(emission: PreviewEmission, db: Session = Depends(get_db), user: User | TestUser = Depends(work_user)):
     data, report_format = snapshot(db, emission)
     local = getattr(emission, 'fotografias_locales', {})
     if emission.imagenes:
@@ -436,7 +439,7 @@ def document(report: Report) -> dict:
 
 
 @router.post("", status_code=201)
-def save(emission: SaveEmission, db: Session = Depends(get_db), user: User = Depends(current_user)):
+def save(emission: SaveEmission, db: Session = Depends(get_db), user: User | TestUser = Depends(work_user)):
     key = str(emission.solicitud_id)
 
     def previous():
@@ -495,6 +498,8 @@ def history(q: str = Query(default="", max_length=150), page: int = Query(defaul
     size = 20
     query = select(Report.id_reporte, Report.codigo_muestra, Report.numero_informe, Report.fecha_emision,
                    Report.usuario_emisor, Report.version_plantilla, Report.datos_emitidos)
+    if TEST_ACCESS:
+        query = query.where(Report.usuario_id == TEST_USER.id)
     if q.strip():
         query = query.where(or_(
             Report.codigo_muestra.contains(q.strip(), autoescape=True),
@@ -514,6 +519,6 @@ def history(q: str = Query(default="", max_length=150), page: int = Query(defaul
 @router.get("/{report_id}")
 def get_report(report_id: int, db: Session = Depends(get_db)):
     report = db.get(Report, report_id)
-    if report is None:
+    if report is None or (TEST_ACCESS and report.usuario_id != TEST_USER.id):
         raise HTTPException(404, "El reporte no existe.")
     return document(report)

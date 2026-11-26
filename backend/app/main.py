@@ -12,7 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.database import engine, Base, auto_heal_schema, get_db
-from app.auth.router import admin, auth, current_user
+from app.auth.router import admin, auth, current_user, work_user
 from app.routers.ensayos import router as ensayos_router
 from app.routers.proyectos import router as proyectos_router
 from app.routers.auditoria import router as auditoria_router
@@ -61,12 +61,13 @@ app.include_router(auth)
 app.include_router(admin)
 
 require_session = [Depends(current_user)]
-app.include_router(ensayos_router, dependencies=require_session)
-app.include_router(proyectos_router, dependencies=require_session)
+work_access = [Depends(work_user)]
+app.include_router(ensayos_router, dependencies=work_access)
+app.include_router(proyectos_router, dependencies=work_access)
 app.include_router(auditoria_router, dependencies=require_session)
-app.include_router(config_router, dependencies=require_session)
-app.include_router(reportes_router, dependencies=require_session)
-app.include_router(revision_excel_router, dependencies=require_session)
+app.include_router(config_router, dependencies=work_access)
+app.include_router(reportes_router, dependencies=work_access)
+app.include_router(revision_excel_router, dependencies=work_access)
 
 @app.get("/api/uploads/{file_path:path}", dependencies=require_session)
 @app.head("/api/uploads/{file_path:path}", dependencies=require_session, include_in_schema=False)
@@ -75,12 +76,12 @@ async def get_uploaded_file(file_path: str, request: Request):
 
 
 # Alias de compatibilidad hacia atrás
-@app.get("/api/db-status", dependencies=require_session)
+@app.get("/api/db-status", dependencies=work_access)
 def db_status_alias(db: Session = Depends(get_db)):
     from app.routers.config import get_db_status
     return get_db_status(db)
 
-@app.post("/api/records/bulk", dependencies=require_session)
+@app.post("/api/records/bulk", dependencies=work_access)
 def records_bulk_alias(payload: list = Body(...), db: Session = Depends(get_db)):
     from app.routers.ensayos import batch_upsert_ensayos
     return batch_upsert_ensayos(payload, db)

@@ -13,12 +13,12 @@ from sqlalchemy import func, select
 
 from tests.test_reportes_ucs import report_db
 from app.models import RegistroMaestro
-from app.auth.router import current_user
+from app.auth.router import TEST_ACCESS, TEST_USER, current_user
 from app.database import get_db
 from app.reportes import images
 from app.reportes.image_storage import ImageStorage, MAX_IMAGE_BYTES, PHOTO_FOLDERS, inspect_jpeg, jpeg_dimensions, photo_filename
 from app.reportes.router import (Emission, PreviewEmission, SaveEmission, ImageUpload, Report, preview, save,
-                                get_report, store_uploaded_image, router, FORMATS, sample)
+                                get_report, history, store_uploaded_image, router, FORMATS, sample)
 
 JPEG = b'\xff\xd8\xff\xc0\x00\x0b\x08\x00\x64\x00\xc8\x01\x01\x11\x00\xff\xd9'
 
@@ -125,6 +125,36 @@ def test_save_history_and_retry_keep_one_file_per_slot(photo_setup):
     with pytest.raises(HTTPException) as error:
         save(emission.model_copy(update={'solicitud_id': uuid4()}), db, actor)
     assert error.value.status_code == 409
+
+
+@pytest.mark.skipif(not TEST_ACCESS, reason="Run with ESPECIALES_TEST_ACCESS=1")
+def test_guest_reports_and_photos_are_separate_from_account_history(photo_setup):
+    db, _, store = photo_setup
+    reference = dict(codigo_muestra='DH-UCS-M01', fecha_emision=date.today())
+
+    def issue(setup, number):
+        request_id = uuid4()
+        before = uploaded(setup, request_id=request_id)
+        after = uploaded(setup, 'despues', request_id)
+        emission = SaveEmission(**reference, numero_informe=number, solicitud_id=request_id,
+                                imagenes={'antes': before, 'despues': after})
+        return save(emission, db, setup[1])['id_reporte'], before
+
+    account_report, account_photo = issue(photo_setup, 'ACCOUNT')
+    guest_report, guest_photo = issue((db, TEST_USER, store), 'INVITADO')
+
+    assert [item['id_reporte'] for item in history(q='', page=1, db=db)['items']] == [guest_report]
+    assert 'INVITADO' in get_report(guest_report, db)['html']
+    assert db.get(Report, guest_report).usuario_emisor == TEST_USER.usuario
+    with pytest.raises(HTTPException) as error:
+        get_report(account_report, db)
+    assert error.value.status_code == 404
+    with pytest.raises(HTTPException) as error:
+        images.download_image(db, account_photo, owner_id=TEST_USER.id)
+    assert error.value.status_code == 404
+    stream, _ = images.download_image(db, guest_photo, owner_id=TEST_USER.id)
+    with stream:
+        assert stream.read() == JPEG
 
 
 def test_interrupted_upload_can_be_retried_without_duplicate_files(photo_setup):
